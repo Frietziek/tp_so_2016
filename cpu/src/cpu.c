@@ -10,6 +10,31 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "primitivas_ansisop.h"
+
+AnSISOP_funciones functions = {
+		.AnSISOP_definirVariable = definirVariable,
+		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
+		.AnSISOP_dereferenciar = derefenciar,
+		.AnSISOP_asignar = asignar,
+		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
+		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
+		.AnSISOP_irAlLabel = irAlLabel,
+		.AnSISOP_retornar = retornar,
+		.AnSISOP_imprimir = imprimir,
+		.AnSISOP_imprimirTexto = imprimirTexto,
+		.AnSISOP_entradaSalida = entradaSalida
+};
+
+AnSISOP_kernel kernel_functions = {
+		.AnSISOP_wait = wait,
+		.AnSISOP_signal = signal
+};
+
+// Test para probar primitivas
+//static const char* DEFINICION_VARIABLES = "variables a, b, c";
 
 int main(void) {
 	// TODO Conectar con el Nucleo (socket client)
@@ -17,7 +42,12 @@ int main(void) {
 	// TODO Incrementar registro Program Counter en PCB
 	// TODO Hacer el parser del indice de codigo
 	// TODO Conectarse al UMC y recibir prox sentencia
+
 	// TODO Ejecutar operaciones (Primitivas)
+	// Test para probar primitivas
+	//printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
+	//analizadorLinea(strdup(DEFINICION_VARIABLES), &functions, &kernel_functions);
+
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
 	// TODO Notificar al nucleo que termino el Quantum
