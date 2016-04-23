@@ -10,8 +10,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "tipos_swap.h"
 
 int main(void) {
-	puts("Hola soy el swap");
+	t_config_swap *config_swap = malloc(sizeof(t_config_swap));
+	cargar_configuracion_swap("config.swap.ini", config_swap);
+
+	int a = 2;
+
 	return EXIT_SUCCESS;
 }
