@@ -208,5 +208,5 @@ int conectar_servidor(char *ip, int puerto) {
 		perror("connect");
 		return -1;
 	}
-	return 0;
+	return socket_servidor;
 }
