@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <commons/config.h>
 #include "nucleo.h"
-#include <sockets.h>
+#include <comunicaciones.h>
 
 int main(void) {
 	puts("Hola soy el nucleo"); /* prints proceso */
