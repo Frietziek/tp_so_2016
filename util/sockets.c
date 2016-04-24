@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <netdb.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -30,7 +31,7 @@ void sigchld_handler(int s) {
 		;
 }
 
-void prepara_escucha(t_configuracion_servidor *config_servidor) {
+void crear_servidor(t_configuracion_servidor *config_servidor) {
 	int sockfd; // Escuchar sobre sock_fd, nuevas conexiones sobre new_fd
 	struct sockaddr_in my_addr;    // información sobre mi dirección
 	struct sigaction sa;
@@ -176,3 +177,36 @@ int enviar_mensaje(int socket, char *mensaje) {
 	return 0;
 }
 
+int conectar_servidor(char *ip, int puerto) {
+
+	//pthread_t hilo_conectar;
+	int socket_servidor;
+	struct hostent *he;
+	// información del destino
+	struct sockaddr_in addr_server;
+
+	if ((he = gethostbyname(ip)) == NULL) {
+		perror("gethostbyname");
+		return -1;
+	}
+
+	//Abrimos socket
+	if ((socket_servidor = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		perror("socket");
+		return -1;
+	}
+
+	//Configuración de dirección de servidor
+	addr_server.sin_family = AF_INET;    // Ordenación de bytes de la máquina
+	addr_server.sin_port = htons(puerto); // short, Ordenación de bytes de la red
+	addr_server.sin_addr = *((struct in_addr *) he->h_addr);
+	memset(&(addr_server.sin_zero), 0, 8); // poner a cero el resto de la estructura
+
+	//Conecto con servidor, si hay error finalizo
+	if (connect(socket_servidor, (struct sockaddr *) &addr_server,
+			sizeof(struct sockaddr)) == -1) {
+		perror("connect");
+		return -1;
+	}
+	return 0;
+}
