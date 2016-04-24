@@ -46,7 +46,7 @@ local.properties
 .recommenders
 
 # Eclipse Core
-.project
+*.project
 
 # External tool builders
 .externalToolBuilders/
@@ -84,3 +84,5 @@ local.properties
 # Code Recommenders
 .recommenders/
 
+# Logs del programa
+*.log
