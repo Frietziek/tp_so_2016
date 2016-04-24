@@ -24,6 +24,11 @@ int main(void) {
 	cargar_configuracion_swap("/home/utnso/Desktop/home/workspace/tp-2016-1c-Los-mallocados/swap/src/config.swap.ini",config_swap);
 	log_trace(loggerManager, "\nSe cargaron las configuraciones con los siguientes valores: \nPUERTO_ESCUCHA=%i \nNOMBRE_SWAP=%s\nCANTIDAD_PAGINAS=%i\nTAMANO_PAGINA=%i\nRETARDO_COMPACTACION=%i\n", config_swap->puerto_escucha, config_swap->nombre_swap, config_swap->cantidad_paginas, config_swap->tamano_pagina, config_swap->retardo_compactacion);
 
+	//TODO: Crear particion del swap
+
+	//Cierro el archivo de log
+	log_destroy(loggerManager);
+
 
 	return EXIT_SUCCESS;
 }
