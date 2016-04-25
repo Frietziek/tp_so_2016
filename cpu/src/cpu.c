@@ -15,25 +15,6 @@
 
 #include "primitivas_ansisop.h"
 
-AnSISOP_funciones functions = {
-		.AnSISOP_definirVariable = definirVariable,
-		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
-		.AnSISOP_dereferenciar = derefenciar,
-		.AnSISOP_asignar = asignar,
-		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
-		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
-		.AnSISOP_irAlLabel = irAlLabel,
-		.AnSISOP_retornar = retornar,
-		.AnSISOP_imprimir = imprimir,
-		.AnSISOP_imprimirTexto = imprimirTexto,
-		.AnSISOP_entradaSalida = entradaSalida
-};
-
-AnSISOP_kernel kernel_functions = {
-		.AnSISOP_wait = wait,
-		.AnSISOP_signal = signal
-};
-
 // Test para probar primitivas
 //static const char* DEFINICION_VARIABLES = "variables a, b, c";
 
