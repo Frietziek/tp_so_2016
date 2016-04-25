@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <comunicaciones.h>
 
 #include "primitivas_ansisop.h"
 
@@ -37,11 +38,17 @@ AnSISOP_kernel kernel_functions = {
 //static const char* DEFINICION_VARIABLES = "variables a, b, c";
 
 int main(void) {
+	int comando; // Comandos ingresados de la consola de CPU
+
 	// TODO Conectar con el Nucleo (socket client)
 	// TODO Recibir PCB del Nucleo
 	// TODO Incrementar registro Program Counter en PCB
 	// TODO Hacer el parser del indice de codigo
+
 	// TODO Conectarse al UMC y recibir prox sentencia
+	int socket_umc = conectar_servidor("0.0.0.0", 3603);
+	printf("CPU conectado con UMC.\n");
+	enviar_mensaje(socket_umc, "Hola soy el CPU");
 
 	// TODO Ejecutar operaciones (Primitivas)
 	// Test para probar primitivas
@@ -51,6 +58,15 @@ int main(void) {
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
 	// TODO Notificar al nucleo que termino el Quantum
-	puts("Hola soy el cpu");
+	puts("Proceso CPU creado.");
+	printf("Ingrese uno de los siguientes comandos para continuar:\n");
+	printf("Cualquier tecla para cerrar el CPU\n");
+	scanf("%d", &comando);
+	switch (comando) {
+			printf("Cerrando CPU.\n");
+			break;
+	}
+
+	close(socket_umc);
 	return EXIT_SUCCESS;
 }

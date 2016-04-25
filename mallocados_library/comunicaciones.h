@@ -13,15 +13,14 @@ typedef struct {
 } t_configuracion_servidor;
 
 typedef struct {
-	int puerto;
+	pthread_t thread_id;
 	int socket_escucha;
-} t_configuracion_escucha;
+} t_th_configuracion_escucha;
 
 typedef struct {
+	pthread_t thread_id;
 	int socket_cliente;
-	char *ip_cliente;
-	int puerto;
-} t_parametros_receive;
+} t_th_parametros_receive;
 
 //recibir mensaje
 //enviar mensaje
@@ -33,9 +32,9 @@ void sigchld_handler(int s);
 
 void crear_servidor(t_configuracion_servidor *config_servidor);
 
-void escuchar_clientes(t_configuracion_escucha *configuracion_escucha);
+void escuchar_clientes(void *configuracion_escucha);
 
-void recibir_mensaje(t_parametros_receive *parametros_receive);
+void recibir_mensaje(void *parametros_receive);
 
 int enviar_mensaje(int socket, char *mensaje);
 

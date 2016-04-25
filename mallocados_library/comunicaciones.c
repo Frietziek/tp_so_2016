@@ -79,10 +79,9 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 
 	//Creo estructuras para el hilo
 
-	t_configuracion_escucha *configuracion_escucha = malloc(
-			sizeof(t_configuracion_escucha));
+	t_th_configuracion_escucha *configuracion_escucha = malloc(
+			sizeof(t_th_configuracion_escucha));
 
-	configuracion_escucha->puerto = config_servidor->puerto;
 	configuracion_escucha->socket_escucha = sockfd;
 	//Creo el hilo
 
@@ -93,8 +92,8 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 	free(configuracion_escucha);
 }
 
-void escuchar_clientes(t_configuracion_escucha *configuracion_escucha) {
-
+void escuchar_clientes(void *configuracion) {
+	t_th_configuracion_escucha *configuracion_escucha = configuracion;
 	int socket_nueva_conexion; //las nuevas conexiones vienen aca
 	pthread_t hilo_recibir;
 	struct sockaddr_in their_addr; // info del cliente
@@ -112,13 +111,9 @@ void escuchar_clientes(t_configuracion_escucha *configuracion_escucha) {
 		printf("Recibi conexion de:  %s\n", inet_ntoa(their_addr.sin_addr));
 
 		//Creamos estructura para mandarsela a recv
-
-		t_parametros_receive *param_receive = malloc(
-				sizeof(t_parametros_receive));
+		t_th_parametros_receive *param_receive = malloc(
+				sizeof(t_th_parametros_receive));
 		param_receive->socket_cliente = socket_nueva_conexion;
-		param_receive->ip_cliente = string_duplicate(
-				inet_ntoa(their_addr.sin_addr));
-		param_receive->puerto = configuracion_escucha->puerto;
 
 		//creamos el hilo para recibir
 		pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje,
@@ -126,10 +121,11 @@ void escuchar_clientes(t_configuracion_escucha *configuracion_escucha) {
 
 		free(param_receive);
 	}
-	puts("No escucho mas");
+	printf("No escucho mas.\n");
 }
 
-void recibir_mensaje(t_parametros_receive *parametros_receive) {
+void recibir_mensaje(void *parametros) {
+	t_th_parametros_receive *parametros_receive = parametros;
 	int bytes_recibidos;
 	char buffer[MAXBUFFER];
 
@@ -149,10 +145,11 @@ void recibir_mensaje(t_parametros_receive *parametros_receive) {
 		} else {
 			// TODO Llamar funciones correspondientes
 			buffer[bytes_recibidos] = '\0';
-			printf("Mensaje recibido: %s", buffer);
+			printf("Mensaje recibido: %s\n", buffer);
 		}
 	}
 	// Cierro el socket
+	printf("Se cerro la conexion.\n");
 	close(parametros_receive->socket_cliente);
 
 }
@@ -173,17 +170,17 @@ int enviar_mensaje(int socket, char *mensaje) {
 		bytes_enviados_totales += bytes_enviados;
 	}
 
-	free(mensaje);
-	return 0;
+	//free(mensaje);
+	return bytes_enviados_totales;
 }
 
 int conectar_servidor(char *ip, int puerto) {
 
-	//pthread_t hilo_conectar;
-	int socket_servidor;
+	int socket_cliente;
 	struct hostent *he;
 	// información del destino
 	struct sockaddr_in addr_server;
+	pthread_t hilo_recibir;
 
 	if ((he = gethostbyname(ip)) == NULL) {
 		perror("gethostbyname");
@@ -191,7 +188,7 @@ int conectar_servidor(char *ip, int puerto) {
 	}
 
 	//Abrimos socket
-	if ((socket_servidor = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	if ((socket_cliente = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("socket");
 		return -1;
 	}
@@ -203,10 +200,20 @@ int conectar_servidor(char *ip, int puerto) {
 	memset(&(addr_server.sin_zero), 0, 8); // poner a cero el resto de la estructura
 
 	//Conecto con servidor, si hay error finalizo
-	if (connect(socket_servidor, (struct sockaddr *) &addr_server,
+	if (connect(socket_cliente, (struct sockaddr *) &addr_server,
 			sizeof(struct sockaddr)) == -1) {
 		perror("connect");
 		return -1;
 	}
-	return socket_servidor;
+
+	//Creamos estructura para mandarsela a recv
+	t_th_parametros_receive *param_receive = malloc(
+			sizeof(t_th_parametros_receive));
+	param_receive->socket_cliente = socket_cliente;
+
+	//creamos el hilo para recibir
+	pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje,
+			param_receive);
+
+	return socket_cliente;
 }
