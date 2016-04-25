@@ -19,7 +19,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <commons/string.h>
-#include "sockets.h"
+#include "comunicaciones.h"
 
 #define MYPORT 3490    // Puerto al que conectarán los usuarios
 #define TRUE 1
