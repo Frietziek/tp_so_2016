@@ -10,8 +10,8 @@
 
 // Valores por defecto de la configuracion
 #define DEF_PUERTO 3603 // Puerto para recibir conexiones (socket host)
-#define DEF_IP_SWAP "10.0.0.100" // Ip del proceso Swap (socket client)
-#define DEF_PUERTO_SWAP 3439 // Puerto del proceso Swap
+#define DEF_IP_SWAP "0.0.0.0" // Ip del proceso Swap (socket client)
+#define DEF_PUERTO_SWAP 6000 // Puerto del proceso Swap
 #define DEF_MARCOS 10 // Marcos disponibles en el sistema
 #define DEF_MARCO_SIZE 1024 // Tamanio de los marcos
 #define DEF_MARCO_X_PROC 2 // Cantidad de marcos por programas AnSISOP

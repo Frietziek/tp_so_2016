@@ -14,18 +14,16 @@
 #include <comunicaciones.h>
 #include "umc.h"
 
-void cargaConfiguracionUMC(char *archivo, t_config_umc *configuracion);
-
 int main(void) {
 	int comando; // Comandos ingresados de la consola de UMC
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
-	cargaConfiguracionUMC("/home/utnso/Desktop/home/workspace/tp-2016-1c-Los-mallocados/umc/src/config.umc.ini", configuracion);
+	cargaConfiguracionUMC("config.umc.ini", configuracion);
 
 	// TODO Crear bloque de memoria principal
 	// TODO Crear estructuras para programas
 	// TODO Crear Cache TLB
 
-	// TODO Crear servidor (socket host)
+	// Crear servidor (socket host)
 	t_configuracion_servidor *servidor_umc = malloc(sizeof(t_configuracion_servidor));
 	servidor_umc->puerto = configuracion->puerto;
 	crear_servidor(servidor_umc);
@@ -33,7 +31,7 @@ int main(void) {
 
 	//Se realiza una conexión con el swap (server)
 	int socket_swap = conectar_servidor(configuracion->ip_swap, configuracion->puerto_swap);
-	printf("UMC conectado con SWAP.\n");
+	printf("UMC conectado con SWAP\n");
 	enviar_mensaje(socket_swap, "Hola soy el UMC");
 
 	// TODO Recibir conexiones de Nucleo y CPUs

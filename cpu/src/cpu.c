@@ -11,7 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <commons/config.h>
 #include <comunicaciones.h>
+#include "cpu.h"
 
 #include "primitivas_ansisop.h"
 
@@ -20,6 +22,8 @@
 
 int main(void) {
 	int comando; // Comandos ingresados de la consola de CPU
+	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
+	cargaConfiguracionCPU("config.cpu.ini", configuracion);
 
 	// TODO Conectar con el Nucleo (socket client)
 	// TODO Recibir PCB del Nucleo
@@ -27,7 +31,7 @@ int main(void) {
 	// TODO Hacer el parser del indice de codigo
 
 	// TODO Conectarse al UMC y recibir prox sentencia
-	int socket_umc = conectar_servidor("0.0.0.0", 3603);
+	int socket_umc = conectar_servidor(configuracion->ip_umc, configuracion->puerto_umc);
 	printf("CPU conectado con UMC.\n");
 	enviar_mensaje(socket_umc, "Hola soy el CPU");
 
@@ -51,3 +55,30 @@ int main(void) {
 	close(socket_umc);
 	return EXIT_SUCCESS;
 }
+
+void cargaConfiguracionCPU(char *archivo, t_config_cpu *configuracionCPU) {
+	t_config *configuracion = malloc(sizeof(t_config));
+	configuracion = config_create(archivo);
+	if (config_has_property(configuracion, "IP_NUCLEO")) {
+		configuracionCPU->ip_nucleo = config_get_string_value(configuracion, "IP_NUCLEO");
+	} else {
+		configuracionCPU->ip_nucleo = DEF_IP_NUCLEO;
+	}
+	if (config_has_property(configuracion, "PUERTO_NUCLEO")) {
+		configuracionCPU->puerto_nucleo = config_get_int_value(configuracion, "PUERTO_NUCLEO");
+	} else {
+		configuracionCPU->puerto_nucleo = DEF_PUERTO_NUCLEO;
+	}
+	if (config_has_property(configuracion, "IP_UMC")) {
+		configuracionCPU->ip_umc = config_get_string_value(configuracion, "IP_UMC");
+	} else {
+		configuracionCPU->ip_umc = DEF_IP_UMC;
+	}
+	if (config_has_property(configuracion, "PUERTO_UMC")) {
+		configuracionCPU->puerto_umc = config_get_int_value(configuracion, "PUERTO_UMC");
+	} else {
+		configuracionCPU->puerto_umc = DEF_PUERTO_UMC;
+	}
+	free(configuracion);
+};
+

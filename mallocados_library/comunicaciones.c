@@ -160,14 +160,16 @@ int enviar_mensaje(int socket, char *mensaje) {
 	int longitud_mensaje = string_length(mensaje);
 
 	//ciclo hasta que se enviee toodo lo que quiero enviar
-	while (bytes_enviados_totales < longitud_mensaje) {
-		if ((bytes_enviados = send(socket, mensaje, longitud_mensaje, 0))
-				== -1) {
-			perror("send");
-			close(socket);
-			return -1;
+	if (socket >= 0) {
+		while (bytes_enviados_totales < longitud_mensaje) {
+			if ((bytes_enviados = send(socket, mensaje, longitud_mensaje, 0))
+					== -1) {
+				perror("send");
+				close(socket);
+				return -1;
+			}
+			bytes_enviados_totales += bytes_enviados;
 		}
-		bytes_enviados_totales += bytes_enviados;
 	}
 
 	//free(mensaje);
