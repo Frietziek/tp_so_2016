@@ -14,6 +14,7 @@
 #include <commons/log.h>
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
+#include <comunicaciones.h>
 
 int main(void) {
 	//Creo un archivo log
@@ -26,6 +27,13 @@ int main(void) {
 
 	//TODO: Crear particion del swap
 
+	//Se levanta un servidor que va a escuchar las peticiones del UMC
+	t_configuracion_servidor *servidor_swap_config = malloc(sizeof(t_configuracion_servidor));
+	servidor_swap_config->puerto = config_swap->puerto_escucha;
+	crear_servidor(servidor_swap_config);
+	printf("Se establecio el SWAP como servidor");
+
+	getchar();
 	//Cierro el archivo de log
 	log_destroy(loggerManager);
 
