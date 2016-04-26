@@ -89,7 +89,6 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 	pthread_create(&hilo_cliente, NULL, (void*) escuchar_clientes,
 			configuracion_escucha);
 
-	free(configuracion_escucha);
 }
 
 void escuchar_clientes(void *configuracion) {
@@ -122,6 +121,7 @@ void escuchar_clientes(void *configuracion) {
 		free(param_receive);
 	}
 	printf("No escucho mas.\n");
+	free(configuracion_escucha);
 }
 
 void recibir_mensaje(void *parametros) {
@@ -151,7 +151,6 @@ void recibir_mensaje(void *parametros) {
 	// Cierro el socket
 	printf("Se cerro la conexion.\n");
 	close(parametros_receive->socket_cliente);
-
 }
 
 int enviar_mensaje(int socket, char *mensaje) {
@@ -172,7 +171,6 @@ int enviar_mensaje(int socket, char *mensaje) {
 		}
 	}
 
-	//free(mensaje);
 	return bytes_enviados_totales;
 }
 

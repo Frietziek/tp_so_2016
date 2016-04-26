@@ -24,6 +24,7 @@ int main(void) {
 	int comando; // Comandos ingresados de la consola de CPU
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
 	cargaConfiguracionCPU("config.cpu.ini", configuracion);
+	printf("Proceso CPU creado.");
 
 	// TODO Conectar con el Nucleo (socket client)
 	// TODO Recibir PCB del Nucleo
@@ -43,7 +44,6 @@ int main(void) {
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
 	// TODO Notificar al nucleo que termino el Quantum
-	puts("Proceso CPU creado.");
 	printf("Ingrese uno de los siguientes comandos para continuar:\n");
 	printf("Cualquier tecla para cerrar el CPU\n");
 	scanf("%d", &comando);
