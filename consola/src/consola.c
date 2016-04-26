@@ -12,16 +12,25 @@
 #include <stdlib.h>
 #include <commons/config.h>
 #include "consola.h"
+#include <parser/metadata_program.h>
+#include <comunicaciones.h>
 
 void cargaConfiguracionConsola(char *archivo, t_config_consola *configuracion);
 
 int main(void) {
 
-	printf("Proceso Consola creado.\n");
+
 	t_config_consola *configuracion = malloc(sizeof(t_config_consola)); // Estructura de configuracion de la UMC
-	cargaConfiguracionConsola("/home/utnso/Desktop/home/MiRepositorio/tp-2016-1c-Los-mallocados/consola/src/config.consola.ini", configuracion);
+	cargaConfiguracionConsola("/home/utnso/workspace/tp-2016-1c-Los-mallocados/consola/src/config.consola.ini", configuracion);
 
 	printf("Proceso Consola creado.\n");
+
+
+	int socket_consola = conectar_servidor(configuracion->ip, configuracion->puerto);
+	printf("Consola conectada con el Núcleo.\n");
+	enviar_mensaje(socket_consola, "Hola soy la consola");
+
+	close(socket_consola);
 	free(configuracion);
 	return EXIT_SUCCESS;
 }
