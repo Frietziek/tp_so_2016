@@ -11,7 +11,8 @@
 // Valores por defecto de la configuracion
 #define DEF_PUERTO_Nucleo 3605 // Puerto para recibir conexiones (socket host)
 #define DEF_IP_Nucleo "10.0.0.100" // Ip del proceso Nucleo (socket Server)
-
+#define CONSOLA 1
+#define OK_CONSOLA 2
 
 typedef struct {
 	int puerto;

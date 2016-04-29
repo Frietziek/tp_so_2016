@@ -33,6 +33,13 @@
  DEF_SHARED_VARS= ["!Global", "!UnaVar", "!tiempo3"]
  * */
 
+#define CONSOLA 1
+#define OK_CONSOLA 2
+#define CPU 1
+#define OK_CPU 2
+#define UMC 1
+#define OK_UMC 2
+
 typedef struct {
 	int puerto_prog;
 	int puerto_cpu;
@@ -46,5 +53,6 @@ typedef struct {
 } t_config_nucleo;
 
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
+int crear_servidor(t_configuracion_servidor *config_servidor);
 
 #endif /* NUCLEO_H_ */
