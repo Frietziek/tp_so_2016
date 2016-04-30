@@ -101,7 +101,7 @@ void recibir_mensaje(void *parametros) {
 	while (TRUE) {
 		buffer[0] = '\0';
 
-		//Hang shake
+		///Hang shake
 
 		// Recibo mensaje del cliente
 		if (recibir_mensaje(parametros_receive->socket_cliente, buffer)){

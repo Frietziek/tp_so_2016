@@ -55,4 +55,4 @@ typedef struct {
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
 int crear_servidor(t_configuracion_servidor *config_servidor);
 
-#endif /* NUCLEO_H_ */
+#endif /* NUCLEO_H_ *///

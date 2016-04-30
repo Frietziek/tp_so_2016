@@ -23,6 +23,7 @@
 
 #define MYPORT 3490    // Puerto al que conectarán los usuarios
 #define TRUE 1
+#define FALSE 0
 #define BACKLOG 10     // Cuántas conexiones pendientes se mantienen en cola
 #define MAXBUFFER 1024 // Tamanio de buffer
 
@@ -101,6 +102,26 @@ int enviar_mensaje(int socket, char *mensaje) {
 	}
 
 	return bytes_enviados_totales;
+}
+
+int recibir_mensaje(int socket, char *buffer) {
+
+	int bytes_recibidos;
+
+// Recibo mensaje del cliente
+	if ((bytes_recibidos = recv(socket, buffer,	MAXBUFFER - 1, 0)) == -1) {
+		perror("recv");
+		return TRUE;	//Devuelve True si hubo algun error
+	}
+
+	// Verifico que el cliente no haya cerrado la conexion
+	if (bytes_recibidos == 0) {
+		return TRUE;	//Devuelve True no se conecto
+	} else {
+		// TODO Llamar funciones correspondientes
+		buffer[bytes_recibidos] = '\0';
+		return FALSE;	//Devuelve False si se conecto
+	}
 }
 
 int conectar_servidor(char *ip, int puerto) {

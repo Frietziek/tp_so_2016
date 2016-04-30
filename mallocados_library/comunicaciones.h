@@ -33,6 +33,8 @@ void sigchld_handler(int s);
 
 int crear_servidor(t_configuracion_servidor *config_servidor);
 
+int recibir_mensaje(int socket, char *buffer)
+
 void escuchar_clientes(void *configuracion_escucha);
 
 void recibir_mensaje(void *parametros_receive);

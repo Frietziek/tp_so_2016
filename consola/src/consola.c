@@ -33,21 +33,14 @@ int main(void) {
 	buffer [1] = "/0";
 	enviar_mensaje(socket_consola, buffer);
 
-	// Recibo mensaje del Servidor
-	if ((bytes_recibidos = recv(socket_consola, buffer,
-	MAXBUFFER - 1, 0)) == -1) {
-		perror("recv");
-		break;
+	// Recibo mensaje del cliente
+	if (recibir_mensaje(socket_consola, buffer)){
+		close(socket_consola);
+		free(configuracion);
+		return 1;
 	}
 
-	// Verifico que el cliente no haya cerrado la conexion
-	if (bytes_recibidos == 0) {
-		break;
-	} else {
-		// TODO Llamar funciones correspondientes
-		buffer[bytes_recibidos] = '\0';
-		Verificación_Consola = buffer[0];
-	}
+	Verificación_Consola = buffer[0];
 
 	//Verifica el Hang Shake
 
