@@ -95,7 +95,6 @@ void escuchar_clientes(void *configuracion) {
 
 void recibir_mensaje(void *parametros) {
 	t_th_parametros_receive *parametros_receive = parametros;
-	int bytes_recibidos;
 	int Tipo_Conexion;
 	char buffer[MAXBUFFER];
 
@@ -105,20 +104,11 @@ void recibir_mensaje(void *parametros) {
 		//Hang shake
 
 		// Recibo mensaje del cliente
-		if ((bytes_recibidos = recv(parametros_receive->socket_cliente, buffer,
-		MAXBUFFER - 1, 0)) == -1) {
-			perror("recv");
+		if (recibir_mensaje(parametros_receive->socket_cliente, buffer)){
 			break;
 		}
 
-		// Verifico que el cliente no haya cerrado la conexion
-		if (bytes_recibidos == 0) {
-			break;
-		} else {
-			// TODO Llamar funciones correspondientes
-			buffer[bytes_recibidos] = '\0';
-			Tipo_Conexion = buffer[0];
-		}
+		Tipo_Conexion = buffer[0];
 
 		//Determina que tipo de proceso se conecto
 
@@ -151,6 +141,7 @@ void recibir_mensaje(void *parametros) {
 				}
 				break;
 		}
+		break;
 	}
 	// Cierro el socket
 	printf("Se cerro la conexion.\n");

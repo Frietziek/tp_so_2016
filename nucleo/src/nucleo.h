@@ -35,10 +35,10 @@
 
 #define CONSOLA 1
 #define OK_CONSOLA 2
-#define CPU 1
-#define OK_CPU 2
-#define UMC 1
-#define OK_UMC 2
+#define CPU 3
+#define OK_CPU 4
+#define UMC 5
+#define OK_UMC 6
 
 typedef struct {
 	int puerto_prog;
