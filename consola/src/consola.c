@@ -12,12 +12,13 @@
 #include <stdlib.h>
 #include <commons/config.h>
 #include "consola.h"
-#include <parser/metadata_program.h>
+//#include <parser/metadata_program.h>
 #include <comunicaciones.h>
 
-void cargaConfiguracionConsola(char *archivo, t_config_consola *configuracion);
+
 
 int main(void) {
+
 
 
 	t_config_consola *configuracion = malloc(sizeof(t_config_consola)); // Estructura de configuracion de la UMC
@@ -26,9 +27,11 @@ int main(void) {
 	printf("Proceso Consola creado.\n");
 
 
+
 	int socket_nucleo = conectar_servidor("0.0.0.0", 5000);
 	printf("Consola conectada con el Núcleo.\n");
 	enviar_mensaje(socket_nucleo, "Hola soy la consola");
+
 
 	getchar();
 

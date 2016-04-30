@@ -23,10 +23,11 @@
 
 #define MYPORT 3490    // Puerto al que conectarán los usuarios
 #define TRUE 1
+#define FALSE 0
 #define BACKLOG 10     // Cuántas conexiones pendientes se mantienen en cola
 #define MAXBUFFER 1024 // Tamanio de buffer
 
-void sigchld_handler(int s) {
+int sigchld_handler(int s) {
 	while (wait(NULL) > 0)
 		;
 }
@@ -77,81 +78,10 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 		exit(1);
 	}
 
-	//Creo estructuras para el hilo
-
-	t_th_configuracion_escucha *configuracion_escucha = malloc(
-			sizeof(t_th_configuracion_escucha));
-
-	configuracion_escucha->socket_escucha = sockfd;
-	//Creo el hilo
-
-	pthread_t hilo_cliente;
-	pthread_create(&hilo_cliente, NULL, (void*) escuchar_clientes,
-			configuracion_escucha);
+	return sockfd;
 
 }
 
-void escuchar_clientes(void *configuracion) {
-	t_th_configuracion_escucha *configuracion_escucha = configuracion;
-	int socket_nueva_conexion; //las nuevas conexiones vienen aca
-	pthread_t hilo_recibir;
-	struct sockaddr_in their_addr; // info del cliente
-	socklen_t sin_size;
-
-	//ciclo hasta que lleguen conexiones nuevas
-	while (TRUE) {
-		sin_size = sizeof(struct sockaddr_in);
-		if ((socket_nueva_conexion = accept(
-				configuracion_escucha->socket_escucha,
-				(struct sockaddr *) &their_addr, &sin_size)) == -1) {
-			perror("accept");
-			break;
-		}
-		printf("Recibi conexion de:  %s\n", inet_ntoa(their_addr.sin_addr));
-
-		//Creamos estructura para mandarsela a recv
-		t_th_parametros_receive *param_receive = malloc(
-				sizeof(t_th_parametros_receive));
-		param_receive->socket_cliente = socket_nueva_conexion;
-
-		//creamos el hilo para recibir
-		pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje,
-				param_receive);
-
-		free(param_receive);
-	}
-	printf("No escucho mas.\n");
-	free(configuracion_escucha);
-}
-
-void recibir_mensaje(void *parametros) {
-	t_th_parametros_receive *parametros_receive = parametros;
-	int bytes_recibidos;
-	char buffer[MAXBUFFER];
-
-	while (TRUE) {
-		buffer[0] = '\0';
-
-		// Recibo mensaje del cliente
-		if ((bytes_recibidos = recv(parametros_receive->socket_cliente, buffer,
-		MAXBUFFER - 1, 0)) == -1) {
-			perror("recv");
-			break;
-		}
-
-		// Verifico que el cliente no haya cerrado la conexion
-		if (bytes_recibidos == 0) {
-			break;
-		} else {
-			// TODO Llamar funciones correspondientes
-			buffer[bytes_recibidos] = '\0';
-			printf("Mensaje recibido: %s\n", buffer);
-		}
-	}
-	// Cierro el socket
-	printf("Se cerro la conexion.\n");
-	close(parametros_receive->socket_cliente);
-}
 
 int enviar_mensaje(int socket, char *mensaje) {
 	int bytes_enviados_totales = 0;
@@ -172,6 +102,26 @@ int enviar_mensaje(int socket, char *mensaje) {
 	}
 
 	return bytes_enviados_totales;
+}
+
+int recibir_mensaje(int socket, char *buffer) {
+
+	int bytes_recibidos;
+
+// Recibo mensaje del cliente
+	if ((bytes_recibidos = recv(socket, buffer,	MAXBUFFER - 1, 0)) == -1) {
+		perror("recv");
+		return TRUE;	//Devuelve True si hubo algun error
+	}
+
+	// Verifico que el cliente no haya cerrado la conexion
+	if (bytes_recibidos == 0) {
+		return TRUE;	//Devuelve True no se conecto
+	} else {
+		// TODO Llamar funciones correspondientes
+		buffer[bytes_recibidos] = '\0';
+		return FALSE;	//Devuelve False si se conecto
+	}
 }
 
 int conectar_servidor(char *ip, int puerto) {
