@@ -21,16 +21,19 @@ int main(void) {
 
 
 	t_config_consola *configuracion = malloc(sizeof(t_config_consola)); // Estructura de configuracion de la UMC
-	cargaConfiguracionConsola("/home/utnso/workspace/tp-2016-1c-Los-mallocados/consola/src/config.consola.ini", configuracion);
+	cargaConfiguracionConsola("config.consola.ini", configuracion);
 
 	printf("Proceso Consola creado.\n");
 
 
-	int socket_consola = conectar_servidor(configuracion->ip, configuracion->puerto);
+	int socket_nucleo = conectar_servidor("0.0.0.0", 5000);
 	printf("Consola conectada con el Núcleo.\n");
-	enviar_mensaje(socket_consola, "Hola soy la consola");
+	enviar_mensaje(socket_nucleo, "Hola soy la consola");
 
-	close(socket_consola);
+	getchar();
+
+
+	close(socket_nucleo);
 	free(configuracion);
 	return EXIT_SUCCESS;
 }

@@ -10,25 +10,6 @@
 static const int CONTENIDO_VARIABLE = 20;
 static const int POSICION_MEMORIA = 0x10;
 
-AnSISOP_funciones functions = {
-		.AnSISOP_definirVariable = definirVariable,
-		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
-		.AnSISOP_dereferenciar = derefenciar,
-		.AnSISOP_asignar = asignar,
-		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
-		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
-		.AnSISOP_irAlLabel = irAlLabel,
-		.AnSISOP_retornar = retornar,
-		.AnSISOP_imprimir = imprimir,
-		.AnSISOP_imprimirTexto = imprimirTexto,
-		.AnSISOP_entradaSalida = entradaSalida
-};
-
-AnSISOP_kernel kernel_functions = {
-		.AnSISOP_wait = wait,
-		.AnSISOP_signal = signal
-};
-
 t_puntero definirVariable(t_nombre_variable identificador_variable) {
 	printf("Se define la variable %c\n", identificador_variable);
 	return POSICION_MEMORIA;

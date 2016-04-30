@@ -19,14 +19,19 @@ int main(void) {
 	puts("Hola soy el nucleo"); /* prints proceso */
 
 	t_config_nucleo *configuracion = malloc(sizeof(t_config_nucleo));
-	cargarConfiguracionNucleo(
-			"/home/utnso/workspace/tp-2016-1c-Los-mallocados/nucleo/src/config.nucleo.ini",
-			configuracion);
+	cargarConfiguracionNucleo("config.nucleo.ini", configuracion);
+
+	int socket_umc = conectar_servidor("0.0.0.0", 3603);
+	enviar_mensaje(socket_umc, "Hola soy el nucleo");
 
 	t_configuracion_servidor *configuracion_servidor = malloc(
 			sizeof(t_configuracion_servidor));
 
+	configuracion_servidor->puerto = configuracion->puerto_prog;
+
 	crear_servidor(configuracion_servidor);
+
+	getchar();
 
 	return EXIT_SUCCESS;
 

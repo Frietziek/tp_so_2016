@@ -16,9 +16,11 @@ t_puntero obtenerPosicionVariable(t_nombre_variable indentificador_variable);
 t_valor_variable derefenciar(t_puntero direccion_variable);
 void asignar(t_puntero direccion_variable, t_valor_variable valor);
 t_valor_variable obtenerValorCompartida(t_nombre_compartida variable);
-t_valor_variable asignarValorCompartida(t_nombre_compartida variable, t_valor_variable valor);
+t_valor_variable asignarValorCompartida(t_nombre_compartida variable,
+		t_valor_variable valor);
 void irAlLabel(t_nombre_etiqueta etiqueta);
-t_puntero_instruccion llamarFuncion(t_nombre_etiqueta etiqueta, t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion);
+t_puntero_instruccion llamarFuncion(t_nombre_etiqueta etiqueta,
+		t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion);
 void retornar(t_valor_variable retorno);
 void imprimir(t_valor_variable valor_mostrar);
 void imprimirTexto(char* texto);
