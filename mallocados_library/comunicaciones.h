@@ -8,13 +8,6 @@
 #ifndef SOCKETS_H_
 #define SOCKETS_H_
 
-#define CONSOLA 1
-#define OK_CONSOLA 2
-#define CPU 1
-#define OK_CPU 2
-#define UMC 1
-#define OK_UMC 2
-
 typedef struct {
 	int puerto;
 } t_configuracion_servidor;
@@ -31,9 +24,7 @@ typedef struct {
 
 void sigchld_handler(int s);
 
-int crear_servidor(t_configuracion_servidor *config_servidor);
-
-int recibir_mensaje(int socket, char *buffer)
+void crear_servidor(t_configuracion_servidor *config_servidor);
 
 void escuchar_clientes(void *configuracion_escucha);
 
