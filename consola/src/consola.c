@@ -22,7 +22,7 @@ int main(void) {
 
 
 	t_config_consola *configuracion = malloc(sizeof(t_config_consola)); // Estructura de configuracion de la UMC
-	cargaConfiguracionConsola("config.consola.ini", configuracion);
+	cargaConfiguracionConsola("src/config.consola.ini", configuracion);
 
 	printf("Proceso Consola creado.\n");
 

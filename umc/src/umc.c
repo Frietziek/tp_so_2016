@@ -17,7 +17,7 @@
 int main(void) {
 	int comando; // Comandos ingresados de la consola de UMC
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
-	cargaConfiguracionUMC("config.umc.ini", configuracion);
+	cargaConfiguracionUMC("src/config.umc.ini", configuracion);
 
 	// TODO Crear bloque de memoria principal
 	// TODO Crear estructuras para programas

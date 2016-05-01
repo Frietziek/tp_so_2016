@@ -19,7 +19,7 @@ int main(void) {
 	puts("Hola soy el nucleo"); /* prints proceso */
 
 	t_config_nucleo *configuracion = malloc(sizeof(t_config_nucleo));
-	cargarConfiguracionNucleo("config.nucleo.ini", configuracion);
+	cargarConfiguracionNucleo("src/config.nucleo.ini", configuracion);
 
 	int socket_umc = conectar_servidor("0.0.0.0", 3603);
 	enviar_mensaje(socket_umc, "Hola soy el nucleo");

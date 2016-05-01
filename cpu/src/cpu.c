@@ -40,7 +40,7 @@ static const char* DEFINICION_VARIABLES = "variables a, b, c";
 int main(void) {
 	int comando; // Comandos ingresados de la consola de CPU
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
-	cargaConfiguracionCPU("config.cpu.ini", configuracion);
+	cargaConfiguracionCPU("src/config.cpu.ini", configuracion);
 	printf("Proceso CPU creado.");
 
 	int socket_nucleo = conectar_servidor("0.0.0.0", 5000);
