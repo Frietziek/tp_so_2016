@@ -15,6 +15,7 @@
 #include <comunicaciones.h>
 #include "primitivas_ansisop.h"
 #include "cpu.h"
+
 AnSISOP_funciones functions = {
 		.AnSISOP_definirVariable = definirVariable,
 		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
@@ -59,8 +60,7 @@ int main(void) {
 	// TODO Ejecutar operaciones (Primitivas)
 	// Test para probar primitivas
 	printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
-	analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
-			&kernel_functions);
+	analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,&kernel_functions);
 
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
