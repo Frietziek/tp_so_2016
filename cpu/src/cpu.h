@@ -8,12 +8,6 @@
 #ifndef CPU_H_
 #define CPU_H_
 
-// Valores por defecto de la configuracion
-#define DEF_IP_NUCLEO "0.0.0.0" // Ip del proceso Swap (socket client)
-#define DEF_PUERTO_NUCLEO 5000 // Puerto para recibir conexiones (socket host)
-#define DEF_IP_UMC "0.0.0.0" // Ip del proceso Swap (socket client)
-#define DEF_PUERTO_UMC 3603 // Puerto para recibir conexiones (socket host)
-
 typedef struct {
 	char *ip_nucleo;
 	int puerto_nucleo;
@@ -21,6 +15,25 @@ typedef struct {
 	int puerto_umc;
 } t_config_cpu;
 
-void cargaConfiguracionCPU(char *archivo, t_config_cpu *configuracion);
+void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
+
+AnSISOP_funciones functions = {
+		.AnSISOP_definirVariable = definirVariable,
+		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
+		.AnSISOP_dereferenciar = derefenciar,
+		.AnSISOP_asignar = asignar,
+		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
+		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
+		.AnSISOP_irAlLabel = irAlLabel,
+		.AnSISOP_retornar = retornar,
+		.AnSISOP_imprimir = imprimir,
+		.AnSISOP_imprimirTexto = imprimirTexto,
+		.AnSISOP_entradaSalida = entradaSalida
+};
+
+AnSISOP_kernel kernel_functions = {
+		.AnSISOP_wait = wait,
+		.AnSISOP_signal = signal
+};
 
 #endif /* CPU_H_ */

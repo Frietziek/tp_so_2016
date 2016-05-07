@@ -17,9 +17,11 @@
 int main(void) {
 	int comando; // Comandos ingresados de la consola de UMC
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
-	cargaConfiguracionUMC("src/config.umc.ini", configuracion);
+	carga_configuracion_UMC("src/config.umc.ini", configuracion);
 
-	// TODO Crear bloque de memoria principal
+	// Se crea el bloque de la memoria principal
+	int memoria_principal = calloc(configuracion->marcos, configuracion->marco_size);
+
 	// TODO Crear estructuras para programas
 	// TODO Crear Cache TLB
 
@@ -34,8 +36,7 @@ int main(void) {
 	printf("UMC conectado con SWAP\n");
 	enviar_mensaje(socket_swap, "Hola soy el UMC");
 
-	// TODO Recibir conexiones de Nucleo y CPUs
-	// TODO Crear hilos por cada conexion
+	// TODO Administrar los pedidos de las CPUs y el nucleo
 
 	printf("Proceso UMC creado.\n");
 	printf("Ingrese uno de los siguientes comandos para continuar:\n");
@@ -47,12 +48,15 @@ int main(void) {
 	switch (comando) {
 		case 1:
 			printf("Entro en Retardo\n");
+			cambiar_retardo();
 			break;
 		case 2:
 			printf("Entro en Dump\n");
+			generar_dump();
 			break;
 		case 3:
 			printf("Entro en Flush\n");
+			limpiar_contenido();
 			break;
 		default:
 			printf("Comando no reconocido\n");
@@ -62,48 +66,60 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
-void cargaConfiguracionUMC(char *archivo, t_config_umc *configuracionUMC) {
+void carga_configuracion_UMC(char *archivo, t_config_umc *configuracionUMC) {
 	t_config *configuracion = malloc(sizeof(t_config));
 	configuracion = config_create(archivo);
 	if (config_has_property(configuracion, "PUERTO")) {
 		configuracionUMC->puerto = config_get_int_value(configuracion, "PUERTO");
-	} else {
-		configuracionUMC->puerto = DEF_PUERTO;
 	}
 	if (config_has_property(configuracion, "IP_SWAP")) {
 		configuracionUMC->ip_swap = config_get_string_value(configuracion, "IP_SWAP");
-	} else {
-		configuracionUMC->ip_swap = DEF_IP_SWAP;
 	}
 	if (config_has_property(configuracion, "PUERTO_SWAP")) {
 		configuracionUMC->puerto_swap = config_get_int_value(configuracion, "PUERTO_SWAP");
-	} else {
-		configuracionUMC->puerto_swap = DEF_PUERTO_SWAP;
 	}
 	if (config_has_property(configuracion, "MARCOS")) {
 		configuracionUMC->marcos = config_get_int_value(configuracion, "MARCOS");
-	} else {
-		configuracionUMC->marcos = DEF_MARCOS;
 	}
 	if (config_has_property(configuracion, "MARCO_SIZE")) {
 		configuracionUMC->marco_size = config_get_int_value(configuracion, "MARCO_SIZE");
-	} else {
-		configuracionUMC->marco_size = DEF_MARCO_SIZE;
 	}
 	if (config_has_property(configuracion, "MARCO_X_PROC")) {
 		configuracionUMC->marco_x_proc = config_get_int_value(configuracion, "MARCO_X_PROC");
-	} else {
-		configuracionUMC->marco_x_proc = DEF_MARCO_X_PROC;
 	}
 	if (config_has_property(configuracion, "ENTRADAS_TLB")) {
 		configuracionUMC->entradas_tlb = config_get_int_value(configuracion, "ENTRADAS_TLB");
-	} else {
-		configuracionUMC->entradas_tlb = DEF_ENTRADAS_TLB;
 	}
 	if (config_has_property(configuracion, "RETARDO")) {
 		configuracionUMC->retardo = config_get_int_value(configuracion, "RETARDO");
-	} else {
-		configuracionUMC->retardo = DEF_RETARDO;
 	}
 	free(configuracion);
 }
+
+void inicializar_programa() {
+	// TODO Terminar funcion
+};
+
+void solicitar_bytes_pagina() {
+	// TODO Terminar funcion
+};
+
+void almacenar_bytes_pagina() {
+	// TODO Terminar funcion
+};
+
+void finalizar_programa() {
+	// TODO Terminar funcion
+};
+
+void cambiar_retardo() {
+	// TODO Terminar funcion
+};
+
+void generar_dump() {
+	// TODO Terminar funcion
+};
+
+void limpiar_contenido() {
+	// TODO Terminar funcion
+};
