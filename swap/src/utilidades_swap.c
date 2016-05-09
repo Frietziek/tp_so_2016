@@ -1,8 +1,9 @@
-#include <commons/config.h>
-#include "tipos_swap.h"
-#include "utilidades_swap.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <commons/config.h>
+#include <string.h>
+#include "tipos_swap.h"
+#include "utilidades_swap.h"
 
 /*------------------------- Valores por defecto de la configuracion del SWAP -------------------------*/
 #define DEFAULT_PUERTO_ESCUCHA 6000
@@ -54,4 +55,22 @@ void cargar_configuracion_swap(char *archivo, t_config_swap *configuracion_swap)
 	}
 
 	free(archivo_configuracion);
+}
+
+int crear_archivo_swap(char *nombre_archivo, int tamano_archivo){
+	// Convierto el tamano_archivo a string
+	char tamano_archivo_string[15];
+	sprintf(tamano_archivo_string,"%d", tamano_archivo);
+
+	// Creo-concateno el comando necesario para crear el archivo swap
+	char comando[80];
+	strcpy(comando, "dd if=/dev/zero of=");
+	strcat(comando, nombre_archivo);
+	strcat(comando, " count=1 bs=");
+	strcat(comando, tamano_archivo_string);
+
+	// Ejecuto el comando y retorno el status
+	int status = system(comando);
+
+	return status;
 }
