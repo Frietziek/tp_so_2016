@@ -86,3 +86,6 @@ local.properties
 
 # Logs del programa
 *.log
+
+# Archivo swap
+*.data
