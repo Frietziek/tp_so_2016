@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <commons/config.h>
-#include <string.h>
+#include <commons/string.h>
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
 
@@ -58,19 +58,10 @@ void cargar_configuracion_swap(char *archivo, t_config_swap *configuracion_swap)
 }
 
 int crear_archivo_swap(char *nombre_archivo, int tamano_archivo){
-	// Convierto el tamano_archivo a string
-	char tamano_archivo_string[15];
-	sprintf(tamano_archivo_string,"%d", tamano_archivo);
-
-	// Creo-concateno el comando necesario para crear el archivo swap
-	char comando[80];
-	strcpy(comando, "dd if=/dev/zero of=");
-	strcat(comando, nombre_archivo);
-	strcat(comando, " count=1 bs=");
-	strcat(comando, tamano_archivo_string);
-
-	// Ejecuto el comando y retorno el status
+	char* comando = string_from_format("dd if=/dev/zero of=%s count=1 bs=%d", nombre_archivo, tamano_archivo);
 	int status = system(comando);
 
 	return status;
 }
+
+
