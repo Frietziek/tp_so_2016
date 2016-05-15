@@ -16,11 +16,12 @@
 #include <comunicaciones.h>
 
 
-
-int main(void) {
-
+int main(int argc, char **argv) {
 
 
+	int index;
+	FILE *archivo;
+	char Aux_Archivo[100];
 	t_config_consola *configuracion = malloc(sizeof(t_config_consola)); // Estructura de configuracion de la UMC
 	cargaConfiguracionConsola("src/config.consola.ini", configuracion);
 
@@ -32,10 +33,20 @@ int main(void) {
 	printf("Consola conectada con el Núcleo.\n");
 	enviar_mensaje(socket_nucleo, "Hola soy la consola");
 
+	// Lee Archivo y envia el archivo Ansisop
+	archivo = fopen(argv[1], "r"); //El argv[1] tiene la direccion del archivo Ansisop
+	if (archivo == NULL)   exit(1);
+	//Envia linea por linea el archivo Ansisop
+	while (feof(archivo) == 0)
+	{
+		fgets(Aux_Archivo,100,archivo);
+		enviar_mensaje(socket_nucleo, Aux_Archivo);
+	}
+
 
 	getchar();
 
-
+	fclose( archivo);
 	close(socket_nucleo);
 	free(configuracion);
 	return EXIT_SUCCESS;
@@ -56,3 +67,7 @@ void cargaConfiguracionConsola(char *archivo, t_config_consola *configuracionCon
 	}
 	free(configuracion);
 }
+
+
+
+
