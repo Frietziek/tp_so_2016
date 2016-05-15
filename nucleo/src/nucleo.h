@@ -22,7 +22,6 @@
  DEF_SHARED_VARS= ["!Global", "!UnaVar", "!tiempo3"]
  * */
 
-
 typedef struct {
 	int puerto_prog;
 	int puerto_cpu;
@@ -33,6 +32,8 @@ typedef struct {
 	char **sem_id;
 	char **sem_init;
 	char **shared_vars;
+	char *ip_umc;
+	int puerto_umc;
 } t_config_nucleo;
 
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);

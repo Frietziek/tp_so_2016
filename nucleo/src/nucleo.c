@@ -12,7 +12,7 @@
 #include <comunicaciones.h>
 #include "nucleo.h"
 #include <commons/config.h>
-
+//#include <serializacion.h>
 
 int main(void) {
 
@@ -21,8 +21,8 @@ int main(void) {
 	t_config_nucleo *configuracion = malloc(sizeof(t_config_nucleo));
 	cargarConfiguracionNucleo("src/config.nucleo.ini", configuracion);
 
-	int socket_umc = conectar_servidor("0.0.0.0", 3603);
-	enviar_mensaje(socket_umc, "Hola soy el nucleo");
+	int socket_umc = conectar_servidor(configuracion->ip_umc, 3603);
+	enviar_mensaje(configuracion->ip_umc, "Hola soy el nucleo");
 
 	t_configuracion_servidor *configuracion_servidor = malloc(
 			sizeof(t_configuracion_servidor));
@@ -33,72 +33,84 @@ int main(void) {
 
 	getchar();
 
-	close(socket_umc);
-	free(configuracion);
 	return EXIT_SUCCESS;
 }
 
 void cargarConfiguracionNucleo(char *archivoConfig,
-		t_config_nucleo *configuracionNucleo) {
+		t_config_nucleo *configuracion_nucleo) {
 	t_config *configuracion = malloc(sizeof(t_config));
 	configuracion = config_create(archivoConfig);
 	if (config_has_property(configuracion, "DEF_PUERTO_PROG")) {
-		configuracionNucleo->puerto_prog = config_get_int_value(configuracion,
+		configuracion_nucleo->puerto_prog = config_get_int_value(configuracion,
 				"DEF_PUERTO_PROG");
 	} else {
 		perror("error al cargar DEF_PUERTO_PROG");
 	}
 	if (config_has_property(configuracion, "DEF_PUERTO_CPU")) {
-		configuracionNucleo->puerto_cpu = config_get_int_value(configuracion,
+		configuracion_nucleo->puerto_cpu = config_get_int_value(configuracion,
 				"DEF_PUERTO_CPU");
 	} else {
 		perror("error al cargar DEF_PUERTO_CPU");
 	}
 	if (config_has_property(configuracion, "DEF_QUANTUM")) {
-		configuracionNucleo->quantum = config_get_int_value(configuracion,
+		configuracion_nucleo->quantum = config_get_int_value(configuracion,
 				"DEF_QUANTUM");
 	} else {
 		perror("error al cargar DEF_QUANTUM");
 	}
 	if (config_has_property(configuracion, "DEF_QUANTUM_SLEEP")) {
-		configuracionNucleo->quantum_sleep = config_get_int_value(configuracion,
-				"DEF_QUANTUM_SLEEP");
+		configuracion_nucleo->quantum_sleep = config_get_int_value(
+				configuracion, "DEF_QUANTUM_SLEEP");
 	} else {
 		perror("error al cargar DEF_QUANTUM_SLEEP");
 	}
 
 	if (config_has_property(configuracion, "DEF_IO_ID")) {
-		configuracionNucleo->io_id = config_get_array_value(configuracion,
+		configuracion_nucleo->io_id = config_get_array_value(configuracion,
 				"DEF_IO_ID");
 	} else {
 		perror("error al cargar DEF_IO_ID");
 	}
 	if (config_has_property(configuracion, "DEF_IO_SLEEP")) {
-		configuracionNucleo->io_sleep = config_get_array_value(configuracion,
+		configuracion_nucleo->io_sleep = config_get_array_value(configuracion,
 				"DEF_IO_SLEEP");
 	} else {
 		perror("error al cargar DEF_IO_SLEEP");
 	}
 
 	if (config_has_property(configuracion, "DEF_SEM_IDS")) {
-		configuracionNucleo->sem_id = config_get_array_value(configuracion,
+		configuracion_nucleo->sem_id = config_get_array_value(configuracion,
 				"DEF_SEM_IDS");
 	} else {
 		perror("error al cargar DEF_SEM_IDS");
 	}
 
 	if (config_has_property(configuracion, "DEF_SEM_INIT")) {
-		configuracionNucleo->sem_init = config_get_array_value(configuracion,
+		configuracion_nucleo->sem_init = config_get_array_value(configuracion,
 				"DEF_SEM_INIT");
 	} else {
 		perror("error al cargar DEF_SEM_INIT");
 	}
 
 	if (config_has_property(configuracion, "DEF_SHARED_VARS")) {
-		configuracionNucleo->shared_vars = config_get_array_value(configuracion,
-				"DEF_SHARED_VARS");
+		configuracion_nucleo->shared_vars = config_get_array_value(
+				configuracion, "DEF_SHARED_VARS");
 	} else {
 		perror("error al cargar DEF_SHARED_VARS");
+	}
+
+	if (config_has_property(configuracion, "DEF_IP_UMC")) {
+		configuracion_nucleo->ip_umc = config_get_string_value(configuracion,
+				"DEF_IP_UMC");
+	} else {
+		perror("error al cargar DEF_IP_UMC");
+	}
+
+	if (config_has_property(configuracion, "DEF_PUERTO_UMC")) {
+		configuracion_nucleo->puerto_umc = config_get_int_value(configuracion,
+				"DEF_PUERTO_UMC");
+	} else {
+		perror("error al cargar DEF_PUERTO_UMC");
 	}
 
 	free(configuracion);
