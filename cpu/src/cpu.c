@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <commons/config.h>
+#include <serializacion.h>
 #include <comunicaciones.h>
 #include "primitivas_ansisop.h"
 #include "cpu.h"
@@ -25,9 +26,21 @@ int main(void) {
 	carga_configuracion_cpu("src/config.cpu.ini", configuracion);
 	printf("Proceso CPU creado.");
 
-	int socket_nucleo = conectar_servidor(configuracion->ip_nucleo, configuracion->puerto_nucleo);
+	int socket_nucleo = conectar_servidor(configuracion->ip_nucleo,
+			configuracion->puerto_nucleo);
 
-	enviar_mensaje(socket_nucleo, "Hola soy el cpu");
+	t_persona *persona = malloc(sizeof(t_persona));
+	persona->edad = 22;
+	persona->cp = 1414;
+	persona->nombre = "santi";
+	persona->apellido = "bbb";
+
+	t_buffer *buffer = serializar_persona(persona);
+
+	enviar_buffer(socket_nucleo, buffer);
+
+	free(persona);
+	free(buffer);
 
 	// TODO Recibir PCB del Nucleo
 	// TODO Incrementar registro Program Counter en PCB
@@ -42,7 +55,8 @@ int main(void) {
 	// TODO Ejecutar operaciones (Primitivas)
 	// Test para probar primitivas
 	printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
-	analizadorLinea(strdup(DEFINICION_VARIABLES), &functions, &kernel_functions);
+	analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
+			&kernel_functions);
 
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB

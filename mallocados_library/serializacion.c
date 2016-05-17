@@ -29,26 +29,29 @@ void copiar_string_en_buffer(void *buffer, char *una_cosa, int *posicion_buffer)
 	*posicion_buffer += strlen(una_cosa);
 }
 
-
-//void *serializar_persona(t_persona *persona) {
 //Despues hay que hacer un free de lo que va a retornar
-//
-//	int cantidad_a_reservar = sizeof(persona->cp) + sizeof(persona->edad)
-//			+ sizeof(int) + strlen(persona->apellido) + sizeof(int)
-//			+ strlen(persona->nombre);
-//	void *buffer = malloc(cantidad_a_reservar);
-//
-//	int posicion_buffer = 0;
-//
-//	copiar_int_en_buffer(buffer, persona->edad, &posicion_buffer);
-//
-//	copiar_string_en_buffer(buffer, persona->nombre, &posicion_buffer);
-//
-//	copiar_int_en_buffer(buffer, persona->cp, &posicion_buffer);
-//	copiar_string_en_buffer(buffer, persona->apellido, &posicion_buffer);
-//
-//	return (buffer);
-//}
+t_buffer *serializar_persona(t_persona *persona) {
+
+	int cantidad_a_reservar = sizeof(persona->cp) + sizeof(persona->edad)
+			+ sizeof(int) + strlen(persona->apellido) + sizeof(int)
+			+ strlen(persona->nombre);
+	void *buffer = malloc(cantidad_a_reservar);
+
+	int posicion_buffer = 0;
+
+	copiar_int_en_buffer(buffer, persona->edad, &posicion_buffer);
+
+	copiar_string_en_buffer(buffer, persona->nombre, &posicion_buffer);
+
+	copiar_int_en_buffer(buffer, persona->cp, &posicion_buffer);
+	copiar_string_en_buffer(buffer, persona->apellido, &posicion_buffer);
+
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+	estructura_buffer->contenido_buffer = buffer;
+	estructura_buffer->longitud_buffer = posicion_buffer;
+
+	return (estructura_buffer);
+}
 
 void escribir_atributo_desde_int_de_buffer(void *buffer,
 		int *atributo_de_estructura, int *posicion_buffer) {
@@ -61,7 +64,6 @@ void escribir_atributo_desde_char_de_buffer(void *buffer,
 	memcpy(atributo_de_estructura, buffer + *posicion_buffer, sizeof(char));
 	*posicion_buffer += sizeof(char);
 }
-
 
 void escribir_atributo_desde_string_de_buffer(void *buffer,
 		char **atributo_de_estructura, int *posicion_buffer) {
@@ -82,24 +84,23 @@ void escribir_atributo_desde_string_de_buffer(void *buffer,
 
 }
 
-//void deserializar_persona(void *buffer, t_persona *persona) {
-//
-//	int posicion_buffer = 0;
-//
-//	escribir_atributo_desde_int_de_buffer(buffer, &(persona->edad),
-//			&posicion_buffer);
-//
-//	escribir_atributo_desde_string_de_buffer(buffer, &(persona->nombre),
-//			&posicion_buffer);
-//
-//	escribir_atributo_desde_int_de_buffer(buffer, &(persona->cp),
-//			&posicion_buffer);
-//
-//	escribir_atributo_desde_string_de_buffer(buffer, &(persona->apellido),
-//			&posicion_buffer);
-//
-//}
+void deserializar_persona(void *buffer, t_persona *persona) {
 
+	int posicion_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(persona->edad),
+			&posicion_buffer);
+
+	escribir_atributo_desde_string_de_buffer(buffer, &(persona->nombre),
+			&posicion_buffer);
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(persona->cp),
+			&posicion_buffer);
+
+	escribir_atributo_desde_string_de_buffer(buffer, &(persona->apellido),
+			&posicion_buffer);
+
+}
 
 //main ejemplo
 //
@@ -120,5 +121,4 @@ void escribir_atributo_desde_string_de_buffer(void *buffer,
 //	free(buffer);
 //	free(persona);
 //	free(persona2);
-
 

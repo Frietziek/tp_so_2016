@@ -12,7 +12,8 @@
 #include <comunicaciones.h>
 #include "nucleo.h"
 #include <commons/config.h>
-//#include <serializacion.h>
+#include <commons/collections/dictionary.h>
+#include <serializacion.h>
 
 int main(void) {
 
@@ -21,19 +22,47 @@ int main(void) {
 	t_config_nucleo *configuracion = malloc(sizeof(t_config_nucleo));
 	cargarConfiguracionNucleo("src/config.nucleo.ini", configuracion);
 
-	int socket_umc = conectar_servidor(configuracion->ip_umc, 3603);
-	enviar_mensaje(configuracion->ip_umc, "Hola soy el nucleo");
+	int socket_umc = conectar_servidor(configuracion->ip_umc,
+			configuracion->puerto_umc);
+	enviar_mensaje(socket_umc, "Hola soy el nucleo");
 
 	t_configuracion_servidor *configuracion_servidor = malloc(
 			sizeof(t_configuracion_servidor));
 
 	configuracion_servidor->puerto = configuracion->puerto_prog;
 
+	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
+	//Y EN configuracion_servidor->parametros_funcion LO QUE DEBERIA RECIBIR LA FUNCION
+
+	configuracion_servidor->funcion = &funcion_saludar;
+	configuracion_servidor->parametros_funcion = configuracion;
+
 	crear_servidor(configuracion_servidor);
 
 	getchar();
 
+	free(configuracion);
+	free(configuracion_servidor);
+
 	return EXIT_SUCCESS;
+}
+
+void funcion_saludar(t_config_nucleo*config, void *buffer) {
+
+	printf(
+			"hola mundo, soy el Reno Jose, el puerto del cpu es %d, el primer semaforo es: %s\n",
+			config->puerto_cpu, config->sem_id[0]);
+
+	//printf("hola mundo, soy el Reno Jose, el buffer contiene: %s \n", buffer);
+
+	t_persona *persona2 = malloc(sizeof(t_persona));
+
+	deserializar_persona(buffer, persona2);
+
+	printf("el apellido de la persona es: %s\n", persona2->apellido);
+
+	free(persona2);
+
 }
 
 void cargarConfiguracionNucleo(char *archivoConfig,

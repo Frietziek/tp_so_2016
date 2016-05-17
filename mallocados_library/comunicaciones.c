@@ -21,7 +21,6 @@
 #include <commons/string.h>
 #include "comunicaciones.h"
 
-#define MYPORT 3490    // Puerto al que conectarán los usuarios
 #define TRUE 1
 #define BACKLOG 10     // Cuántas conexiones pendientes se mantienen en cola
 #define MAXBUFFER 1024 // Tamanio de buffer
@@ -83,6 +82,10 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 			sizeof(t_th_configuracion_escucha));
 
 	configuracion_escucha->socket_escucha = sockfd;
+	configuracion_escucha->funcion = config_servidor->funcion;
+	configuracion_escucha->parametros_funcion =
+			config_servidor->parametros_funcion;
+
 	//Creo el hilo
 
 	pthread_t hilo_cliente;
@@ -94,7 +97,7 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 void escuchar_clientes(void *configuracion) {
 	t_th_configuracion_escucha *configuracion_escucha = configuracion;
 	int socket_nueva_conexion; //las nuevas conexiones vienen aca
-	pthread_t hilo_recibir;
+	pthread_t hilo_funcion;
 	struct sockaddr_in their_addr; // info del cliente
 	socklen_t sin_size;
 
@@ -113,9 +116,12 @@ void escuchar_clientes(void *configuracion) {
 		t_th_parametros_receive *param_receive = malloc(
 				sizeof(t_th_parametros_receive));
 		param_receive->socket_cliente = socket_nueva_conexion;
+		param_receive->funcion = configuracion_escucha->funcion;
+		param_receive->parametros_funcion =
+				configuracion_escucha->parametros_funcion;
 
 		//creamos el hilo para recibir
-		pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje,
+		pthread_create(&hilo_funcion, NULL, (void*) recibir_mensaje,
 				param_receive);
 
 		free(param_receive);
@@ -143,13 +149,27 @@ void recibir_mensaje(void *parametros) {
 		if (bytes_recibidos == 0) {
 			break;
 		} else {
-			// TODO Llamar funciones correspondientes
-			buffer[bytes_recibidos] = '\0';
-			printf("Mensaje recibido: %s\n", buffer);
+
+			if (parametros_receive->funcion == NULL) {
+				buffer[bytes_recibidos] = '\0';
+				printf("Mensaje recibido: %s\n", buffer);
+			} else {
+				if (parametros_receive->parametros_funcion == NULL) {
+					//funcion sin parametros, solo el buffer como parametro
+					void (*fn)() = parametros_receive->funcion;
+					fn(buffer);
+				} else {
+					//funcion con parametros, ademas del buffer como parametro
+					void (*fn)() = parametros_receive->funcion;
+					void (*parametro) = parametros_receive->parametros_funcion;
+
+					fn(parametro, buffer);
+				}
+			}
 		}
+
 	}
 	// Cierro el socket
-	printf("Se cerro la conexion.\n");
 	close(parametros_receive->socket_cliente);
 }
 
@@ -163,6 +183,26 @@ int enviar_mensaje(int socket, char *mensaje) {
 		while (bytes_enviados_totales < longitud_mensaje) {
 			if ((bytes_enviados = send(socket, mensaje, longitud_mensaje, 0))
 					== -1) {
+				perror("send");
+				close(socket);
+				return -1;
+			}
+			bytes_enviados_totales += bytes_enviados;
+		}
+	}
+
+	return bytes_enviados_totales;
+}
+
+int enviar_buffer(int socket, t_buffer *buffer) {
+	int bytes_enviados_totales = 0;
+	int bytes_enviados = 0;
+
+	//ciclo hasta que se enviee toodo lo que quiero enviar
+	if (socket >= 0) {
+		while (bytes_enviados_totales < buffer->longitud_buffer) {
+			if ((bytes_enviados = send(socket, buffer->contenido_buffer,
+					buffer->longitud_buffer, 0)) == -1) {
 				perror("send");
 				close(socket);
 				return -1;
@@ -194,7 +234,7 @@ int conectar_servidor(char *ip, int puerto) {
 	}
 
 	//Configuración de dirección de servidor
-	addr_server.sin_family = AF_INET;    // Ordenación de bytes de la máquina
+	addr_server.sin_family = AF_INET; // Ordenación de bytes de la máquina
 	addr_server.sin_port = htons(puerto); // short, Ordenación de bytes de la red
 	addr_server.sin_addr = *((struct in_addr *) he->h_addr);
 	memset(&(addr_server.sin_zero), 0, 8); // poner a cero el resto de la estructura
@@ -212,8 +252,7 @@ int conectar_servidor(char *ip, int puerto) {
 	param_receive->socket_cliente = socket_cliente;
 
 	//creamos el hilo para recibir
-	pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje,
-			param_receive);
+	pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje, param_receive);
 
 	return socket_cliente;
 }

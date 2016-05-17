@@ -8,6 +8,8 @@
 #ifndef NUCLEO_H_
 #define NUCLEO_H_
 
+#include <commons/collections/dictionary.h>
+
 // Valores de la configuracion
 
 /* EJEMPLO
@@ -37,5 +39,6 @@ typedef struct {
 } t_config_nucleo;
 
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
+void funcion_saludar(t_config_nucleo*config, void *buffer);
 
 #endif /* NUCLEO_H_ *///
