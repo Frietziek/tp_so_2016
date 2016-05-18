@@ -13,6 +13,8 @@
 #include <string.h>
 #include <commons/config.h>
 #include <commons/log.h>
+#include <commons/bitarray.h>
+#include <commons/collections/list.h>
 #include <comunicaciones.h>
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
@@ -36,6 +38,20 @@ int main(void) {
 		log_trace(loggerManager,"Hubo un problema al intentar crear el archivo swap");
 	/**************************************************************************************/
 
+	/******************************  Estructuras de control  ******************************/
+	t_bitarray *paginas_bitmap = malloc(sizeof paginas_bitmap); //Este es el bitmap perse
+	char paginas_array[(config_swap->cantidad_paginas)/8]; //Divido por 8 porque cada char tiene 8 bits (1 byte), creo que funciona asi la cosa
+	paginas_bitmap = bitarray_create(paginas_array, sizeof paginas_array); //Creo el bitmap
+
+	inicializar_bitmap(paginas_bitmap); //Inicializo el bitmap en 0 (false)
+	log_trace(loggerManager,"Se creo e inicializo la estructura bitmap con %d cantidad de bits", bitarray_get_max_bit(paginas_bitmap));
+
+
+	t_list *lista_programas = list_create(); //Aca voy a meter los t_program_info a medida que el umc me pida crear un programa
+
+
+	/**************************************************************************************/
+
 
 	/************************************  Server SWAP  ************************************/
 	t_configuracion_servidor *servidor_swap_config = malloc(sizeof(t_configuracion_servidor));
@@ -50,6 +66,8 @@ int main(void) {
 	log_destroy(loggerManager); //cierro el archivo de log
 	free(config_swap);
 	free(servidor_swap_config);
+	bitarray_destroy(paginas_bitmap);
+	list_destroy(lista_programas);
 	/***************************************************************************************/
 
 	return EXIT_SUCCESS;

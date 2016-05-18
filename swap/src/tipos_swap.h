@@ -16,4 +16,10 @@ typedef struct {
 	int retardo_compactacion;
 } t_config_swap;
 
+typedef struct {
+	int PID;
+	int cantidad_paginas;
+	int posicion_swap;
+} t_program_info;
+
 #endif /* TIPOS_SWAP_H_ */

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <commons/config.h>
 #include <commons/string.h>
+#include <commons/bitarray.h>
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
 
@@ -62,6 +63,14 @@ int crear_archivo_swap(char *nombre_archivo, int tamano_archivo){
 	int status = system(comando);
 
 	return status;
+}
+
+void inicializar_bitmap(t_bitarray *bitmap){
+	int tamano_bitmap = bitarray_get_max_bit(bitmap);
+	int index;
+	for(index = 0 ; index < tamano_bitmap ; index++){
+		bitarray_clean_bit(bitmap, index);
+	}
 }
 
 
