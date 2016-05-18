@@ -9,7 +9,7 @@
 #define SOCKETS_H_
 
 #include <commons/collections/dictionary.h>
-#include <serializacion.h>
+#include "serializacion.h"
 
 typedef struct {
 	int puerto;
