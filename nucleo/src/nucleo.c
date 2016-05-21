@@ -33,14 +33,11 @@ int main(void) {
 
 	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
 	//Y EN configuracion_servidor->parametros_funcion LO QUE DEBERIA RECIBIR LA FUNCION
-
 	configuracion_servidor->funcion = &funcion_saludar;
 	configuracion_servidor->parametros_funcion = configuracion;
 
 	crear_servidor(configuracion_servidor);
-
 	getchar();
-
 	free(configuracion);
 	free(configuracion_servidor);
 
@@ -57,9 +54,16 @@ void funcion_saludar(t_config_nucleo*config, void *buffer) {
 
 	t_persona *persona2 = malloc(sizeof(t_persona));
 
-	deserializar_persona(buffer, persona2);
+	t_paquete *paquete = deserializar_con_header(buffer);
+
+	deserializar_persona(paquete->payload, persona2);
 
 	printf("el apellido de la persona es: %s\n", persona2->apellido);
+
+	printf("proceso emisor: %d\n", paquete->header->id_proceso_emisor);
+	printf("proceso receptor: %d\n", paquete->header->id_proceso_receptor);
+	printf("id mensaje: %d\n", paquete->header->id_mensaje);
+	printf("longitud payload: %d\n", paquete->header->longitud_mensaje);
 
 	free(persona2);
 

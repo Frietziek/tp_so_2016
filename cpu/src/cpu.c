@@ -35,12 +35,23 @@ int main(void) {
 	persona->nombre = "santi";
 	persona->apellido = "bbb";
 
-	t_buffer *buffer = serializar_persona(persona);
+	t_buffer *buffer_persona = serializar_persona(persona);
 
-	enviar_buffer(socket_nucleo, buffer);
+	t_header *header = malloc(sizeof(t_header));
+
+	header->id_proceso_emisor = 2;
+	header->id_proceso_receptor = 1;
+	header->id_mensaje = 8;
+	header->longitud_mensaje = buffer_persona->longitud_buffer;
+
+	if (enviar_buffer(socket_nucleo, header, buffer_persona)
+			< sizeof(t_header) + buffer_persona->longitud_buffer) {
+		perror("Fallo enviar buffer");
+	}
 
 	free(persona);
-	free(buffer);
+	free(buffer_persona);
+	free(header);
 
 	// TODO Recibir PCB del Nucleo
 	// TODO Incrementar registro Program Counter en PCB
