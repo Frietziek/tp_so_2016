@@ -17,9 +17,9 @@ typedef struct {
 } t_config_swap;
 
 typedef struct {
-	int PID;
+	int id_programa;
 	int cantidad_paginas;
-	int posicion_swap;
+	int pagina_inicial_swap;
 } t_program_info;
 
 #endif /* TIPOS_SWAP_H_ */
