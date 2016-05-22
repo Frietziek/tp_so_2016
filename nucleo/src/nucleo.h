@@ -9,6 +9,7 @@
 #define NUCLEO_H_
 
 #include <commons/collections/dictionary.h>
+#include <commons/collections/queue.h>
 
 // Valores de la configuracion
 
@@ -24,6 +25,12 @@
  DEF_SHARED_VARS= ["!Global", "!UnaVar", "!tiempo3"]
  * */
 
+#define NEW 0
+#define READY 1
+#define EXEC  2
+#define BLOCK 3
+#define EXIT 4
+
 typedef struct {
 	int puerto_prog;
 	int puerto_cpu;
@@ -38,7 +45,22 @@ typedef struct {
 	int puerto_umc;
 } t_config_nucleo;
 
+typedef struct { //TODO llenarme con parser metadata
+	int pid;
+	int pc;
+	int cant_paginas_codigo;
+} t_pcb;
+
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
-void funcion_saludar(t_config_nucleo*config, void *buffer);
+
+void atender_cpu(t_config_nucleo*config, void *buffer);
+
+void atender_consola(void *buffer);
+
+t_pcb *crearPCB(char *codigo_de_consola);
+
+void agregar_pcb_a_cola(t_queue *cola, t_pcb *pcb);
+
+void terminar_ejecucion();
 
 #endif /* NUCLEO_H_ *///

@@ -36,19 +36,34 @@ int main(void) {
 	socket_nucleo = conectar_servidor(configuracion->ip_nucleo,
 			configuracion->puerto_nucleo);
 
+	t_header *header_handshake = malloc(sizeof(t_header));
+
+	header_handshake->id_proceso_emisor = 1241;
+	header_handshake->id_proceso_receptor = 3213;
+	header_handshake->id_mensaje = 0;
+	header_handshake->longitud_mensaje = 0;
+
+	enviar_header(socket_nucleo, header_handshake);
+
+	free(header_handshake);
+
 	t_persona *persona = malloc(sizeof(t_persona));
-	persona->edad = 22;
-	persona->cp = 1414;
-	persona->nombre = "santi";
-	persona->apellido = "bbb";
+
+	persona->nombre = malloc(9);
+	persona->apellido = malloc(5);
+	persona->materias_aprobadas = 44;
+	persona->edad = 2223;
+	persona->cp = 14141;
+	persona->nombre = "santiago";
+	persona->apellido = "bose";
 
 	t_buffer *buffer_persona = serializar_persona(persona);
 
 	t_header *header = malloc(sizeof(t_header));
 
-	header->id_proceso_emisor = 2;
-	header->id_proceso_receptor = 1;
-	header->id_mensaje = 8;
+	header->id_proceso_emisor = 12241;
+	header->id_proceso_receptor = 3213;
+	header->id_mensaje = 1;
 	header->longitud_mensaje = buffer_persona->longitud_buffer;
 
 	if (enviar_buffer(socket_nucleo, header, buffer_persona)

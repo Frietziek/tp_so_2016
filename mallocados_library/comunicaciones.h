@@ -41,6 +41,8 @@ void recibir_mensaje(void *parametros_receive);
 
 int enviar_buffer(int socket, t_header *t_header, t_buffer *t_buffer);
 
+int enviar_header(int socket, t_header *header);
+
 int enviar_mensaje(int socket, char *mensaje);
 
 int conectar_servidor(char *ip, int puerto);
