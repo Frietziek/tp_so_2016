@@ -9,11 +9,20 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <serializacion.h>
 #include <comunicaciones.h>
 #include "nucleo.h"
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
-#include <serializacion.h>
+#include <parser/metadata_program.h>
+#include "serializacion_nucleo_consola.h"
+#include "serializacion_nucleo_cpu.h"
+
+//TODO ver si quedan como variables globales o no
+t_queue *cola_ready;
+t_queue *cola_block;
+t_queue *cola_exec;
+t_queue *cola_exit;
 
 int main(void) {
 
@@ -21,6 +30,11 @@ int main(void) {
 
 	t_config_nucleo *configuracion = malloc(sizeof(t_config_nucleo));
 	cargarConfiguracionNucleo("src/config.nucleo.ini", configuracion);
+
+	cola_ready = queue_create();
+	cola_block = queue_create();
+	cola_exec = queue_create();
+	cola_exit = queue_create();
 
 	int socket_umc = conectar_servidor(configuracion->ip_umc,
 			configuracion->puerto_umc);
@@ -33,40 +47,68 @@ int main(void) {
 
 	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
 	//Y EN configuracion_servidor->parametros_funcion LO QUE DEBERIA RECIBIR LA FUNCION
-	configuracion_servidor->funcion = &funcion_saludar;
+	configuracion_servidor->funcion = &atender_cpu;
 	configuracion_servidor->parametros_funcion = configuracion;
 
 	crear_servidor(configuracion_servidor);
+
 	getchar();
 	free(configuracion);
 	free(configuracion_servidor);
+	queue_destroy(cola_block);
+	queue_destroy(cola_ready);
+	queue_destroy(cola_exec);
+	queue_destroy(cola_exit);
 
 	return EXIT_SUCCESS;
 }
 
-void funcion_saludar(t_config_nucleo*config, void *buffer) {
+void atender_cpu(t_config_nucleo*config, void *buffer) {
 
-	printf(
-			"hola mundo, soy el Reno Jose, el puerto del cpu es %d, el primer semaforo es: %s\n",
-			config->puerto_cpu, config->sem_id[0]);
+	t_header *header = malloc(sizeof(t_header));
 
-	//printf("hola mundo, soy el Reno Jose, el buffer contiene: %s \n", buffer);
+	deserializar_header(buffer, header);
 
-	t_persona *persona2 = malloc(sizeof(t_persona));
+	switch (header->id_mensaje) {
+	case HANDSHAKE:
+		printf("Se establecio conexion con cpu\n\n");
+		break;
+	case RECIBIR_PERSONA:
 
-	t_paquete *paquete = deserializar_con_header(buffer);
+		printf(
+				"hola mundo, soy el Reno Jose, el puerto del cpu es %d, el primer semaforo es: %s\n",
+				config->puerto_cpu, config->sem_id[0]);
 
-	deserializar_persona(paquete->payload, persona2);
+		//printf("hola mundo, soy el Reno Jose, el buffer contiene: %s \n", buffer);
 
-	printf("el apellido de la persona es: %s\n", persona2->apellido);
+		t_persona *persona2 = malloc(sizeof(t_persona));
 
-	printf("proceso emisor: %d\n", paquete->header->id_proceso_emisor);
-	printf("proceso receptor: %d\n", paquete->header->id_proceso_receptor);
-	printf("id mensaje: %d\n", paquete->header->id_mensaje);
-	printf("longitud payload: %d\n", paquete->header->longitud_mensaje);
+		t_paquete *paquete = deserializar_con_header(buffer);
 
-	free(persona2);
+		deserializar_persona(paquete->payload, persona2);
 
+		printf("el apellido de la persona es: %s\n", persona2->apellido);
+
+		printf("el cp de la persona es: %d\n", persona2->cp);
+
+		printf("la edad de la persona es: %d\n", persona2->edad);
+
+		printf("el nombre de la persona es: %s\n", persona2->nombre);
+
+		printf("la cant de materias aprobadas es: %d\n\n",
+				persona2->materias_aprobadas);
+
+		//TODO ver por que el proceso emisor es 0 en vez de 2
+		printf("proceso emisor: %d\n", paquete->header->id_proceso_emisor);
+		printf("proceso receptor: %d\n", paquete->header->id_proceso_receptor);
+		printf("id mensaje: %d\n", paquete->header->id_mensaje);
+		printf("longitud payload: %d\n\n", paquete->header->longitud_mensaje);
+
+		free(persona2);
+		free(paquete);
+		break;
+	}
+	free(header);
 }
 
 void cargarConfiguracionNucleo(char *archivoConfig,
@@ -149,3 +191,41 @@ void cargarConfiguracionNucleo(char *archivoConfig,
 	free(configuracion);
 }
 
+void atender_consola(void *buffer) {
+
+	t_paquete *paquete = malloc(sizeof(t_paquete));
+	paquete = deserializar_con_header(buffer);
+	char *codigo_de_consola;
+	switch (paquete->header->id_mensaje) {
+	case CODIGO:
+		deserializar_codigo(paquete->payload, &codigo_de_consola,
+				paquete->header->longitud_mensaje);
+		printf("el codigo es: %s\n", codigo_de_consola);
+		t_pcb *pcb = crearPCB(codigo_de_consola);
+		agregar_pcb_a_cola(cola_ready, pcb);
+		//libero
+		free(pcb);
+		free(codigo_de_consola);
+		break;
+	case FINALIZAR:
+		printf("Terminando la ejecucion");
+		terminar_ejecucion();
+		printf("Termino la ejecucion");
+		break;
+	}
+	free(paquete);
+}
+
+t_pcb *crearPCB(char *codigo_de_consola) {
+	t_pcb *pcb = malloc(sizeof(t_pcb));
+//TODO usar parser metadata para llenar el pcb
+
+	return pcb;
+}
+
+void agregar_pcb_a_cola(t_queue *cola, t_pcb *pcb) {
+}
+
+//TODO ver como identificar el proceso para terminarlo, podria ser con el pid
+void terminar_ejecucion() {
+}

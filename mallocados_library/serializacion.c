@@ -13,12 +13,12 @@
 #include "serializacion.h"
 
 void copiar_int_en_buffer(void *buffer, int una_cosa, int *posicion_buffer) {
-	memcpy(buffer + *posicion_buffer, &una_cosa, sizeof(int));
+	memcpy(buffer + *posicion_buffer, &una_cosa, sizeof(una_cosa));
 	*posicion_buffer += sizeof(int);
 }
 
 void copiar_char_en_buffer(void *buffer, char una_cosa, int *posicion_buffer) {
-	memcpy(buffer + *posicion_buffer, &una_cosa, sizeof(char));
+	memcpy(buffer + *posicion_buffer, &una_cosa, sizeof(una_cosa));
 	*posicion_buffer += sizeof(char);
 }
 
@@ -132,8 +132,6 @@ void *serializar_con_header(t_header *header, t_buffer *payload) {
 
 	posicion_buffer += payload->longitud_buffer;
 
-	printf("el tamaño del buffer es: %d", posicion_buffer);
-
 	free(header_de_mensaje);
 	return buffer;
 
@@ -166,13 +164,14 @@ t_paquete *deserializar_con_header(void *buffer) {
 
 	paquete->header = header;
 
-	paquete->payload = malloc(header->longitud_mensaje);
+	if (header->longitud_mensaje > 0) {
 
-	memcpy(paquete->payload, buffer + sizeof(t_header),
-			header->longitud_mensaje);
+		paquete->payload = malloc(header->longitud_mensaje);
 
+		memcpy(paquete->payload, buffer + sizeof(t_header),
+				header->longitud_mensaje);
+	}
 	free(header);
-
 
 	return paquete;
 
@@ -183,14 +182,16 @@ t_buffer *serializar_persona(t_persona *persona) {
 
 	int cantidad_a_reservar = sizeof(persona->cp) + sizeof(persona->edad)
 			+ sizeof(int) + strlen(persona->apellido) + sizeof(int)
-			+ strlen(persona->nombre);
+			+ strlen(persona->nombre) + sizeof(persona->materias_aprobadas);
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
-	copiar_int_en_buffer(buffer, persona->edad, &posicion_buffer);
+	copiar_int_en_buffer(buffer, persona->materias_aprobadas, &posicion_buffer);
 
 	copiar_string_en_buffer(buffer, persona->nombre, &posicion_buffer);
+
+	copiar_int_en_buffer(buffer, persona->edad, &posicion_buffer);
 
 	copiar_int_en_buffer(buffer, persona->cp, &posicion_buffer);
 	copiar_string_en_buffer(buffer, persona->apellido, &posicion_buffer);
@@ -207,10 +208,13 @@ void deserializar_persona(void *buffer, t_persona *persona) {
 
 	int posicion_buffer = 0;
 
-	escribir_atributo_desde_int_de_buffer(buffer, &(persona->edad),
-			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(persona->materias_aprobadas), &posicion_buffer);
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(persona->nombre),
+			&posicion_buffer);
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(persona->edad),
 			&posicion_buffer);
 
 	escribir_atributo_desde_int_de_buffer(buffer, &(persona->cp),

@@ -199,6 +199,29 @@ int enviar_mensaje(int socket, char *mensaje) {
 	return bytes_enviados_totales;
 }
 
+int enviar_header(int socket, t_header *header) {
+	int bytes_enviados_totales = 0;
+	int bytes_enviados = 0;
+
+	t_buffer *paquete_serializado = serializar_header(header);
+
+//ciclo hasta que se enviee toodo lo que quiero enviar
+	if (socket >= 0) {
+		while (bytes_enviados_totales < paquete_serializado->longitud_buffer) {
+			if ((bytes_enviados = send(socket,
+					paquete_serializado->contenido_buffer,
+					paquete_serializado->longitud_buffer, 0)) == -1) {
+				perror("send");
+				close(socket);
+				return -1;
+			}
+			bytes_enviados_totales += bytes_enviados;
+		}
+	}
+	free(paquete_serializado);
+	return bytes_enviados_totales;
+}
+
 int enviar_buffer(int socket, t_header *header, t_buffer *buffer) {
 	int bytes_enviados_totales = 0;
 	int bytes_enviados = 0;

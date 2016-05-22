@@ -15,6 +15,7 @@
 #define PROCESO_SWAP = 4
 
 typedef struct {
+	int materias_aprobadas;
 	int edad;
 	char *nombre;
 	int cp;
@@ -26,7 +27,7 @@ typedef struct {
 	int id_proceso_receptor;
 	int id_mensaje;
 	int longitud_mensaje;
-}__attribute__((packed)) t_header;
+} t_header;
 
 typedef struct {
 	void *contenido_buffer;
