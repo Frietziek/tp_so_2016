@@ -23,6 +23,7 @@
  DEF_SEM_IDS=[SEM1, SEM2, SEM3]
  DEF_SEM_INIT= [0,0,5]
  DEF_SHARED_VARS= ["!Global", "!UnaVar", "!tiempo3"]
+ DEF_STACK_SIZE=2
  * */
 
 #define NEW 0
@@ -43,6 +44,7 @@ typedef struct {
 	char **shared_vars;
 	char *ip_umc;
 	int puerto_umc;
+	int stack_size;
 } t_config_nucleo;
 
 typedef struct { //TODO llenarme con parser metadata
@@ -52,6 +54,10 @@ typedef struct { //TODO llenarme con parser metadata
 } t_pcb;
 
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
+
+void obtener_tamanio_pagina(int *tamanio_pagina, void *buffer);
+
+int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo *configuracion);
 
 void atender_cpu(t_config_nucleo*config, void *buffer);
 

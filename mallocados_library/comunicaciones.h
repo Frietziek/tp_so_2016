@@ -24,7 +24,6 @@ typedef struct {
 } t_th_configuracion_escucha;
 
 typedef struct {
-	pthread_t thread_id;
 	int socket_cliente;
 	void *funcion;
 	void *parametros_funcion;

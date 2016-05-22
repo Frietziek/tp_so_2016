@@ -13,7 +13,6 @@
 #include <comunicaciones.h>
 #include "nucleo.h"
 #include <commons/config.h>
-#include <commons/collections/dictionary.h>
 #include <parser/metadata_program.h>
 #include "serializacion_nucleo_consola.h"
 #include "serializacion_nucleo_cpu.h"
@@ -36,9 +35,9 @@ int main(void) {
 	cola_exec = queue_create();
 	cola_exit = queue_create();
 
-	int socket_umc = conectar_servidor(configuracion->ip_umc,
-			configuracion->puerto_umc);
-	enviar_mensaje(socket_umc, "Hola soy el nucleo");
+	int tamanio_pagina = conectar_umc_y_obtener_tamanio_pagina(configuracion);
+
+	printf("el tamaño de pagina es: %d\n\n", tamanio_pagina);
 
 	t_configuracion_servidor *configuracion_servidor = malloc(
 			sizeof(t_configuracion_servidor));
@@ -61,6 +60,30 @@ int main(void) {
 	queue_destroy(cola_exit);
 
 	return EXIT_SUCCESS;
+}
+
+void obtener_tamanio_pagina(int *tamanio_pagina, void *buffer) {
+
+	//TODO deserializar mensaje umc
+	//TODO asignar a lo que apunta el puntero tamanio_pagina el valor que esta en el payload del buffer
+
+}
+
+//TODO llegado el momento hay que evaluar que devuelva correctamente el valor
+int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo* configuracion) {
+	int socket_umc = conectar_servidor(configuracion->ip_umc,
+			configuracion->puerto_umc);
+	enviar_mensaje(socket_umc, "Hola soy el nucleo");
+
+	t_th_parametros_receive *parametros = malloc(
+			sizeof(t_th_parametros_receive));
+	int tamanio_pagina;
+	parametros->funcion = &obtener_tamanio_pagina;
+	parametros->parametros_funcion = &tamanio_pagina;
+
+	recibir_mensaje(parametros);
+
+	return (int) &(parametros->parametros_funcion);
 }
 
 void atender_cpu(t_config_nucleo*config, void *buffer) {
@@ -187,6 +210,12 @@ void cargarConfiguracionNucleo(char *archivoConfig,
 	} else {
 		perror("error al cargar DEF_PUERTO_UMC");
 	}
+	if (config_has_property(configuracion, "DEF_STACK_SIZE")) {
+		configuracion_nucleo->stack_size = config_get_int_value(configuracion,
+				"DEF_STACK_SIZE");
+	} else {
+		perror("error al cargar DEF_STACK_SIZE");
+	}
 
 	free(configuracion);
 }
@@ -224,6 +253,7 @@ t_pcb *crearPCB(char *codigo_de_consola) {
 }
 
 void agregar_pcb_a_cola(t_queue *cola, t_pcb *pcb) {
+	queue_push(cola, pcb);
 }
 
 //TODO ver como identificar el proceso para terminarlo, podria ser con el pid
