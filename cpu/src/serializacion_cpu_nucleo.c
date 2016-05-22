@@ -9,7 +9,7 @@
 #include <serializacion.h>
 #include "serializacion_cpu_nucleo.h"
 
-t_buffer serializar_variable_compartida(t_variable_compartida *variable) {
+t_buffer *serializar_variable_compartida(t_variable_compartida *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre);
 	void *buffer = malloc(cantidad_a_reservar);
 
@@ -33,7 +33,7 @@ void deserializar_variable_compartida(void *buffer,
 
 }
 
-t_buffer serializar_asignar_variable_compartida(t_variable *variable) {
+t_buffer *serializar_asignar_variable_compartida(t_variable *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre)
 			+ sizeof(variable->valor);
 	void *buffer = malloc(cantidad_a_reservar);
@@ -61,7 +61,7 @@ void deserializar_asignar_variable_compartida(void *buffer,
 
 }
 
-t_buffer serializar_imprimir_variable(t_variable *variable) {
+t_buffer *serializar_imprimir_variable(t_variable *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre)
 			+ sizeof(variable->valor);
 	void *buffer = malloc(cantidad_a_reservar);
@@ -88,7 +88,7 @@ void deserializar_imprimir_variable(void *buffer, t_variable *variable) {
 
 }
 
-t_buffer serializar_imprimir_texto(t_texto *texto) {
+t_buffer *serializar_imprimir_texto(t_texto *texto) {
 	int cantidad_a_reservar = sizeof(int) + strlen(texto->texto);
 	void *buffer = malloc(cantidad_a_reservar);
 
@@ -111,7 +111,7 @@ void deserializar_imprimir_texto(void *buffer, t_texto *texto) {
 
 }
 
-t_buffer serializar_entrada_salida(t_entrada_salida *entrada_salida) {
+t_buffer *serializar_entrada_salida(t_entrada_salida *entrada_salida) {
 	int cantidad_a_reservar = sizeof(int)
 			+ strlen(entrada_salida->nombre_dispositivo)
 			+ sizeof(entrada_salida->tiempo);
@@ -140,8 +140,8 @@ void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida)
 
 }
 
-t_buffer serializar_semaforo(t_semaforo *semaforo) {
-	int cantidad_a_reservar = sizeof(int) + sizeof(semaforo->nombre);
+t_buffer *serializar_semaforo(t_semaforo *semaforo) {
+	int cantidad_a_reservar = sizeof(int) + strlen(semaforo->nombre);
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;

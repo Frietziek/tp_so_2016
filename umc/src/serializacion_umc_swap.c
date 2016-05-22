@@ -75,8 +75,8 @@ void deserializar_leer_pagina(void *buffer, t_leer_pagina *leer_pagina) {
 t_buffer *serializar_escribir_pagina(t_escribir_pagina *escribir_pagina) {
 
 	int cantidad_a_reservar = sizeof(escribir_pagina->pagina)
-			+ sizeof(escribir_pagina->offset)
-			+ sizeof(escribir_pagina->tamanio);
+			+ sizeof(escribir_pagina->offset) + sizeof(escribir_pagina->tamanio)
+			+ sizeof(escribir_pagina->valor);
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
@@ -84,8 +84,7 @@ t_buffer *serializar_escribir_pagina(t_escribir_pagina *escribir_pagina) {
 	copiar_int_en_buffer(buffer, escribir_pagina->pagina, &posicion_buffer);
 	copiar_int_en_buffer(buffer, escribir_pagina->offset, &posicion_buffer);
 	copiar_int_en_buffer(buffer, escribir_pagina->tamanio, &posicion_buffer);
-	// TODO Hacer la funcion de copiar_void_en_buffer en la libreria de serializacion
-	//copiar_void_en_buffer(buffer, escribir_pagina->buffer, &posicion_buffer);
+	copiar_int_en_buffer(buffer, escribir_pagina->valor, &posicion_buffer);
 
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 	estructura_buffer->contenido_buffer = buffer;
@@ -105,14 +104,12 @@ void deserializar_escribir_pagina(void *buffer,
 			&posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer, &(escribir_pagina->tamanio),
 			&posicion_buffer);
-	// TODO Hacer la funcion de escribir_atributo_desde_void_en_buffer en la libreria de serializacion
-	//escribir_atributo_desde_void_de_buffer(buffer, &(escribir_pagina->buffer),
-	//		&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(escribir_pagina->valor),
+			&posicion_buffer);
 
 }
 
-t_buffer *serializar_finalizar_programa(
-		t_fin_programa *finalizar_programa) {
+t_buffer *serializar_finalizar_programa(t_fin_programa *finalizar_programa) {
 
 	int cantidad_a_reservar = sizeof(finalizar_programa->id_programa);
 	void *buffer = malloc(cantidad_a_reservar);

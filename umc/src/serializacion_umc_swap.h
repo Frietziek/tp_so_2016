@@ -23,7 +23,7 @@ typedef struct {
 	int pagina;
 	int offset;
 	int tamanio;
-	void *buffer;
+	int valor;
 } t_escribir_pagina;
 
 typedef struct {

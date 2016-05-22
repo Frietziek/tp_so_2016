@@ -36,4 +36,20 @@ AnSISOP_kernel kernel_functions = {
 		.AnSISOP_signal = signal
 };
 
+// Funciones CPU - UMC
+void definir_variable(char *variable);
+void obtener_posicion_variable(char * variable);
+void dereferenciar(int pagina, int offset, int tamanio);
+void asignar_variable(int pagina, int offset, int tamanio, int valor);
+
+// Funciones CPU - Nucleo
+void obtener_valor_compartida(char *variable);
+void asignar_valor_compartida(char *variable, int valor);
+void imprimir_variable(char *variable, int valor);
+void imprimir_texto(char *texto);
+void entrada_salida(char *nombre, int tiempo);
+void wait_semaforo(char *semaforo);
+void signal_semaforo(char *semaforo);
+
+
 #endif /* CPU_H_ */
