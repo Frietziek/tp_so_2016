@@ -8,11 +8,11 @@
 #ifndef MALLOCADOS_LIBRARY_SERIALIZACION_H_
 #define MALLOCADOS_LIBRARY_SERIALIZACION_H_
 
-#define PROCESO_CONSOLA = 0
-#define PROCESO_NUCLEO = 1
-#define PROCESO_CPU = 2
-#define PROCESO_UMC = 3
-#define PROCESO_SWAP = 4
+#define PROCESO_CONSOLA 0
+#define PROCESO_NUCLEO 1
+#define PROCESO_CPU 2
+#define PROCESO_UMC 3
+#define PROCESO_SWAP 4
 
 typedef struct {
 	int materias_aprobadas;

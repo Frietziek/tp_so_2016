@@ -9,7 +9,7 @@
 #include <serializacion.h>
 #include "serializacion_cpu_nucleo.h"
 
-t_buffer *serializar_variable_compartida(t_variable_compartida *variable) {
+t_buffer *serializar_variable_compartida(t_variable *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre);
 	void *buffer = malloc(cantidad_a_reservar);
 
@@ -25,7 +25,7 @@ t_buffer *serializar_variable_compartida(t_variable_compartida *variable) {
 }
 
 void deserializar_variable_compartida(void *buffer,
-		t_variable_compartida *variable) {
+		t_variable *variable) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(variable->nombre),
@@ -33,7 +33,7 @@ void deserializar_variable_compartida(void *buffer,
 
 }
 
-t_buffer *serializar_asignar_variable_compartida(t_variable *variable) {
+t_buffer *serializar_asignar_variable_compartida(t_variable_completa *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre)
 			+ sizeof(variable->valor);
 	void *buffer = malloc(cantidad_a_reservar);
@@ -51,7 +51,7 @@ t_buffer *serializar_asignar_variable_compartida(t_variable *variable) {
 }
 
 void deserializar_asignar_variable_compartida(void *buffer,
-		t_variable *variable) {
+		t_variable_completa *variable) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(variable->nombre),
@@ -61,7 +61,7 @@ void deserializar_asignar_variable_compartida(void *buffer,
 
 }
 
-t_buffer *serializar_imprimir_variable(t_variable *variable) {
+t_buffer *serializar_imprimir_variable(t_variable_completa *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre)
 			+ sizeof(variable->valor);
 	void *buffer = malloc(cantidad_a_reservar);
@@ -78,7 +78,7 @@ t_buffer *serializar_imprimir_variable(t_variable *variable) {
 	return (estructura_buffer);
 }
 
-void deserializar_imprimir_variable(void *buffer, t_variable *variable) {
+void deserializar_imprimir_variable(void *buffer, t_variable_completa *variable) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(variable->nombre),

@@ -21,10 +21,10 @@
 #include "serializacion_swap_umc.h"
 
 /*****************************Declaracion de funciones del SWAP********************************/
-int inicializar_programa(t_inicio_programa *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager);
-int finalizar_programa(t_fin_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager);
-int leer_bytes_swap(t_leer_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer);
-int escribir_bytes_swap(t_escribir_pagina *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager);
+int inicializar_programa(t_programa_completo *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager);
+int finalizar_programa(t_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager);
+int leer_bytes_swap(t_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer);
+int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager);
 /**********************************************************************************************/
 
 int main(void) {
@@ -171,7 +171,7 @@ int main(void) {
 
 
 /*Crea la estructura de control asociada al programa y reserva el espacio necesario en el swap, devuelve 0 si salio bien y -1 en caso de que de error al buscar bloque y -2 en caso de que el programa ya exista*/
-int inicializar_programa(t_inicio_programa *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager){
+int inicializar_programa(t_programa_completo *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager){
 
 	t_program_info *program_info = buscar_programa(inicio_programa_info->id_programa, lista_programas);
 
@@ -205,7 +205,7 @@ int inicializar_programa(t_inicio_programa *inicio_programa_info, t_list *lista_
 
 
 /*Se encarga de eliminar la estructura de control y de liberar el espacio en el bitmap, retorna 0 en caso de exito, -1 error*/
-int finalizar_programa(t_fin_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager){
+int finalizar_programa(t_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager){
 
 	// TODO: Analizar si esta bien que no este "borrando" (llenando con 0's)
 	// el espacio previamente reservado en el archivo, no deberia hacer falta, pero tenerlo en cuenta
@@ -227,7 +227,7 @@ int finalizar_programa(t_fin_programa *fin_programa_info, t_bitarray *paginas_bi
 
 
 /*Busca y retorna el contenido solicitado al swap*/
-int leer_bytes_swap(t_leer_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer){
+int leer_bytes_swap(t_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer){
 
 	//TODO: Leer en la (posicion pagina * tamano de pagina) + offset una cantidad
 
@@ -249,7 +249,7 @@ int leer_bytes_swap(t_leer_pagina *leer_pagina_info, FILE *archivo_swap, t_confi
 
 
 /*Escribe en el swap el contenido de buffer, retorna 0 si el estado es ok, -1 en caso de error*/
-int escribir_bytes_swap(t_escribir_pagina *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager){
+int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager){
 
 	//TODO: No se esta evaluando si es correcto que se escriba en esta region de memoria, evaluar eso despues
 

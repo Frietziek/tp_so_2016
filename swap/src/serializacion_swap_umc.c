@@ -9,7 +9,7 @@
 #include "serializacion_swap_umc.h"
 
 void deserializar_inicio_programa(void *buffer,
-		t_inicio_programa *inicio_programa) {
+		t_programa_completo *inicio_programa) {
 
 	int posicion_buffer = 0;
 
@@ -20,7 +20,7 @@ void deserializar_inicio_programa(void *buffer,
 
 }
 
-void deserializar_leer_pagina(void *buffer, t_leer_pagina *leer_pagina) {
+void deserializar_leer_pagina(void *buffer, t_pagina *leer_pagina) {
 
 	int posicion_buffer = 0;
 
@@ -34,7 +34,7 @@ void deserializar_leer_pagina(void *buffer, t_leer_pagina *leer_pagina) {
 }
 
 void deserializar_escribir_pagina(void *buffer,
-		t_escribir_pagina *escribir_pagina) {
+		t_pagina_completa *escribir_pagina) {
 
 	int posicion_buffer = 0;
 
@@ -50,7 +50,7 @@ void deserializar_escribir_pagina(void *buffer,
 
 }
 
-void deserializar_finalizar_programa(void *buffer, t_fin_programa *finalizar_programa) {
+void deserializar_finalizar_programa(void *buffer, t_programa *finalizar_programa) {
 
 	int posicion_buffer = 0;
 

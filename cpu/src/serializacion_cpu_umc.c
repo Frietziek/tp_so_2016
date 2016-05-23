@@ -24,7 +24,7 @@
 	return (estructura_buffer);
 }*/
 
-t_buffer *serializar_dereferenciar(t_dereferenciar_variable *derefenciar) {
+t_buffer *serializar_dereferenciar(t_pagina *derefenciar) {
 	int cantidad_a_reservar = sizeof(derefenciar->pagina)
 			+ sizeof(derefenciar->offset) + sizeof(derefenciar->tamanio);
 	void *buffer = malloc(cantidad_a_reservar);
@@ -42,7 +42,7 @@ t_buffer *serializar_dereferenciar(t_dereferenciar_variable *derefenciar) {
 	return (estructura_buffer);
 }
 
-t_buffer *serializar_asignar(t_variable_en_memoria *asignar) {
+t_buffer *serializar_asignar(t_pagina_completa *asignar) {
 	int cantidad_a_reservar = sizeof(asignar->pagina) + sizeof(asignar->offset)
 			+ sizeof(asignar->tamanio) + sizeof(asignar->valor);
 	void *buffer = malloc(cantidad_a_reservar);

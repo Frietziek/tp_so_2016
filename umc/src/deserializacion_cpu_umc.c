@@ -16,7 +16,7 @@
 }*/
 
 void deserializar_derefenciar(void *buffer,
-		t_dereferenciar_variable *derefenciar) {
+		t_pagina *derefenciar) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_int_de_buffer(buffer, &(derefenciar->pagina),
@@ -27,7 +27,7 @@ void deserializar_derefenciar(void *buffer,
 			&posicion_buffer);
 }
 
-void deserializar_asignar(void *buffer, t_variable_en_memoria *asignar) {
+void deserializar_asignar(void *buffer, t_pagina_completa *asignar) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_int_de_buffer(buffer, &(asignar->pagina),

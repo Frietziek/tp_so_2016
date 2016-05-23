@@ -10,12 +10,12 @@
 
 typedef struct {
 	char *nombre;
-} t_variable_compartida;
+} t_variable;
 
 typedef struct {
 	char *nombre;
 	int valor;
-} t_variable;
+} t_variable_completa;
 
 typedef struct {
 	char *texto;
@@ -30,16 +30,16 @@ typedef struct {
 	char *nombre;
 } t_semaforo;
 
-t_buffer *serializar_variable_compartida(t_variable_compartida *variable);
+t_buffer *serializar_variable_compartida(t_variable *variable);
 void deserializar_variable_compartida(void *buffer,
-		t_variable_compartida *variable);
-
-t_buffer *serializar_asignar_variable_compartida(t_variable *variable);
-void deserializar_asignar_variable_compartida(void *buffer,
 		t_variable *variable);
 
-t_buffer *serializar_imprimir_variable(t_variable *variable);
-void deserializar_imprimir_variable(void *buffer, t_variable *variable);
+t_buffer *serializar_asignar_variable_compartida(t_variable_completa *variable);
+void deserializar_asignar_variable_compartida(void *buffer,
+		t_variable_completa *variable);
+
+t_buffer *serializar_imprimir_variable(t_variable_completa *variable);
+void deserializar_imprimir_variable(void *buffer, t_variable_completa *variable);
 
 t_buffer *serializar_imprimir_texto(t_texto *texto);
 void deserializar_imprimir_texto(void *buffer, t_texto *texto);

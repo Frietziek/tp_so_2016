@@ -16,19 +16,19 @@ typedef struct {
 	int pagina;
 	int offset;
 	int tamanio;
-} t_dereferenciar_variable;
+} t_pagina;
 
 typedef struct {
 	int pagina;
 	int offset;
 	int tamanio;
 	int valor;
-} t_variable_en_memoria;
+} t_pagina_completa;
 
 //t_buffer *serializar_variable(t_variable_simple *variable);
 
-t_buffer *serializar_dereferenciar(t_dereferenciar_variable *derefenciar);
+t_buffer *serializar_dereferenciar(t_pagina *derefenciar);
 
-t_buffer *serializar_asignar(t_variable_en_memoria *asignar);
+t_buffer *serializar_asignar(t_pagina_completa *asignar);
 
 #endif /* SERIALIZACION_CPU_H_ */

@@ -86,7 +86,7 @@ int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo* configuracion) {
 	return (int) &(parametros->parametros_funcion);
 }
 
-void atender_cpu(t_config_nucleo*config, t_paquete *paquete) {
+void atender_cpu(t_config_nucleo *config, t_paquete *paquete) {
 
 	//INICIO EJEMPLO CONSUMIR HEADER DE PAQUETE
 
@@ -99,7 +99,7 @@ void atender_cpu(t_config_nucleo*config, t_paquete *paquete) {
 
 	//INICIO EJEMPLO CONSUMIR PAYLOAD O NO SEGUN ID MENSAJE
 	switch (paquete->header->id_mensaje) {
-	case HANDSHAKE:
+	case MENSAJE_HANDSHAKE:
 		printf("Empieza handshake\n\n");
 		printf("Se establecio conexion con cpu\n\n");
 		printf("termina handshake\n\n");
