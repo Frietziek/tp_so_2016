@@ -35,9 +35,9 @@ int main(void) {
 	cola_exec = queue_create();
 	cola_exit = queue_create();
 
-	int tamanio_pagina = conectar_umc_y_obtener_tamanio_pagina(configuracion);
-
-	printf("el tamaño de pagina es: %d\n\n", tamanio_pagina);
+//	int tamanio_pagina = conectar_umc_y_obtener_tamanio_pagina(configuracion);
+//
+//	printf("el tamaño de pagina es: %d\n\n", tamanio_pagina);
 
 	t_configuracion_servidor *configuracion_servidor = malloc(
 			sizeof(t_configuracion_servidor));
@@ -66,7 +66,7 @@ void obtener_tamanio_pagina(int *tamanio_pagina, void *buffer) {
 
 	//TODO deserializar mensaje umc
 	//TODO asignar a lo que apunta el puntero tamanio_pagina el valor que esta en el payload del buffer
-
+	*tamanio_pagina = 5;
 }
 
 //TODO llegado el momento hay que evaluar que devuelva correctamente el valor
@@ -94,12 +94,18 @@ void atender_cpu(t_config_nucleo*config, void *buffer) {
 
 	switch (header->id_mensaje) {
 	case HANDSHAKE:
+		printf("Empieza handshake\n\n");
 		printf("Se establecio conexion con cpu\n\n");
+		printf("proceso emisor: %d\n", header->id_proceso_emisor);
+		printf("proceso receptor: %d\n", header->id_proceso_receptor);
+		printf("id mensaje: %d\n", header->id_mensaje);
+		printf("longitud payload: %d\n\n", header->longitud_mensaje);
+		printf("termina handshake\n\n");
 		break;
 	case RECIBIR_PERSONA:
 
 		printf(
-				"hola mundo, soy el Reno Jose, el puerto del cpu es %d, el primer semaforo es: %s\n",
+				"hola mundo, soy el Reno Jose, el puerto del cpu es %d, el primer semaforo es: %s\n\n",
 				config->puerto_cpu, config->sem_id[0]);
 
 		//printf("hola mundo, soy el Reno Jose, el buffer contiene: %s \n", buffer);

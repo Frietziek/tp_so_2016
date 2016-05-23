@@ -89,27 +89,31 @@ void escribir_atributo_desde_void_de_buffer(void *buffer,
 //Despues hay que hacer un free de lo que va a retornar
 t_buffer *serializar_header(t_header *header) {
 
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+
 	int cantidad_a_reservar = sizeof(header->id_proceso_emisor)
 			+ sizeof(header->id_proceso_receptor) + sizeof(header->id_mensaje)
 			+ sizeof(header->longitud_mensaje);
-	void *buffer = malloc(cantidad_a_reservar);
+
+	estructura_buffer->longitud_buffer = cantidad_a_reservar;
+
+	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
-	copiar_int_en_buffer(buffer, header->id_proceso_emisor, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
+			header->id_proceso_emisor, &posicion_buffer);
 
-	copiar_int_en_buffer(buffer, header->id_proceso_receptor, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
+			header->id_proceso_receptor, &posicion_buffer);
 
-	copiar_int_en_buffer(buffer, header->id_mensaje, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
+			header->id_mensaje, &posicion_buffer);
 
-	copiar_int_en_buffer(buffer, header->longitud_mensaje, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
+			header->longitud_mensaje, &posicion_buffer);
 
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-	estructura_buffer->contenido_buffer = buffer;
-	estructura_buffer->longitud_buffer = posicion_buffer;
-
-	free(buffer);
-	return (estructura_buffer);
+	return estructura_buffer;
 }
 
 //El payload es el resultado de una funcion serializar
@@ -156,22 +160,21 @@ void deserializar_header(void *buffer, t_header *header) {
 
 t_paquete *deserializar_con_header(void *buffer) {
 
-	t_header *header = malloc(sizeof(t_header));
-
-	deserializar_header(buffer, header);
-
 	t_paquete *paquete = malloc(sizeof(t_paquete));
 
-	paquete->header = header;
+	paquete->header = malloc(sizeof(t_header));
 
-	if (header->longitud_mensaje > 0) {
+	deserializar_header(buffer, paquete->header);
 
-		paquete->payload = malloc(header->longitud_mensaje);
+	if (paquete->header->longitud_mensaje > 0) {
+
+		paquete->payload = malloc(paquete->header->longitud_mensaje);
 
 		memcpy(paquete->payload, buffer + sizeof(t_header),
-				header->longitud_mensaje);
+				paquete->header->longitud_mensaje);
+	} else {
+		printf("payload vacio\n");
 	}
-	free(header);
 
 	return paquete;
 
@@ -180,28 +183,34 @@ t_paquete *deserializar_con_header(void *buffer) {
 //Despues hay que hacer un free de lo que va a retornar
 t_buffer *serializar_persona(t_persona *persona) {
 
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+
 	int cantidad_a_reservar = sizeof(persona->cp) + sizeof(persona->edad)
 			+ sizeof(int) + strlen(persona->apellido) + sizeof(int)
 			+ strlen(persona->nombre) + sizeof(persona->materias_aprobadas);
-	void *buffer = malloc(cantidad_a_reservar);
+
+	estructura_buffer->longitud_buffer = cantidad_a_reservar;
+
+	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
-	copiar_int_en_buffer(buffer, persona->materias_aprobadas, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
+			persona->materias_aprobadas, &posicion_buffer);
 
-	copiar_string_en_buffer(buffer, persona->nombre, &posicion_buffer);
+	copiar_string_en_buffer(estructura_buffer->contenido_buffer,
+			persona->nombre, &posicion_buffer);
 
-	copiar_int_en_buffer(buffer, persona->edad, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer, persona->edad,
+			&posicion_buffer);
 
-	copiar_int_en_buffer(buffer, persona->cp, &posicion_buffer);
-	copiar_string_en_buffer(buffer, persona->apellido, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer, persona->cp,
+			&posicion_buffer);
+	copiar_string_en_buffer(estructura_buffer->contenido_buffer,
+			persona->apellido, &posicion_buffer);
 
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-	estructura_buffer->contenido_buffer = buffer;
-	estructura_buffer->longitud_buffer = posicion_buffer;
+	return estructura_buffer;
 
-	free(buffer);
-	return (estructura_buffer);
 }
 
 void deserializar_persona(void *buffer, t_persona *persona) {

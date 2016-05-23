@@ -230,6 +230,17 @@ int enviar_buffer(int socket, t_header *header, t_buffer *buffer) {
 
 	void *paquete_serializado = serializar_con_header(header, buffer);
 
+	int id_p_e;
+	int pos_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(paquete_serializado, &(id_p_e),
+			&pos_buffer);
+
+	printf("\n enviar_buffer\n");
+	printf(
+			"el id_p_e que estoy serializando en buffer tiene un valor de: %d\n\n",
+			id_p_e);
+
 //ciclo hasta que se enviee toodo lo que quiero enviar
 	if (socket >= 0) {
 		while (bytes_enviados_totales < cantidad_a_enviar) {

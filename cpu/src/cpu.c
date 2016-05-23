@@ -38,8 +38,8 @@ int main(void) {
 
 	t_header *header_handshake = malloc(sizeof(t_header));
 
-	header_handshake->id_proceso_emisor = 1241;
-	header_handshake->id_proceso_receptor = 3213;
+	header_handshake->id_proceso_emisor = 2;
+	header_handshake->id_proceso_receptor = 1;
 	header_handshake->id_mensaje = 0;
 	header_handshake->longitud_mensaje = 0;
 
@@ -61,8 +61,8 @@ int main(void) {
 
 	t_header *header = malloc(sizeof(t_header));
 
-	header->id_proceso_emisor = 12241;
-	header->id_proceso_receptor = 3213;
+	header->id_proceso_emisor = 2;
+	header->id_proceso_receptor = 1;
 	header->id_mensaje = 1;
 	header->longitud_mensaje = buffer_persona->longitud_buffer;
 
@@ -128,7 +128,6 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 	}
 	free(configuracion);
 }
-
 
 // Funciones CPU - UMC
 void definir_variable(char *variable) {
