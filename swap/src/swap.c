@@ -23,6 +23,8 @@
 /*****************************Declaracion de funciones del SWAP********************************/
 int inicializar_programa(t_inicio_programa *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager);
 int finalizar_programa(t_fin_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager);
+int leer_bytes_swap(t_leer_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer);
+int escribir_bytes_swap(t_escribir_pagina *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager);
 /**********************************************************************************************/
 
 int main(void) {
@@ -119,7 +121,30 @@ int main(void) {
 	free(fin_programa_info2);
 	free(fin_programa_info3);*/
 
+	/*
+	//lectura inicial
+	t_leer_pagina *leer_pagina_info = malloc(sizeof(t_leer_pagina));
+	leer_pagina_info->tamanio = 10;
+	leer_pagina_info->pagina = 0;
+	leer_pagina_info->offset = 1;
+	void *buffer = malloc(leer_pagina_info->tamanio);
+	leer_bytes_swap(leer_pagina_info, archivo_swap, config_swap, loggerManager, buffer);
 
+	//escritura
+	char str[] = "This is tutorialspoint.com";
+	t_escribir_pagina *escribir_pagina_info = malloc(sizeof(t_escribir_pagina));
+	escribir_pagina_info->buffer = str;
+	escribir_pagina_info->tamanio = sizeof(str);
+	escribir_pagina_info->pagina = 1;
+	escribir_pagina_info->offset = 1;
+	escribir_bytes_swap(escribir_pagina_info, archivo_swap, config_swap, loggerManager);
+
+	//lectura 2
+	leer_bytes_swap(leer_pagina_info, archivo_swap, config_swap, loggerManager, buffer);
+
+	free(leer_pagina_info);
+	free(escribir_pagina_info);
+	*/
 
 	/**************************************************************************************/
 
@@ -202,13 +227,44 @@ int finalizar_programa(t_fin_programa *fin_programa_info, t_bitarray *paginas_bi
 
 
 /*Busca y retorna el contenido solicitado al swap*/
-void obtener_bytes_swap(int pagina, int offset, int cantidad){
+int leer_bytes_swap(t_leer_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer){
+
 	//TODO: Leer en la (posicion pagina * tamano de pagina) + offset una cantidad
+
+	int posicion_lectura = leer_pagina_info->pagina * config_swap->tamano_pagina + leer_pagina_info->offset;
+	fseek(archivo_swap, posicion_lectura, SEEK_SET);
+
+	int cantidad_leida = fread(buffer,leer_pagina_info->tamanio, 1, archivo_swap);
+
+	if (cantidad_leida == 1){//leyo un bloque del tamano
+			log_trace(loggerManager,"[Lectura de bytes] Se leyeron correctamente %i bloque de %i bytes", cantidad_leida, leer_pagina_info->tamanio);
+			return 0;
+		}
+		else {
+			log_error(loggerManager,"[Lectura de bytes] Ocurrio un problema, se leyeron %i bloques de %i bytes", cantidad_leida, leer_pagina_info->tamanio);
+			return -1;
+		}
+
 }
 
 
-/*Escribe en el swap el contenido de buffer*/
-void escribir_bytes_swap(int pagina, int offset, int cantidad, void *buffer){
-	//TODO: Pararse en la (posicion pagina * tamano de pagina) + offset y escribir buffer
+/*Escribe en el swap el contenido de buffer, retorna 0 si el estado es ok, -1 en caso de error*/
+int escribir_bytes_swap(t_escribir_pagina *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager){
+
+	//TODO: No se esta evaluando si es correcto que se escriba en esta region de memoria, evaluar eso despues
+
+	int posicion_escritura = escribir_pagina_info->pagina * config_swap->tamano_pagina + escribir_pagina_info->offset;
+	fseek(archivo_swap, posicion_escritura, SEEK_SET);
+
+	int cantidad_escrita = fwrite(escribir_pagina_info->buffer,1, escribir_pagina_info->tamanio ,archivo_swap); //Ojo con ese 1 hardcodeado
+
+	if (cantidad_escrita == escribir_pagina_info->tamanio){
+		log_trace(loggerManager,"[Escritura de bytes] Se escribieron correctamente %i bytes", cantidad_escrita);
+		return 0;
+	}
+	else {
+		log_error(loggerManager,"[Escritura de bytes] Ocurrio un problema, se escribieron %i de %i bytes", cantidad_escrita, escribir_pagina_info->tamanio);
+		return -1;
+	}
 }
 
