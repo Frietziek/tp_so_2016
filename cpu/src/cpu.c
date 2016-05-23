@@ -36,19 +36,21 @@ int main(void) {
 	socket_nucleo = conectar_servidor(configuracion->ip_nucleo,
 			configuracion->puerto_nucleo);
 
-	t_header *header_handshake = malloc(sizeof(t_header));
+	// INICIO EJEMPLO ENVIO PAQUETE SIN PAYLOAD
 
+	t_header *header_handshake = malloc(sizeof(t_header));
 	header_handshake->id_proceso_emisor = 2;
 	header_handshake->id_proceso_receptor = 1;
 	header_handshake->id_mensaje = 0;
 	header_handshake->longitud_mensaje = 0;
-
 	enviar_header(socket_nucleo, header_handshake);
-
 	free(header_handshake);
 
-	t_persona *persona = malloc(sizeof(t_persona));
+	// FIN EJEMPLO ENVIO PAQUETE SIN PAYLOAD
 
+	// INICIO EJEMPLO ENVIO PAQUETE CON PAYLOAD
+
+	t_persona *persona = malloc(sizeof(t_persona));
 	persona->nombre = malloc(9);
 	persona->apellido = malloc(5);
 	persona->materias_aprobadas = 44;
@@ -58,7 +60,6 @@ int main(void) {
 	persona->apellido = "bose";
 
 	t_buffer *buffer_persona = serializar_persona(persona);
-
 	t_header *header = malloc(sizeof(t_header));
 
 	header->id_proceso_emisor = 2;
@@ -74,6 +75,8 @@ int main(void) {
 	free(persona);
 	free(buffer_persona);
 	free(header);
+
+	// FIN EJEMPLO ENVIO PAQUETE CON PAYLOAD
 
 	// TODO Recibir PCB del Nucleo
 	// TODO Incrementar registro Program Counter en PCB

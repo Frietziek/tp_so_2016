@@ -86,33 +86,32 @@ int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo* configuracion) {
 	return (int) &(parametros->parametros_funcion);
 }
 
-void atender_cpu(t_config_nucleo*config, void *buffer) {
+void atender_cpu(t_config_nucleo*config, t_paquete *paquete) {
 
-	t_header *header = malloc(sizeof(t_header));
+	//INICIO EJEMPLO CONSUMIR HEADER DE PAQUETE
 
-	deserializar_header(buffer, header);
+	printf("proceso emisor: %d\n", paquete->header->id_proceso_emisor);
+	printf("proceso receptor: %d\n", paquete->header->id_proceso_receptor);
+	printf("id mensaje: %d\n", paquete->header->id_mensaje);
+	printf("longitud payload: %d\n\n", paquete->header->longitud_mensaje);
 
-	switch (header->id_mensaje) {
+	//FIN EJEMPLO CONSUMIR HEADER DE PAQUETE
+
+	//INICIO EJEMPLO CONSUMIR PAYLOAD O NO SEGUN ID MENSAJE
+	switch (paquete->header->id_mensaje) {
 	case HANDSHAKE:
 		printf("Empieza handshake\n\n");
 		printf("Se establecio conexion con cpu\n\n");
-		printf("proceso emisor: %d\n", header->id_proceso_emisor);
-		printf("proceso receptor: %d\n", header->id_proceso_receptor);
-		printf("id mensaje: %d\n", header->id_mensaje);
-		printf("longitud payload: %d\n\n", header->longitud_mensaje);
 		printf("termina handshake\n\n");
+
 		break;
 	case RECIBIR_PERSONA:
 
-		printf(
-				"hola mundo, soy el Reno Jose, el puerto del cpu es %d, el primer semaforo es: %s\n\n",
-				config->puerto_cpu, config->sem_id[0]);
+		//INICIO EJEMPLO CONSUMIR PAYLOAD
 
-		//printf("hola mundo, soy el Reno Jose, el buffer contiene: %s \n", buffer);
+		; // el ; es necesario para poder hacer t_persona *persona2 = malloc(sizeof(t_persona));
 
 		t_persona *persona2 = malloc(sizeof(t_persona));
-
-		t_paquete *paquete = deserializar_con_header(buffer);
 
 		deserializar_persona(paquete->payload, persona2);
 
@@ -127,17 +126,12 @@ void atender_cpu(t_config_nucleo*config, void *buffer) {
 		printf("la cant de materias aprobadas es: %d\n\n",
 				persona2->materias_aprobadas);
 
-		//TODO ver por que el proceso emisor es 0 en vez de 2
-		printf("proceso emisor: %d\n", paquete->header->id_proceso_emisor);
-		printf("proceso receptor: %d\n", paquete->header->id_proceso_receptor);
-		printf("id mensaje: %d\n", paquete->header->id_mensaje);
-		printf("longitud payload: %d\n\n", paquete->header->longitud_mensaje);
-
 		free(persona2);
-		free(paquete);
 		break;
+		//FIN EJEMPLO CONSUMIR PAYLOAD
 	}
-	free(header);
+	//FIN EJEMPLO CONSUMIR PAYLOAD O NO SEGUN ID MENSAJE
+
 }
 
 void cargarConfiguracionNucleo(char *archivoConfig,

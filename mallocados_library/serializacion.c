@@ -87,31 +87,23 @@ void escribir_atributo_desde_void_de_buffer(void *buffer,
 }
 
 //Despues hay que hacer un free de lo que va a retornar
-t_buffer *serializar_header(t_header *header) {
+void *serializar_header(t_header *header) {
 
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-
-	int cantidad_a_reservar = sizeof(header->id_proceso_emisor)
-			+ sizeof(header->id_proceso_receptor) + sizeof(header->id_mensaje)
-			+ sizeof(header->longitud_mensaje);
-
-	estructura_buffer->longitud_buffer = cantidad_a_reservar;
-
-	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
+	void *estructura_buffer = malloc(sizeof(t_header));
 
 	int posicion_buffer = 0;
 
-	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
-			header->id_proceso_emisor, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer, header->id_proceso_emisor,
+			&posicion_buffer);
 
-	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
-			header->id_proceso_receptor, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer, header->id_proceso_receptor,
+			&posicion_buffer);
 
-	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
-			header->id_mensaje, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer, header->id_mensaje,
+			&posicion_buffer);
 
-	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
-			header->longitud_mensaje, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer, header->longitud_mensaje,
+			&posicion_buffer);
 
 	return estructura_buffer;
 }
@@ -123,13 +115,12 @@ void *serializar_con_header(t_header *header, t_buffer *payload) {
 
 	void *buffer = malloc(cantidad_a_reservar);
 
-	t_buffer *header_de_mensaje = serializar_header(header);
+	void *header_de_mensaje = serializar_header(header);
 
 	int posicion_buffer = 0;
 
-	memcpy(buffer, header_de_mensaje->contenido_buffer,
-			header_de_mensaje->longitud_buffer);
-	posicion_buffer += header_de_mensaje->longitud_buffer;
+	memcpy(buffer, header_de_mensaje, sizeof(t_header));
+	posicion_buffer += sizeof(t_header);
 
 	memcpy(buffer + posicion_buffer, payload->contenido_buffer,
 			payload->longitud_buffer);

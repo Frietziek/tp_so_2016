@@ -59,7 +59,7 @@ void obtener_tamanio_pagina(int *tamanio_pagina, void *buffer);
 
 int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo *configuracion);
 
-void atender_cpu(t_config_nucleo*config, void *buffer);
+void atender_cpu(t_config_nucleo*config, t_paquete *paquete);
 
 void atender_consola(void *buffer);
 

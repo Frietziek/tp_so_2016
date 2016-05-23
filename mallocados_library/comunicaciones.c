@@ -134,50 +134,68 @@ void escuchar_clientes(void *configuracion) {
 
 void recibir_mensaje(void *parametros) {
 	t_th_parametros_receive *parametros_receive = parametros;
-	int bytes_recibidos;
-	char buffer[MAXBUFFER];
+	int bytes_recibidos_header;
+	int bytes_recibidos_payload;
+	char buffer_header[sizeof(t_header)];
 
 	while (TRUE) {
-		buffer[0] = '\0';
+		buffer_header[0] = '\0';
 
-		// Recibo mensaje del cliente
-		if ((bytes_recibidos = recv(parametros_receive->socket_cliente, buffer,
-		MAXBUFFER - 1, 0)) == -1) {
-			perror("recv");
+		// Recibo header
+		if ((bytes_recibidos_header = recv(parametros_receive->socket_cliente,
+				buffer_header, sizeof(t_header), 0)) == -1) {
+			perror("recv header");
 			break;
 		}
 
 		// Verifico que el cliente no haya cerrado la conexion
-		if (bytes_recibidos == 0) {
+		if (bytes_recibidos_header == 0) {
 			perror("el socket cliente cerro la conexion\n");
 			break;
 		} else {
+			t_paquete *paquete = malloc(sizeof(t_paquete));
 
-			if (parametros_receive->funcion == NULL) {
-				buffer[bytes_recibidos] = '\0';
-				printf("Mensaje recibido: %s\n", buffer);
-			} else {
-				if (parametros_receive->parametros_funcion == NULL) {
-					//funcion sin parametros, solo el buffer como parametro
-					void (*fn)() = parametros_receive->funcion;
-					fn(buffer);
+			paquete->header = malloc(sizeof(t_header));
+			deserializar_header(buffer_header, paquete->header);
 
-				} else {
-					//funcion con parametros, ademas del buffer como parametro
-					void (*fn)() = parametros_receive->funcion;
-					void (*parametro) = parametros_receive->parametros_funcion;
+			if (paquete->header->longitud_mensaje > 0) {
 
-					fn(parametro, buffer);
-
+				paquete->payload = malloc(paquete->header->longitud_mensaje);
+				// Recibo payload
+				if ((bytes_recibidos_payload = recv(
+						parametros_receive->socket_cliente, paquete->payload,
+						paquete->header->longitud_mensaje, 0)) == -1) {
+					perror("recv payload");
+					break;
 				}
+			} else {
+				printf("\n payload vacio\n");
 			}
 
+			if (parametros_receive->parametros_funcion == NULL) {
+				//funcion sin parametros, solo el buffer como parametro
+				void (*fn)() = parametros_receive->funcion;
+				fn(paquete);
+
+			} else {
+				//funcion con parametros, ademas del buffer como parametro
+				void (*fn)() = parametros_receive->funcion;
+				void (*parametro) = parametros_receive->parametros_funcion;
+
+				fn(parametro, paquete);
+			}
+			if (paquete->header->longitud_mensaje > 0) {
+				free(paquete->payload);
+			}
+			free(paquete->header);
+			free(paquete);
 		}
 
 	}
 
 }
 
+//NO SE DEBE UTILIZAR MAS
 int enviar_mensaje(int socket, char *mensaje) {
 	int bytes_enviados_totales = 0;
 	int bytes_enviados = 0;
@@ -203,14 +221,13 @@ int enviar_header(int socket, t_header *header) {
 	int bytes_enviados_totales = 0;
 	int bytes_enviados = 0;
 
-	t_buffer *paquete_serializado = serializar_header(header);
+	void *paquete_serializado = serializar_header(header);
 
 //ciclo hasta que se enviee toodo lo que quiero enviar
 	if (socket >= 0) {
-		while (bytes_enviados_totales < paquete_serializado->longitud_buffer) {
-			if ((bytes_enviados = send(socket,
-					paquete_serializado->contenido_buffer,
-					paquete_serializado->longitud_buffer, 0)) == -1) {
+		while (bytes_enviados_totales < sizeof(t_header)) {
+			if ((bytes_enviados = send(socket, paquete_serializado,
+					sizeof(t_header), 0)) == -1) {
 				perror("send");
 				close(socket);
 				return -1;
@@ -244,6 +261,7 @@ int enviar_buffer(int socket, t_header *header, t_buffer *buffer) {
 	}
 	free(paquete_serializado);
 	return bytes_enviados_totales;
+
 }
 
 int conectar_servidor(char *ip, int puerto) {

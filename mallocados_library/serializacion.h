@@ -43,7 +43,8 @@ void copiar_int_en_buffer(void *buffer, int una_cosa, int *posicion_buffer);
 
 void copiar_char_en_buffer(void *buffer, char una_cosa, int *posicion_buffer);
 
-void copiar_string_en_buffer(void *buffer, char *una_cosa, int *posicion_buffer);
+void copiar_string_en_buffer(void *buffer, char *una_cosa,
+		int *posicion_buffer);
 
 void copiar_void_en_buffer(void *buffer, t_buffer *t_buffer,
 		int *posicion_buffer);
@@ -63,7 +64,7 @@ void escribir_atributo_desde_void_de_buffer(void *buffer,
 
 t_buffer *serializar_persona(t_persona *persona);
 
-t_buffer *serializar_header(t_header *header);
+void *serializar_header(t_header *header);
 
 void *serializar_con_header(t_header *header, t_buffer *payload);
 
