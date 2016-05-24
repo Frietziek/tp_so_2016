@@ -55,13 +55,11 @@ typedef struct { //TODO llenarme con parser metadata
 
 void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
 
-void obtener_tamanio_pagina(int *tamanio_pagina, void *buffer);
+void obtener_tamanio_pagina(t_paquete *paquete);
 
-int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo *configuracion);
+void atender_cpu(t_paquete *paquete, int socket_cpu);
 
-void atender_cpu(t_config_nucleo*config, t_paquete *paquete);
-
-void atender_consola(void *buffer);
+void atender_consola(t_paquete *paquete_buffer);
 
 t_pcb *crearPCB(char *codigo_de_consola);
 

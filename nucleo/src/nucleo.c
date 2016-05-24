@@ -23,6 +23,8 @@ t_queue *cola_block;
 t_queue *cola_exec;
 t_queue *cola_exit;
 
+int tamanio_pagina;
+
 int main(void) {
 
 	puts("Hola soy el nucleo"); /* prints proceso */
@@ -35,25 +37,83 @@ int main(void) {
 	cola_exec = queue_create();
 	cola_exit = queue_create();
 
-//	int tamanio_pagina = conectar_umc_y_obtener_tamanio_pagina(configuracion);
-//
-//	printf("el tamaño de pagina es: %d\n\n", tamanio_pagina);
+	//TODO inicializar colas_de_cada_dispositivo_entrada_salida
 
-	t_configuracion_servidor *configuracion_servidor = malloc(
+	// INICIO PIDO LONGITUD PAGINA  AL UMC Y LO ATIENDO
+
+	int socket_umc = conectar_servidor(configuracion->ip_umc,
+			configuracion->puerto_umc);
+
+	t_header *header_pido_tam_pag = malloc(sizeof(t_header));
+
+	header_pido_tam_pag->id_proceso_emisor = 1;
+	header_pido_tam_pag->id_proceso_receptor = 3;
+	//TODO definir id mensaje para pedir tamaño pagina
+	header_pido_tam_pag->id_mensaje = 0;
+	header_pido_tam_pag->longitud_mensaje = 0;
+
+	enviar_header(socket_umc, header_pido_tam_pag);
+
+	//Creamos estructura para mandarsela a recv
+	t_th_parametros_receive *parametros_receive_umc = malloc(
+			sizeof(t_th_parametros_receive));
+
+	parametros_receive_umc->funcion = &obtener_tamanio_pagina;
+
+	parametros_receive_umc->socket_cliente = socket_umc;
+
+	//recibimos tam pagina
+	recibir_mensaje(parametros_receive_umc);
+
+	// FIN PIDO LONGITUD PAGINA  AL UMC Y LO ATIENDO
+
+	//INICIO ATIENDO CONSOLA
+
+	t_configuracion_servidor *configuracion_servidor_consola = malloc(
 			sizeof(t_configuracion_servidor));
 
-	configuracion_servidor->puerto = configuracion->puerto_prog;
+	configuracion_servidor_consola->puerto = configuracion->puerto_prog;
 
 	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
-	//Y EN configuracion_servidor->parametros_funcion LO QUE DEBERIA RECIBIR LA FUNCION
-	configuracion_servidor->funcion = &atender_cpu;
-	configuracion_servidor->parametros_funcion = configuracion;
 
-	crear_servidor(configuracion_servidor);
+	configuracion_servidor_consola->funcion = &atender_consola;
+
+
+	crear_servidor(configuracion_servidor_consola);
+
+	//FIN ATIENDO CONSOLA
+
+	//INICIO ATIENDO CPU
+
+	t_configuracion_servidor *configuracion_servidor_cpu = malloc(
+			sizeof(t_configuracion_servidor));
+
+	configuracion_servidor_cpu->puerto = configuracion->puerto_cpu;
+
+	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
+	configuracion_servidor_cpu->funcion = &atender_cpu;
+
+
+	crear_servidor(configuracion_servidor_cpu);
+
+	//FIN ATIENDO CPU
+
+//	TODO while(true){
+//	if(hay programas por ejecutar y hay cpu conectada){
+//		planifico los programas de la consola con round robin
+//	};
+//
+//	};
 
 	getchar();
+
+	//Libero antes de cerrar
 	free(configuracion);
-	free(configuracion_servidor);
+	free(configuracion_servidor_cpu);
+	free(header_pido_tam_pag);
+	free(parametros_receive_umc);
+	free(configuracion_servidor_consola);
+
 	queue_destroy(cola_block);
 	queue_destroy(cola_ready);
 	queue_destroy(cola_exec);
@@ -62,31 +122,16 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
-void obtener_tamanio_pagina(int *tamanio_pagina, void *buffer) {
+void obtener_tamanio_pagina(t_paquete *paquete) {
 
+	//TODO falta definir serializacion umc nucleo
 	//TODO deserializar mensaje umc
-	//TODO asignar a lo que apunta el puntero tamanio_pagina el valor que esta en el payload del buffer
-	*tamanio_pagina = 5;
+	//TODO asignar el contenido de paquete->payload a tamanio pagina
+	tamanio_pagina = 5;
+
 }
 
-//TODO llegado el momento hay que evaluar que devuelva correctamente el valor
-int conectar_umc_y_obtener_tamanio_pagina(t_config_nucleo* configuracion) {
-	int socket_umc = conectar_servidor(configuracion->ip_umc,
-			configuracion->puerto_umc);
-	enviar_mensaje(socket_umc, "Hola soy el nucleo");
-
-	t_th_parametros_receive *parametros = malloc(
-			sizeof(t_th_parametros_receive));
-	int tamanio_pagina;
-	parametros->funcion = &obtener_tamanio_pagina;
-	parametros->parametros_funcion = &tamanio_pagina;
-
-	recibir_mensaje(parametros);
-
-	return (int) &(parametros->parametros_funcion);
-}
-
-void atender_cpu(t_config_nucleo *config, t_paquete *paquete) {
+void atender_cpu(t_paquete *paquete, int socket_cpu) {
 
 	//INICIO EJEMPLO CONSUMIR HEADER DE PAQUETE
 
@@ -96,6 +141,8 @@ void atender_cpu(t_config_nucleo *config, t_paquete *paquete) {
 	printf("longitud payload: %d\n\n", paquete->header->longitud_mensaje);
 
 	//FIN EJEMPLO CONSUMIR HEADER DE PAQUETE
+
+	printf("el socket del cpu es: %d\n", socket_cpu);
 
 	//INICIO EJEMPLO CONSUMIR PAYLOAD O NO SEGUN ID MENSAJE
 	switch (paquete->header->id_mensaje) {
@@ -220,21 +267,33 @@ void cargarConfiguracionNucleo(char *archivoConfig,
 	free(configuracion);
 }
 
-void atender_consola(void *buffer) {
+void atender_consola(t_paquete *paquete_buffer) {
 
-	t_paquete *paquete = malloc(sizeof(t_paquete));
-	paquete = deserializar_con_header(buffer);
-	char *codigo_de_consola;
-	switch (paquete->header->id_mensaje) {
+	printf("proceso emisor: %d\n", paquete_buffer->header->id_proceso_emisor);
+	printf("proceso receptor: %d\n",
+			paquete_buffer->header->id_proceso_receptor);
+	printf("id mensaje: %d\n", paquete_buffer->header->id_mensaje);
+	printf("longitud payload: %d\n\n",
+			paquete_buffer->header->longitud_mensaje);
+
+	switch (paquete_buffer->header->id_mensaje) {
 	case CODIGO:
-		deserializar_codigo(paquete->payload, &codigo_de_consola,
-				paquete->header->longitud_mensaje);
-		printf("el codigo es: %s\n", codigo_de_consola);
+		;
+		//inicio para ver lo que contiene el payload
+		char *codigo_de_consola = malloc(
+				paquete_buffer->header->longitud_mensaje + 1);
+		deserializar_codigo(paquete_buffer->payload, &codigo_de_consola,
+				paquete_buffer->header->longitud_mensaje);
+		codigo_de_consola[paquete_buffer->header->longitud_mensaje] = '\0';
+		printf("el codigo es: %s\n\n", codigo_de_consola);
+		free(codigo_de_consola);
+		//fin para ver lo que contiene el payload
+
 		t_pcb *pcb = crearPCB(codigo_de_consola);
 		agregar_pcb_a_cola(cola_ready, pcb);
 		//libero
 		free(pcb);
-		free(codigo_de_consola);
+
 		break;
 	case FINALIZAR:
 		printf("Terminando la ejecucion");
@@ -242,7 +301,7 @@ void atender_consola(void *buffer) {
 		printf("Termino la ejecucion");
 		break;
 	}
-	free(paquete);
+	free(paquete_buffer);
 }
 
 t_pcb *crearPCB(char *codigo_de_consola) {
