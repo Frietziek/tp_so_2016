@@ -10,12 +10,17 @@
 
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0
-#define MENSAJE_RESPUESTA_OK 10
-#define MENSAJE_RESPUESTA_ERROR 11
+#define RESPUESTA_HANDSHAKE 10
 
 // Funciones CPU - UMC
 #define MENSAJE_DEREFENCIAR 1
 #define MENSAJE_ASIGNAR_VARIABLE 2
+// Respuestas OK
+#define RESPUESTA_DEREFENCIAR 11
+#define RESPUESTA_ASIGNAR_VARIABLE 12
+// Respuestas Error
+#define ERROR_DEREFENCIAR 21
+#define ERROR_ASIGNAR_VARIABLE 22
 
 // Funciones CPU - Nucleo
 #define MENSAJE_OBTENER_VALOR_COMPARTIDA 1
@@ -25,6 +30,22 @@
 #define MENSAJE_ENTRADA_SALIDA 5
 #define MENSAJE_WAIT 6
 #define MENSAJE_SIGNAL 7
+// Respuestas OK
+#define RESPUESTA_OBTENER_VALOR_COMPARTIDA 11
+#define RESPUESTA_ASIGNAR_VARIABLE_COMPARTIDA 12
+#define RESPUESTA_IMPRIMIR 13
+#define RESPUESTA_IMPRIMIR_TEXTO 14
+#define RESPUESTA_ENTRADA_SALIDA 15
+#define RESPUESTA_WAIT 16
+#define RESPUESTA_SIGNAL 17
+// Respuestas Error
+#define ERROR_OBTENER_VALOR_COMPARTIDA 21
+#define ERROR_ASIGNAR_VARIABLE_COMPARTIDA 22
+#define ERROR_IMPRIMIR 23
+#define ERROR_IMPRIMIR_TEXTO 24
+#define ERROR_ENTRADA_SALIDA 25
+#define ERROR_WAIT 26
+#define ERROR_SIGNAL 27
 
 typedef struct {
 	char *ip_nucleo;
@@ -48,13 +69,16 @@ AnSISOP_kernel kernel_functions = { .AnSISOP_wait = wait, .AnSISOP_signal =
 		signal };
 
 // Funciones CPU - UMC
+void atender_umc(t_paquete *paquete, int socket_conexion);
+void definir_variable(char *variable);
+void obtener_posicion_variable(char * variable);
 void handshake_cpu_umc();
-/*void definir_variable(char *variable);
- void obtener_posicion_variable(char * variable);*/
+void respuesta_handshake_cpu_umc(void *buffer);
 void dereferenciar(int pagina, int offset, int tamanio);
 void asignar_variable(int pagina, int offset, int tamanio, int valor);
 
 // Funciones CPU - Nucleo
+void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo();
 void obtener_valor_compartida(char *variable);
 void asignar_valor_compartida(char *variable, int valor);

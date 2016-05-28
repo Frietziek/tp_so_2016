@@ -8,7 +8,7 @@
 #include <serializacion.h>
 #include "serializacion_swap_umc.h"
 
-void deserializar_inicio_programa(void *buffer,
+void deserializar_programa_completo(void *buffer,
 		t_programa_completo *inicio_programa) {
 
 	int posicion_buffer = 0;
@@ -20,41 +20,42 @@ void deserializar_inicio_programa(void *buffer,
 
 }
 
-void deserializar_leer_pagina(void *buffer, t_pagina *leer_pagina) {
+void deserializar_pagina(void *buffer, t_pagina *pagina) {
 
 	int posicion_buffer = 0;
 
-	escribir_atributo_desde_int_de_buffer(buffer, &(leer_pagina->pagina),
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->pagina),
 			&posicion_buffer);
-	escribir_atributo_desde_int_de_buffer(buffer, &(leer_pagina->offset),
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->offset),
 			&posicion_buffer);
-	escribir_atributo_desde_int_de_buffer(buffer, &(leer_pagina->tamanio),
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->tamanio),
 			&posicion_buffer);
 
 }
 
-void deserializar_escribir_pagina(void *buffer,
-		t_pagina_completa *escribir_pagina) {
+void deserializar_pagina_completa(void *buffer, t_pagina_completa *pagina) {
 
 	int posicion_buffer = 0;
 
-	escribir_atributo_desde_int_de_buffer(buffer, &(escribir_pagina->pagina),
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->pagina),
 			&posicion_buffer);
-	escribir_atributo_desde_int_de_buffer(buffer, &(escribir_pagina->offset),
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->offset),
 			&posicion_buffer);
-	escribir_atributo_desde_int_de_buffer(buffer, &(escribir_pagina->tamanio),
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->tamanio),
 			&posicion_buffer);
-	// TODO Hacer la funcion de escribir_atributo_desde_void_en_buffer en la libreria de serializacion
-	//escribir_atributo_desde_void_de_buffer(buffer, &(escribir_pagina->buffer),
-	//		&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->valor),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->socket_pedido),
+			&posicion_buffer);
 
 }
 
-void deserializar_finalizar_programa(void *buffer, t_programa *finalizar_programa) {
+void deserializar_programa(void *buffer, t_programa *finalizar_programa) {
 
 	int posicion_buffer = 0;
 
-	escribir_atributo_desde_int_de_buffer(buffer,&(finalizar_programa->id_programa), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(finalizar_programa->id_programa), &posicion_buffer);
 
 }
 

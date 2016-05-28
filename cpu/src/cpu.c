@@ -14,6 +14,7 @@
 #include <commons/config.h>
 #include <serializacion.h>
 #include <comunicaciones.h>
+#include <serializacion.h>
 #include "primitivas_ansisop.h"
 #include "cpu.h"
 
@@ -21,11 +22,13 @@
 #include "serializacion_cpu_umc.h"
 
 // Test para probar primitivas
-static const char* DEFINICION_VARIABLES = "variables a, b, c";
+//static const char* DEFINICION_VARIABLES = "variables a, b, c";
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;
 int socket_umc;
+
+int tamanio_pagina;
 
 int main(void) {
 	int comando; // Comandos ingresados de la consola de CPU
@@ -34,7 +37,7 @@ int main(void) {
 	printf("Proceso CPU creado.\n");
 
 	if ((socket_nucleo = conectar_servidor(configuracion->ip_nucleo,
-			configuracion->puerto_nucleo)) > 0) {
+			configuracion->puerto_nucleo, &atender_nucleo)) > 0) {
 		printf("CPU conectado con Nucleo\n");
 		handshake_cpu_nucleo();
 	} else {
@@ -87,7 +90,7 @@ int main(void) {
 
 	// TODO Conectarse al UMC y recibir prox sentencia
 	if ((socket_umc = conectar_servidor(configuracion->ip_umc,
-			configuracion->puerto_umc)) > 0) {
+			configuracion->puerto_umc, &atender_umc)) > 0) {
 		printf("CPU conectado con UMC.\n");
 		handshake_cpu_umc();
 	} else {
@@ -99,9 +102,9 @@ int main(void) {
 
 	// TODO Ejecutar operaciones (Primitivas)
 	// Test para probar primitivas
-	printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
-	analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
-			&kernel_functions);
+	/*printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
+	 analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
+	 &kernel_functions);*/
 
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
@@ -142,35 +145,55 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 }
 
 // Funciones CPU - UMC
-/*void definir_variable(char *variable) {
- t_variable *p_variable = malloc(sizeof(t_variable));
- p_variable->nombre = variable;
- //t_buffer *p_buffer = serializar_variable(p_variable);
- // t_buffer *h_buffer; // TODO hacer el header
- t_buffer *buffer; // TODO Rellenar con header y payload
- enviar_mensaje(socket_umc, buffer);
- free(p_variable);
- }*/
 
-/*void obtener_posicion_variable(char * variable) {
- t_variable *p_variable = malloc(sizeof(t_variable));
- p_variable->nombre = variable;
- //t_buffer *p_buffer = serializar_variable(p_variable);
- // t_buffer *h_buffer; // TODO hacer el header
- t_buffer *buffer; // TODO Rellenar con header y payload
- enviar_mensaje(socket_umc, buffer);
- free(p_variable);
- }*/
+void atender_umc(t_paquete *paquete, int socket_conexion) {
+	switch (paquete->header->id_mensaje) {
+	case RESPUESTA_HANDSHAKE:
+		printf("Handshake recibido de UMC\n");
+		respuesta_handshake_cpu_umc(paquete->payload);
+		break;
+	case RESPUESTA_DEREFENCIAR:
+		// TODO Terminar funcion
+		printf("Recibi respuesta: se leyo la pagina\n");
+		break;
+	case RESPUESTA_ASIGNAR_VARIABLE:
+		// TODO Terminar funcion
+		printf("Recibi respuesta: se escribio la pagina\n");
+		break;
+	default:
+		printf("Comando no reconocido\n");
+		break;
+	}
+}
+
+void definir_variable(char *variable) {
+	// TODO Terminar funcion
+}
+
+void obtener_posicion_variable(char * variable) {
+	// TODO Terminar funcion
+}
 
 void handshake_cpu_umc() {
+
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
 	header->id_proceso_receptor = PROCESO_UMC;
 	header->id_mensaje = MENSAJE_HANDSHAKE;
-	header->longitud_mensaje = 0;
+	header->longitud_mensaje = PAYLOAD_VACIO;
 
 	enviar_header(socket_umc, header);
 	free(header);
+
+}
+
+void respuesta_handshake_cpu_umc(void *buffer) {
+
+	t_pagina_tamanio *pagina = malloc(sizeof(t_pagina_tamanio));
+	deserializar_pagina_tamanio(buffer, pagina);
+	tamanio_pagina = pagina->tamanio;
+	printf("Se cargo el tamanio de la pagina: %i\n", tamanio_pagina);
+
 }
 
 void dereferenciar(int pagina, int offset, int tamanio) {
@@ -179,22 +202,23 @@ void dereferenciar(int pagina, int offset, int tamanio) {
 	header->id_proceso_receptor = PROCESO_UMC;
 	header->id_mensaje = MENSAJE_DEREFENCIAR;
 
-	t_pagina *p_derefenciar = malloc(sizeof(t_pagina));
-	p_derefenciar->pagina = pagina;
-	p_derefenciar->offset = offset;
-	p_derefenciar->tamanio = tamanio;
-	t_buffer *p_buffer = serializar_dereferenciar(p_derefenciar);
+	t_pagina *p_pagina = malloc(sizeof(t_pagina));
+	p_pagina->pagina = pagina;
+	p_pagina->offset = offset;
+	p_pagina->tamanio = tamanio;
+	p_pagina->socket_pedido = socket_umc;
+	t_buffer *payload = serializar_pagina(p_pagina);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
+	header->longitud_mensaje = payload->longitud_buffer;
 
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
+	if (enviar_buffer(socket_umc, header, payload)
+			< sizeof(t_header) + payload->longitud_buffer) {
 		perror("Fallo enviar buffer");
 	}
 
 	free(header);
-	free(p_derefenciar);
-	free(p_buffer);
+	free(p_pagina);
+	free(payload);
 }
 
 void asignar_variable(int pagina, int offset, int tamanio, int valor) {
@@ -203,27 +227,38 @@ void asignar_variable(int pagina, int offset, int tamanio, int valor) {
 	header->id_proceso_receptor = PROCESO_UMC;
 	header->id_mensaje = MENSAJE_ASIGNAR_VARIABLE;
 
-	t_pagina_completa *p_asignar = malloc(sizeof(t_pagina_completa));
-	p_asignar->pagina = pagina;
-	p_asignar->offset = offset;
-	p_asignar->tamanio = tamanio;
-	p_asignar->valor = valor;
+	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
+	p_pagina->pagina = pagina;
+	p_pagina->offset = offset;
+	p_pagina->tamanio = tamanio;
+	p_pagina->valor = valor;
 
-	t_buffer * p_buffer = serializar_asignar(p_asignar);
+	t_buffer * payload = serializar_pagina_completa(p_pagina);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
+	header->longitud_mensaje = payload->longitud_buffer;
 
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
+	if (enviar_buffer(socket_umc, header, payload)
+			< sizeof(t_header) + payload->longitud_buffer) {
 		perror("Fallo enviar buffer");
 	}
 
 	free(header);
-	free(p_asignar);
-	free(p_buffer);
+	free(p_pagina);
+	free(payload);
 }
 
 // Funciones CPU - Nucleo
+void atender_nucleo(t_paquete *paquete, int socket_conexion) {
+	switch (paquete->header->id_mensaje) {
+	case RESPUESTA_HANDSHAKE:
+		printf("Recibi respuesta de handshake del nucleo\n");
+		break;
+	default:
+		printf("Comando no reconocido\n");
+		break;
+	}
+}
+
 void handshake_cpu_nucleo() {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;

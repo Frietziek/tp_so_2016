@@ -44,6 +44,6 @@ int enviar_header(int socket, t_header *header);
 
 int enviar_mensaje(int socket, char *mensaje);
 
-int conectar_servidor(char *ip, int puerto);
+int conectar_servidor(char *ip, int puerto, void *funcion);
 
 #endif /* SOCKETS_H_ */

@@ -8,32 +8,17 @@
 #include <serializacion.h>
 #include "serializacion_cpu_umc.h"
 
-/*t_buffer *serializar_variable(t_variable_simple *variable) {
-	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre);
+t_buffer *serializar_pagina(t_pagina *pagina) {
 
+	int cantidad_a_reservar = sizeof(pagina->pagina) + sizeof(pagina->offset)
+			+ sizeof(pagina->tamanio);
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
-	copiar_string_en_buffer(buffer, variable->nombre, &posicion_buffer);
-
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-	estructura_buffer->contenido_buffer = buffer;
-	estructura_buffer->longitud_buffer = posicion_buffer;
-
-	return (estructura_buffer);
-}*/
-
-t_buffer *serializar_dereferenciar(t_pagina *derefenciar) {
-	int cantidad_a_reservar = sizeof(derefenciar->pagina)
-			+ sizeof(derefenciar->offset) + sizeof(derefenciar->tamanio);
-	void *buffer = malloc(cantidad_a_reservar);
-
-	int posicion_buffer = 0;
-
-	copiar_int_en_buffer(buffer, derefenciar->pagina, &posicion_buffer);
-	copiar_int_en_buffer(buffer, derefenciar->offset, &posicion_buffer);
-	copiar_int_en_buffer(buffer, derefenciar->tamanio, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->pagina, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->offset, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->tamanio, &posicion_buffer);
 
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 	estructura_buffer->contenido_buffer = buffer;
@@ -42,21 +27,61 @@ t_buffer *serializar_dereferenciar(t_pagina *derefenciar) {
 	return (estructura_buffer);
 }
 
-t_buffer *serializar_asignar(t_pagina_completa *asignar) {
-	int cantidad_a_reservar = sizeof(asignar->pagina) + sizeof(asignar->offset)
-			+ sizeof(asignar->tamanio) + sizeof(asignar->valor);
+void deserializar_pagina(void *buffer, t_pagina *pagina) {
+
+	int posicion_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->pagina),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->offset),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->tamanio),
+			&posicion_buffer);
+
+}
+
+t_buffer *serializar_pagina_completa(t_pagina_completa *pagina) {
+
+	int cantidad_a_reservar = sizeof(pagina->pagina) + sizeof(pagina->offset)
+			+ sizeof(pagina->tamanio) + sizeof(pagina->valor);
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
-	copiar_int_en_buffer(buffer, asignar->pagina, &posicion_buffer);
-	copiar_int_en_buffer(buffer, asignar->offset, &posicion_buffer);
-	copiar_int_en_buffer(buffer, asignar->tamanio, &posicion_buffer);
-	copiar_int_en_buffer(buffer, asignar->valor, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->pagina, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->offset, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->tamanio, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->valor, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pagina->socket_pedido, &posicion_buffer);
 
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 	estructura_buffer->contenido_buffer = buffer;
 	estructura_buffer->longitud_buffer = posicion_buffer;
 
 	return (estructura_buffer);
+}
+
+void deserializar_pagina_completa(void *buffer, t_pagina_completa *pagina) {
+
+	int posicion_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->pagina),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->offset),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->tamanio),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->valor),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->socket_pedido),
+			&posicion_buffer);
+
+}
+
+void deserializar_pagina_tamanio(void *buffer, t_pagina_tamanio *pagina_tamanio) {
+
+	int posicion_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(pagina_tamanio->tamanio),
+			&posicion_buffer);
 }

@@ -24,7 +24,6 @@
 #define TRUE  1
 #define FALSE  0
 #define BACKLOG  10     // Cuántas conexiones pendientes se mantienen en cola
-#define MAXBUFFER  1024 // Tamanio de buffer
 
 void sigchld_handler(int s) {
 	while (wait(NULL) > 0)
@@ -170,7 +169,7 @@ void recibir_mensaje(t_th_parametros_receive *parametros) {
 					break;
 				}
 			} else {
-				printf("\n payload vacio\n");
+				//printf("\n payload vacio\n");
 			}
 
 			void (*fn)() = parametros_receive->funcion;
@@ -215,7 +214,7 @@ int enviar_header(int socket, t_header *header) {
 
 	void *paquete_serializado = serializar_header(header);
 
-//ciclo hasta que se enviee toodo lo que quiero enviar
+	// Ciclo hasta que se envie toodo lo que quiero enviar
 	if (socket >= 0) {
 		while (bytes_enviados_totales < sizeof(t_header)) {
 			if ((bytes_enviados = send(socket, paquete_serializado,
@@ -239,7 +238,7 @@ int enviar_buffer(int socket, t_header *header, t_buffer *buffer) {
 
 	void *paquete_serializado = serializar_con_header(header, buffer);
 
-//ciclo hasta que se enviee toodo lo que quiero enviar
+	// Ciclo hasta que se enviee toodo lo que quiero enviar
 	if (socket >= 0) {
 		while (bytes_enviados_totales < cantidad_a_enviar) {
 			if ((bytes_enviados = send(socket, paquete_serializado,
@@ -256,11 +255,11 @@ int enviar_buffer(int socket, t_header *header, t_buffer *buffer) {
 
 }
 
-int conectar_servidor(char *ip, int puerto) {
+int conectar_servidor(char *ip, int puerto, void *funcion) {
 
 	int socket_cliente;
 	struct hostent *he;
-// información del destino
+	// Información del destino
 	struct sockaddr_in addr_server;
 	pthread_t hilo_recibir;
 
@@ -269,31 +268,32 @@ int conectar_servidor(char *ip, int puerto) {
 		return -1;
 	}
 
-//Abrimos socket
+	// Abrimos el socket
 	if ((socket_cliente = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("socket");
 		return -1;
 	}
 
-//Configuración de dirección de servidor
+	// Configuración de dirección de servidor
 	addr_server.sin_family = AF_INET; // Ordenación de bytes de la máquina
 	addr_server.sin_port = htons(puerto); // short, Ordenación de bytes de la red
 	addr_server.sin_addr = *((struct in_addr *) he->h_addr);
 	memset(&(addr_server.sin_zero), 0, 8); // poner a cero el resto de la estructura
 
-//Conecto con servidor, si hay error finalizo
+	// Conecto con servidor, si hay error finalizo
 	if (connect(socket_cliente, (struct sockaddr *) &addr_server,
 			sizeof(struct sockaddr)) == -1) {
 		perror("connect");
 		return -1;
 	}
 
-//Creamos estructura para mandarsela a recv
+	// Creamos estructura para mandarsela a recv
 	t_th_parametros_receive *param_receive = malloc(
 			sizeof(t_th_parametros_receive));
 	param_receive->socket_cliente = socket_cliente;
+	param_receive->funcion = funcion;
 
-//creamos el hilo para recibir
+	// Creamos el hilo para recibir mensajes desde el servidor
 	pthread_create(&hilo_recibir, NULL, (void*) recibir_mensaje, param_receive);
 
 	return socket_cliente;

@@ -8,6 +8,8 @@
 #ifndef SRC_UMC_H_
 #define SRC_UMC_H_
 
+#include "serializacion_umc_swap.h"
+
 // Funciones de la consola de UMC
 #define RETARDO 1
 #define DUMP 2
@@ -15,18 +17,24 @@
 
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0
-#define MENSAJE_RESPUESTA_OK 10
-#define MENSAJE_RESPUESTA_ERROR 11
+#define REPUESTA_HANDSHAKE 10
+#define ERROR_HANDSHAKE 20
 
 // Funciones CPU - Swap
-#define MENSAJE_INICIALIZAR_PROGRAMA 1
-#define MENSAJE_LEER_PAGINA 2
-#define MENSAJE_ESCRIBIR_PAGINA 3
+#define MENSAJE_LEER_PAGINA 1
+#define MENSAJE_ESCRIBIR_PAGINA 2
+#define MENSAJE_INICIAR_PROGRAMA 3
 #define MENSAJE_FINALIZAR_PROGRAMA 4
-
-// Funciones CPU - UMC
-#define MENSAJE_DEREFENCIAR 1
-#define MENSAJE_ASIGNAR_VARIABLE 2
+// Respuestas OK
+#define RESPUESTA_LEER_PAGINA 11
+#define RESPUESTA_ESCRIBIR_PAGINA 12
+#define RESPUESTA_INICIALIZAR_PROGRAMA 13
+#define RESPUESTA_FINALIZAR_PROGRAMA 14
+// Respuestas Error
+#define ERROR_LEER_PAGINA 21
+#define ERROR_ESCRIBIR_PAGINA 22
+#define ERROR_INICIALIZAR_PROGRAMA 23
+#define ERROR_FINALIZAR_PROGRAMA 24
 
 typedef struct {
 	int puerto;
@@ -41,22 +49,37 @@ typedef struct {
 
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
-void atender_peticiones(t_config_umc *config, t_paquete *paquete);
+void atender_peticiones(t_paquete *paquete, int socket_conexion);
 
-void atender_cpu(t_config_umc *config, t_paquete *paquete);
+void atender_cpu(t_paquete *paquete, int socket_conexion);
 
-void atender_nucleo(t_config_umc *config, t_paquete *paquete);
+void atender_nucleo(t_paquete *paquete, int socket_conexion);
 
-// Funciones UMC - Swap
+void atender_swap(t_paquete *paquete, int socket_conexion);
+
 void handshake_umc_swap();
 
-void inicializar_programa();
+void iniciar_programa(void *buffer, int socket);
 
-void leer_pagina();
+void respuesta_iniciar_programa(void *buffer);
 
-void escribir_pagina();
+void leer_pagina(void *buffer, int socket_conexion);
 
-void finalizar_programa();
+void respuesta_leer_pagina(void *bufferfff);
+
+void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina);
+
+void escribir_pagina(void *buffer, int socket_conexion);
+
+void finalizar_programa(void *buffer, int socket);
+
+void handshake_umc_cpu(int socket_cpu);
+
+void handshake_umc_nucleo(int socket_nucleo);
+
+void handshake_proceso(int socket, int proceso_receptor, int id_mensaje);
+
+int pagina_en_memoria();
 
 void cambiar_retardo();
 
