@@ -8,19 +8,21 @@
 #ifndef CPU_H_
 #define CPU_H_
 
+#include <serializacion.h>
+
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0
 #define RESPUESTA_HANDSHAKE 10
 
 // Funciones CPU - UMC
-#define MENSAJE_DEREFENCIAR 1
-#define MENSAJE_ASIGNAR_VARIABLE 2
+#define MENSAJE_LEER_PAGINA 1
+#define MENSAJE_ESCRIBIR_PAGINA 2
 // Respuestas OK
-#define RESPUESTA_DEREFENCIAR 11
-#define RESPUESTA_ASIGNAR_VARIABLE 12
+#define RESPUESTA_LEER_PAGINA 11
+#define RESPUESTA_ESCRIBIR_PAGINA 12
 // Respuestas Error
-#define ERROR_DEREFENCIAR 21
-#define ERROR_ASIGNAR_VARIABLE 22
+#define ERROR_LEER_PAGINA 21
+#define ERROR_ESCRIBIR_PAGINA 22
 
 // Funciones CPU - Nucleo
 #define MENSAJE_OBTENER_VALOR_COMPARTIDA 1
@@ -56,26 +58,15 @@ typedef struct {
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 
-AnSISOP_funciones functions = { .AnSISOP_definirVariable = definirVariable,
-		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
-		.AnSISOP_dereferenciar = derefenciar, .AnSISOP_asignar = asignar,
-		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
-		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
-		.AnSISOP_irAlLabel = irAlLabel, .AnSISOP_retornar = retornar,
-		.AnSISOP_imprimir = imprimir, .AnSISOP_imprimirTexto = imprimirTexto,
-		.AnSISOP_entradaSalida = entradaSalida };
-
-AnSISOP_kernel kernel_functions = { .AnSISOP_wait = wait, .AnSISOP_signal =
-		signal };
-
 // Funciones CPU - UMC
 void atender_umc(t_paquete *paquete, int socket_conexion);
 void definir_variable(char *variable);
 void obtener_posicion_variable(char * variable);
 void handshake_cpu_umc();
 void respuesta_handshake_cpu_umc(void *buffer);
-void dereferenciar(int pagina, int offset, int tamanio);
-void asignar_variable(int pagina, int offset, int tamanio, int valor);
+void leer_pagina(int pagina, int offset, int tamanio);
+void respuesta_leer_pagina(void *buffer);
+void escribir_pagina(int pagina, int offset, int tamanio, int valor);
 
 // Funciones CPU - Nucleo
 void atender_nucleo(t_paquete *paquete, int socket_conexion);

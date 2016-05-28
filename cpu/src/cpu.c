@@ -12,17 +12,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <commons/config.h>
+#include <semaphore.h>
 #include <serializacion.h>
 #include <comunicaciones.h>
-#include <serializacion.h>
 #include "primitivas_ansisop.h"
 #include "cpu.h"
 
+#include "semaforo_cpu.h"
 #include "serializacion_cpu_nucleo.h"
 #include "serializacion_cpu_umc.h"
 
+// Primirivas AnSISOP
+AnSISOP_funciones functions = { .AnSISOP_definirVariable = definirVariable,
+		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
+		.AnSISOP_dereferenciar = derefenciar, .AnSISOP_asignar = asignar,
+		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
+		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
+		.AnSISOP_irAlLabel = irAlLabel, .AnSISOP_retornar = retornar,
+		.AnSISOP_imprimir = imprimir, .AnSISOP_imprimirTexto = imprimirTexto,
+		.AnSISOP_entradaSalida = entradaSalida };
+AnSISOP_kernel kernel_functions = { .AnSISOP_wait = wait, .AnSISOP_signal =
+		signal };
+
 // Test para probar primitivas
 //static const char* DEFINICION_VARIABLES = "variables a, b, c";
+static const char* ASIGNACION = "a = b + 12";
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;
@@ -31,6 +45,7 @@ int socket_umc;
 int tamanio_pagina;
 
 int main(void) {
+	sem_init(&s_pagina, 0, 0);
 	int comando; // Comandos ingresados de la consola de CPU
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
 	carga_configuracion_cpu("src/config.cpu.ini", configuracion);
@@ -98,13 +113,15 @@ int main(void) {
 	}
 
 	// Test para probar la comunicacion de funciones con el UMC
-	dereferenciar(5, 10, 4);
+	//leer_pagina(5, 10, 4);
 
 	// TODO Ejecutar operaciones (Primitivas)
 	// Test para probar primitivas
-	/*printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
-	 analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
-	 &kernel_functions);*/
+	//printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
+	//analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
+	//		&kernel_functions);
+	printf("Ejecutando '%s'\n", ASIGNACION);
+	analizadorLinea(strdup(ASIGNACION), &functions, &kernel_functions);
 
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
@@ -152,11 +169,12 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		printf("Handshake recibido de UMC\n");
 		respuesta_handshake_cpu_umc(paquete->payload);
 		break;
-	case RESPUESTA_DEREFENCIAR:
+	case RESPUESTA_LEER_PAGINA:
 		// TODO Terminar funcion
+		respuesta_leer_pagina(paquete->payload);
 		printf("Recibi respuesta: se leyo la pagina\n");
 		break;
-	case RESPUESTA_ASIGNAR_VARIABLE:
+	case RESPUESTA_ESCRIBIR_PAGINA:
 		// TODO Terminar funcion
 		printf("Recibi respuesta: se escribio la pagina\n");
 		break;
@@ -196,11 +214,11 @@ void respuesta_handshake_cpu_umc(void *buffer) {
 
 }
 
-void dereferenciar(int pagina, int offset, int tamanio) {
+void leer_pagina(int pagina, int offset, int tamanio) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
 	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_DEREFENCIAR;
+	header->id_mensaje = MENSAJE_LEER_PAGINA;
 
 	t_pagina *p_pagina = malloc(sizeof(t_pagina));
 	p_pagina->pagina = pagina;
@@ -221,17 +239,27 @@ void dereferenciar(int pagina, int offset, int tamanio) {
 	free(payload);
 }
 
-void asignar_variable(int pagina, int offset, int tamanio, int valor) {
+void respuesta_leer_pagina(void *buffer) {
+
+	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
+	deserializar_pagina_completa(buffer, pagina);
+
+	valor_pagina = pagina->valor;
+	sem_post(&s_pagina);
+}
+
+void escribir_pagina(int pagina, int offset, int tamanio, int valor) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
 	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_ASIGNAR_VARIABLE;
+	header->id_mensaje = MENSAJE_ESCRIBIR_PAGINA;
 
 	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
 	p_pagina->pagina = pagina;
 	p_pagina->offset = offset;
 	p_pagina->tamanio = tamanio;
 	p_pagina->valor = valor;
+	p_pagina->socket_pedido = socket_umc;
 
 	t_buffer * payload = serializar_pagina_completa(p_pagina);
 

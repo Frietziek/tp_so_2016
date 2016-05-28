@@ -5,7 +5,9 @@
  *      Author: utnso
  */
 
+#include "semaphore.h"
 #include "primitivas_ansisop.h"
+#include "semaforo_cpu.h"
 
 static const int CONTENIDO_VARIABLE = 20;
 static const int POSICION_MEMORIA = 0x10;
@@ -21,20 +23,31 @@ t_puntero obtenerPosicionVariable(t_nombre_variable identificador_variable) {
 }
 
 t_valor_variable derefenciar(t_puntero direccion_variable) {
-	printf("Dereferencia %d y su valor es %d\n", direccion_variable, CONTENIDO_VARIABLE);
+	// TODO Rellenar con los valores reales
+	leer_pagina(5, 4, 4);
+	printf("Espero semaforo\n");
+	sem_wait(&s_pagina);
+	printf("Signal recibido\n");
+	printf("Dereferencia %d y su valor es %d\n", direccion_variable,
+			valor_pagina);
 	return CONTENIDO_VARIABLE;
 }
 
 void asignar(t_puntero direccion_variable, t_valor_variable valor) {
+	// TODO Rellenar con los valores reales
+	escribir_pagina(5, 4, 4, 4);
 	printf("Asignando en %d el valor %d\n", direccion_variable, valor);
 }
 
 t_valor_variable obtenerValorCompartida(t_nombre_compartida variable) {
+	obtener_valor_compartida(variable);
 	printf("Obtiene valor de variable compartida %s\n", variable);
 	return CONTENIDO_VARIABLE;
 }
 
-t_valor_variable asignarValorCompartida(t_nombre_compartida variable, t_valor_variable valor) {
+t_valor_variable asignarValorCompartida(t_nombre_compartida variable,
+		t_valor_variable valor) {
+	asignar_valor_compartida(variable, valor);
 	printf("Asignando en %s el valor %d\n", variable, valor);
 	return CONTENIDO_VARIABLE;
 }
@@ -43,8 +56,11 @@ void irAlLabel(t_nombre_etiqueta etiqueta) {
 	printf("Yendo al Label: %s\n", etiqueta);
 }
 
-t_puntero_instruccion llamarFuncion(t_nombre_etiqueta etiqueta, t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion) {
-	printf("Llamando a la funcion de etiqueta %s, en el lugar de retorno %c y posicion de instruccion %c\n", etiqueta, donde_retornar, linea_en_ejecucion);
+t_puntero_instruccion llamarFuncion(t_nombre_etiqueta etiqueta,
+		t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion) {
+	printf(
+			"Llamando a la funcion de etiqueta %s, en el lugar de retorno %c y posicion de instruccion %c\n",
+			etiqueta, donde_retornar, linea_en_ejecucion);
 	return POSICION_MEMORIA;
 }
 

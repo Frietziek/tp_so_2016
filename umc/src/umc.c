@@ -17,12 +17,14 @@
 
 int socket_swap;
 int tamanio_pagina;
+int retardo;
 
 int main(void) {
 	int comando; // Comandos ingresados de la consola de UMC
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
 	carga_configuracion_UMC("src/config.umc.ini", configuracion);
 	tamanio_pagina = configuracion->marco_size;
+	retardo = configuracion->retardo;
 
 	// Se crea el bloque de la memoria principal
 	/*void memoria_principal = calloc(configuracion->marcos,
@@ -242,6 +244,8 @@ void respuesta_iniciar_programa(void *buffer) {
 }
 
 void leer_pagina(void *buffer, int socket_conexion) {
+
+	sleep(retardo);
 
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
