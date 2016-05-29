@@ -19,13 +19,9 @@
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
 #include "serializacion_swap_umc.h"
+#include "funciones_swap.h"
 
-/*****************************Declaracion de funciones del SWAP********************************/
-int inicializar_programa(t_programa_completo *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager);
-int finalizar_programa(t_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager);
-int leer_bytes_swap(t_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer);
-int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager);
-/**********************************************************************************************/
+
 
 int main(void) {
 
@@ -73,78 +69,9 @@ int main(void) {
 
 	t_configuracion_servidor *servidor_swap_config = malloc(sizeof(t_configuracion_servidor));
 	servidor_swap_config->puerto = config_swap->puerto_escucha;
+	servidor_swap_config->funcion = atender_UMC; //No deberia hacer falta el & pero ojo
 	crear_servidor(servidor_swap_config);
 	log_trace(loggerManager,"Se establecio el SWAP como servidor");
-
-	/**************************************************************************************/
-
-
-	/*******  Pruebas funciones SWAP (mantener comentado, descomentar para testear) *******/
-
-	/*t_inicio_programa *inicio_programa_info1 = malloc(sizeof (t_inicio_programa));
-	inicio_programa_info1->id_programa = 20;
-	inicio_programa_info1->paginas_requeridas = 4;
-
-	t_inicio_programa *inicio_programa_info2 = malloc(sizeof (t_inicio_programa));
-	inicio_programa_info2->id_programa = 21;
-	inicio_programa_info2->paginas_requeridas = 10;
-
-	t_inicio_programa *inicio_programa_info3 = malloc(sizeof (t_inicio_programa));
-	inicio_programa_info3->id_programa = 25;
-	inicio_programa_info3->paginas_requeridas = 20;
-
-	t_inicio_programa *inicio_programa_info4 = malloc(sizeof (t_inicio_programa));
-	inicio_programa_info4->id_programa = 20;
-	inicio_programa_info4->paginas_requeridas = 10;
-
-	t_fin_programa *fin_programa_info1 = malloc(sizeof (t_fin_programa));
-	fin_programa_info1->id_programa = 20;
-
-	t_fin_programa *fin_programa_info2 = malloc(sizeof (t_fin_programa));
-	fin_programa_info2->id_programa = 21;
-
-	t_fin_programa *fin_programa_info3 = malloc(sizeof (t_fin_programa));
-	fin_programa_info3->id_programa = 30;
-
-	inicializar_programa(inicio_programa_info1, lista_programas, paginas_bitmap, loggerManager);
-	inicializar_programa(inicio_programa_info2, lista_programas, paginas_bitmap, loggerManager);
-	inicializar_programa(inicio_programa_info4, lista_programas, paginas_bitmap, loggerManager);
-	finalizar_programa(fin_programa_info1, paginas_bitmap, lista_programas, loggerManager);
-	finalizar_programa(fin_programa_info2, paginas_bitmap, lista_programas, loggerManager);
-	finalizar_programa(fin_programa_info3, paginas_bitmap, lista_programas, loggerManager);
-	inicializar_programa(inicio_programa_info3, lista_programas, paginas_bitmap, loggerManager);
-
-	free(inicio_programa_info1);
-	free(inicio_programa_info2);
-	free(inicio_programa_info3);
-	free(fin_programa_info1);
-	free(fin_programa_info2);
-	free(fin_programa_info3);*/
-
-	/*
-	//lectura inicial
-	t_leer_pagina *leer_pagina_info = malloc(sizeof(t_leer_pagina));
-	leer_pagina_info->tamanio = 10;
-	leer_pagina_info->pagina = 0;
-	leer_pagina_info->offset = 1;
-	void *buffer = malloc(leer_pagina_info->tamanio);
-	leer_bytes_swap(leer_pagina_info, archivo_swap, config_swap, loggerManager, buffer);
-
-	//escritura
-	char str[] = "This is tutorialspoint.com";
-	t_escribir_pagina *escribir_pagina_info = malloc(sizeof(t_escribir_pagina));
-	escribir_pagina_info->buffer = str;
-	escribir_pagina_info->tamanio = sizeof(str);
-	escribir_pagina_info->pagina = 1;
-	escribir_pagina_info->offset = 1;
-	escribir_bytes_swap(escribir_pagina_info, archivo_swap, config_swap, loggerManager);
-
-	//lectura 2
-	leer_bytes_swap(leer_pagina_info, archivo_swap, config_swap, loggerManager, buffer);
-
-	free(leer_pagina_info);
-	free(escribir_pagina_info);
-	*/
 
 	/**************************************************************************************/
 
@@ -256,7 +183,7 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_s
 	int posicion_escritura = escribir_pagina_info->pagina * config_swap->tamano_pagina + escribir_pagina_info->offset;
 	fseek(archivo_swap, posicion_escritura, SEEK_SET);
 
-	int cantidad_escrita = fwrite(escribir_pagina_info->buffer,1, escribir_pagina_info->tamanio ,archivo_swap); //Ojo con ese 1 hardcodeado
+	int cantidad_escrita = fwrite(escribir_pagina_info->valor,1, escribir_pagina_info->tamanio ,archivo_swap); //Ojo con ese 1 hardcodeado
 
 	if (cantidad_escrita == escribir_pagina_info->tamanio){
 		log_trace(loggerManager,"[Escritura de bytes] Se escribieron correctamente %i bytes", cantidad_escrita);
@@ -266,5 +193,31 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_s
 		log_error(loggerManager,"[Escritura de bytes] Ocurrio un problema, se escribieron %i de %i bytes", cantidad_escrita, escribir_pagina_info->tamanio);
 		return -1;
 	}
+}
+
+
+void atender_UMC(t_paquete *paquete, int socket_conexion) {
+
+	switch (paquete->header->id_mensaje) {
+		case MENSAJE_HANDSHAKE:
+			//TODO: atender
+			break;
+		case MENSAJE_LEER_PAGINA:
+			//TODO: atender
+			break;
+		case MENSAJE_ESCRIBIR_PAGINA:
+			//TODO: atender
+			break;
+		case MENSAJE_INICIAR_PROGRAMA:
+			//TODO: atender
+			break;
+		case MENSAJE_FINALIZAR_PROGRAMA:
+			//TODO: atender
+			break;
+		default:
+			//TODO: tratar
+			break;
+	}
+
 }
 
