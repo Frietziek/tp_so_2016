@@ -84,6 +84,13 @@ void crear_servidor(t_configuracion_servidor *config_servidor) {
 	configuracion_escucha->socket_escucha = sockfd;
 	configuracion_escucha->funcion = config_servidor->funcion;
 
+	//ACA PREGUNTO SI LOS PARAMETROS SON NULL
+
+	if (config_servidor->parametros_funcion != NULL) {
+		configuracion_escucha->parametros_funcion =
+				config_servidor->parametros_funcion;
+	}
+
 	//Creo el hilo
 
 	pthread_t hilo_cliente;
@@ -104,6 +111,13 @@ void escuchar_clientes(void *configuracion) {
 			sizeof(t_th_parametros_receive));
 
 	param_receive->funcion = configuracion_escucha->funcion;
+
+	//ACA PREGUNTO SI LOS PARAMETROS SON NULL
+
+	if (configuracion_escucha->parametros_funcion != NULL) {
+		param_receive->parametros_funcion =
+				configuracion_escucha->parametros_funcion;
+	}
 
 	//ciclo hasta que lleguen conexiones nuevas
 	while (TRUE) {
@@ -173,7 +187,17 @@ void recibir_mensaje(t_th_parametros_receive *parametros) {
 			}
 
 			void (*fn)() = parametros_receive->funcion;
-			fn(paquete, parametros_receive->socket_cliente);
+
+			//ACA PREGUNTO SI LOS PARAMETROS SON NULL
+
+			if (parametros_receive->parametros_funcion != NULL) {
+
+				fn(paquete, parametros_receive->socket_cliente,
+						parametros_receive->parametros_funcion);
+
+			} else {
+				fn(paquete, parametros_receive->socket_cliente);
+			}
 
 			if (paquete->header->longitud_mensaje > 0) {
 				free(paquete->payload);
