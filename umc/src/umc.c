@@ -20,7 +20,6 @@ int tamanio_pagina;
 int retardo;
 
 int main(void) {
-	int comando; // Comandos ingresados de la consola de UMC
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
 	carga_configuracion_UMC("src/config.umc.ini", configuracion);
 	tamanio_pagina = configuracion->marco_size;
@@ -51,31 +50,8 @@ int main(void) {
 		perror("Error al conectarse con el Swap");
 	}
 
-	// TODO Administrar los pedidos de las CPUs y el nucleo
+	menu_principal();
 
-	printf("Ingrese uno de los siguientes comandos para continuar:\n");
-	printf("1 - Cambiar retardo de la consola UMC\n");
-	printf("2 - Generar reporte y archivo Dump\n");
-	printf("3 - Limpiar contenido de LTB o paginas\n");
-	scanf("%d", &comando);
-	// TODO Implementar funciones de la consola de UMC
-	switch (comando) {
-	case RETARDO:
-		printf("Entro en Retardo\n");
-		cambiar_retardo();
-		break;
-	case DUMP:
-		printf("Entro en Dump\n");
-		generar_dump();
-		break;
-	case TLB:
-		printf("Entro en Flush de TLB\n");
-		limpiar_contenido();
-		break;
-	default:
-		printf("Comando no reconocido\n");
-		break;
-	}
 	free(configuracion);
 	return EXIT_SUCCESS;
 }
@@ -116,6 +92,33 @@ void carga_configuracion_UMC(char *archivo, t_config_umc *configuracionUMC) {
 				"RETARDO");
 	}
 	free(configuracion);
+}
+
+void menu_principal() {
+	int comando;
+	// Comandos ingresados de la consola de UMC
+	printf("Ingrese uno de los siguientes comandos para continuar:\n");
+	printf("1 - Cambiar retardo de la consola UMC\n");
+	printf("2 - Generar reporte y archivo Dump\n");
+	printf("3 - Limpiar contenido de LTB o paginas\n");
+	scanf("%d", &comando);
+	// TODO Implementar funciones de la consola de UMC
+	switch (comando) {
+	case RETARDO:
+		cambiar_retardo();
+		break;
+	case DUMP:
+		printf("Entro en Dump\n");
+		generar_dump();
+		break;
+	case TLB:
+		printf("Entro en Flush de TLB\n");
+		limpiar_contenido();
+		break;
+	default:
+		printf("Comando no reconocido\n");
+		break;
+	}
 }
 
 void atender_peticiones(t_paquete *paquete, int socket_conexion) {
@@ -166,12 +169,14 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 
 void atender_swap(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
+	case REPUESTA_HANDSHAKE:
+		respuesta_handshake_umc_swap();
+		break;
 	case RESPUESTA_INICIALIZAR_PROGRAMA:
 		respuesta_iniciar_programa(paquete->payload);
 		break;
 	case RESPUESTA_LEER_PAGINA:
 		respuesta_leer_pagina(paquete->payload);
-		printf("Respuesta leer pagina\n");
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -186,6 +191,10 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 
 void handshake_umc_swap() {
 	handshake_proceso(socket_swap, PROCESO_SWAP, MENSAJE_HANDSHAKE);
+}
+
+void respuesta_handshake_umc_swap(){
+	printf("Handshake de Swap confirmado\n");
 }
 
 void iniciar_programa(void *buffer, int socket) {
@@ -297,6 +306,8 @@ void leer_pagina(void *buffer, int socket_conexion) {
 }
 
 void respuesta_leer_pagina(void *buffer) {
+
+	printf("Respuesta leer pagina\n");
 
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina);
@@ -424,7 +435,12 @@ int pagina_en_memoria() {
 }
 
 void cambiar_retardo() {
-// TODO Terminar funcion
+	int comando_retardo;
+	printf("Ingrese el retardo (en segundos): ");
+	scanf("%d", &comando_retardo);
+	retardo = comando_retardo;
+	printf("\n");
+	menu_principal();
 }
 
 void generar_dump() {
@@ -434,4 +450,3 @@ void generar_dump() {
 void limpiar_contenido() {
 // TODO Terminar funcion
 }
-

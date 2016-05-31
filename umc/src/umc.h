@@ -49,6 +49,8 @@ typedef struct {
 
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
+void menu_principal();
+
 void atender_peticiones(t_paquete *paquete, int socket_conexion);
 
 void atender_cpu(t_paquete *paquete, int socket_conexion);
@@ -58,6 +60,8 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void atender_swap(t_paquete *paquete, int socket_conexion);
 
 void handshake_umc_swap();
+
+void respuesta_handshake_umc_swap();
 
 void iniciar_programa(void *buffer, int socket);
 
