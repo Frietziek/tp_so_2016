@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 
 	if (socket_nucleo > 0) {
 			printf("Consola conectada con el Núcleo.\n");
-			handshake_consola_nucleo(socket_nucleo);
+			//handshake_consola_nucleo(socket_nucleo);
 		} else {
 			perror("Error al conectarse con la Núcleo\n");
 		}
@@ -44,13 +44,6 @@ int main(int argc, char **argv) {
 
 	if (archivo == NULL)   exit(1);
 
-	//Envia linea por linea el archivo Ansisop
-	//Largo_Buffer = Generar_Buffer_Programa(archivo,Aux_Buff);
-
-	//buffer = *Aux_Buff;
-
-	//printf ("\n\n\n\nEl Codigo linea: %s \n\n\n\n",buffer);
-	//enviar_codigo (buffer,Largo_Buffer,socket_nucleo);
 	enviar_codigo (archivo,socket_nucleo);
 
 	getchar();
@@ -122,24 +115,24 @@ void enviar_codigo (FILE * archivo, int socket_nucleo){
 
 	char Aux_Archivo[100];
 	int Largo_Mensaje;
-	char * buffer;
+	t_texto * buffer;
 
 	fseek(archivo, 0, SEEK_END);
 	Largo_Mensaje=ftell(archivo);
 	rewind (archivo);
 
 	buffer = malloc (Largo_Mensaje);
-	*buffer = NULL;
+	*buffer->texto = NULL;
 
 	while (feof(archivo) == 0){
 
 		fgets(Aux_Archivo,100,archivo);
 
-		strcat (buffer,Aux_Archivo);
+		strcat (buffer->texto,Aux_Archivo);
 
 	}
 
-	printf ("\n\n\n\nEl Codigo linea: %s \n\n\n\n",buffer);
+	printf ("\n\n\n\nEl Codigo linea: %s \n\n\n\n",buffer->texto);
 
 	p_buffer = serializar_imprimir_texto (buffer);
 

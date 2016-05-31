@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <commons/config.h>
+#include <commons/string.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
 #include <signal.h>
