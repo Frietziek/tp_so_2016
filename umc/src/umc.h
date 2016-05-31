@@ -49,17 +49,24 @@ typedef struct {
 
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
-void menu_principal();
+t_configuracion_servidor* creo_servidor_umc(t_config_umc* configuracion);
 
-void atender_peticiones(t_paquete *paquete, int socket_conexion);
+int conecto_con_swap(t_config_umc* configuracion);
 
-void atender_cpu(t_paquete *paquete, int socket_conexion);
+void menu_principal(t_config_umc *configuracion);
 
-void atender_nucleo(t_paquete *paquete, int socket_conexion);
+void atender_peticiones(t_paquete *paquete, int socket_conexion,
+		t_config_umc *configuracion);
+
+void atender_cpu(t_paquete *paquete, int socket_conexion,
+		t_config_umc *configuracion);
+
+void atender_nucleo(t_paquete *paquete, int socket_conexion,
+		t_config_umc *configuracion);
 
 void atender_swap(t_paquete *paquete, int socket_conexion);
 
-void handshake_umc_swap();
+void handshake_umc_swap(int socket_servidor, t_config_umc *configuracion);
 
 void respuesta_handshake_umc_swap();
 
@@ -67,7 +74,7 @@ void iniciar_programa(void *buffer, int socket);
 
 void respuesta_iniciar_programa(void *buffer);
 
-void leer_pagina(void *buffer, int socket_conexion);
+void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion);
 
 void respuesta_leer_pagina(void *bufferfff);
 
@@ -77,15 +84,16 @@ void escribir_pagina(void *buffer, int socket_conexion);
 
 void finalizar_programa(void *buffer, int socket);
 
-void handshake_umc_cpu(int socket_cpu);
+void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion);
 
-void handshake_umc_nucleo(int socket_nucleo);
+void handshake_umc_nucleo(int socket_nucleo, t_config_umc *configuracion);
 
-void handshake_proceso(int socket, int proceso_receptor, int id_mensaje);
+void handshake_proceso(int socket, t_config_umc *configuracion,
+		int proceso_receptor, int id_mensaje);
 
 int pagina_en_memoria();
 
-void cambiar_retardo();
+void cambiar_retardo(t_config_umc *configuracion);
 
 void generar_dump();
 
