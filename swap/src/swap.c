@@ -21,16 +21,22 @@
 #include "serializacion_swap_umc.h"
 #include "funciones_swap.h"
 
-
+/*---------------Variables globales---------------*/
+t_log *loggerManager;
+t_bitarray *paginas_bitmap;
+t_list *lista_programas;
+t_config_swap *config_swap;
+FILE *archivo_swap;
+/*------------------------------------------------*/
 
 int main(void) {
 
-	t_log *loggerManager = 	log_create("swap.log","SWAP", true, LOG_LEVEL_TRACE); //creo un archivo log
+	loggerManager = log_create("swap.log","SWAP", true, LOG_LEVEL_TRACE); //creo un archivo log
 
 
 	/********************************  Configuraciones SWAP  ********************************/
 
-	t_config_swap *config_swap = malloc(sizeof(t_config_swap));
+	config_swap = malloc(sizeof(t_config_swap));
 	cargar_configuracion_swap("src/config.swap.ini",config_swap);
 	log_trace(loggerManager, "\nSe cargaron las configuraciones con los siguientes valores: \nPUERTO_ESCUCHA=%i \nNOMBRE_SWAP=%s\nCANTIDAD_PAGINAS=%i\nTAMANO_PAGINA=%i\nRETARDO_COMPACTACION=%i\n", config_swap->puerto_escucha, config_swap->nombre_swap, config_swap->cantidad_paginas, config_swap->tamano_pagina, config_swap->retardo_compactacion);
 
@@ -45,14 +51,14 @@ int main(void) {
 	else
 		log_error(loggerManager,"Hubo un problema al intentar crear el archivo swap");
 
-	FILE *archivo_swap = fopen(config_swap->nombre_swap, "rb+");
+	archivo_swap = fopen(config_swap->nombre_swap, "rb+");
 
 	/**************************************************************************************/
 
 
 	/******************************  Estructuras de control  ******************************/
 
-	t_bitarray *paginas_bitmap = malloc(sizeof paginas_bitmap); //Este es el bitmap perse
+	paginas_bitmap = malloc(sizeof paginas_bitmap); //Este es el bitmap perse
 	char paginas_array[(config_swap->cantidad_paginas)/8]; //Divido por 8 porque cada char tiene 8 bits (1 byte), creo que funciona asi la cosa
 	paginas_bitmap = bitarray_create(paginas_array, sizeof paginas_array); //Creo el bitmap
 
@@ -60,7 +66,7 @@ int main(void) {
 	log_trace(loggerManager,"Se creo e inicializo la estructura bitmap con %d cantidad de bits", bitarray_get_max_bit(paginas_bitmap));
 
 
-	t_list *lista_programas = list_create(); //Aca voy a meter los t_program_info a medida que el umc me pida crear un programa
+	lista_programas = list_create(); //Aca voy a meter los t_program_info a medida que el umc me pida crear un programa
 
 	/**************************************************************************************/
 
@@ -70,6 +76,7 @@ int main(void) {
 	t_configuracion_servidor *servidor_swap_config = malloc(sizeof(t_configuracion_servidor));
 	servidor_swap_config->puerto = config_swap->puerto_escucha;
 	servidor_swap_config->funcion = atender_UMC; //No deberia hacer falta el & pero ojo
+	//servidor_swap_config->parametros_funcion = config_swap;
 	crear_servidor(servidor_swap_config);
 	log_trace(loggerManager,"Se establecio el SWAP como servidor");
 
@@ -80,7 +87,7 @@ int main(void) {
 
 
 	/******************************  Liberacion de recursos  *******************************/
-
+	fclose(archivo_swap);
 	log_destroy(loggerManager);
 	free(config_swap);
 	free(servidor_swap_config);
@@ -98,7 +105,7 @@ int main(void) {
 
 
 /*Crea la estructura de control asociada al programa y reserva el espacio necesario en el swap, devuelve 0 si salio bien y -1 en caso de que de error al buscar bloque y -2 en caso de que el programa ya exista*/
-int inicializar_programa(t_programa_completo *inicio_programa_info, t_list *lista_programas, t_bitarray *paginas_bitmap, t_log *loggerManager){
+int inicializar_programa(t_programa_completo *inicio_programa_info){
 
 	t_program_info *program_info = buscar_programa(inicio_programa_info->id_programa, lista_programas);
 
@@ -132,7 +139,7 @@ int inicializar_programa(t_programa_completo *inicio_programa_info, t_list *list
 
 
 /*Se encarga de eliminar la estructura de control y de liberar el espacio en el bitmap, retorna 0 en caso de exito, -1 error*/
-int finalizar_programa(t_programa *fin_programa_info, t_bitarray *paginas_bitmap, t_list *lista_programas, t_log *loggerManager){
+int finalizar_programa(t_programa *fin_programa_info){
 
 	// TODO: Analizar si esta bien que no este "borrando" (llenando con 0's)
 	// el espacio previamente reservado en el archivo, no deberia hacer falta, pero tenerlo en cuenta
@@ -154,7 +161,7 @@ int finalizar_programa(t_programa *fin_programa_info, t_bitarray *paginas_bitmap
 
 
 /*Busca y retorna el contenido solicitado al swap*/
-int leer_bytes_swap(t_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager, void *buffer){
+int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer){
 
 	//TODO: Leer en la (posicion pagina * tamano de pagina) + offset una cantidad
 
@@ -176,7 +183,7 @@ int leer_bytes_swap(t_pagina *leer_pagina_info, FILE *archivo_swap, t_config_swa
 
 
 /*Escribe en el swap el contenido de buffer, retorna 0 si el estado es ok, -1 en caso de error*/
-int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_swap, t_config_swap *config_swap, t_log *loggerManager){
+int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info){
 
 	//TODO: No se esta evaluando si es correcto que se escriba en esta region de memoria, evaluar eso despues
 
@@ -198,26 +205,71 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info, FILE *archivo_s
 
 void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
-	switch (paquete->header->id_mensaje) {
+	int id_mensaje_recibido = paquete->header->id_mensaje;
+	int id_proceso_emisor = paquete->header->id_proceso_emisor;
+
+	switch (id_mensaje_recibido) {
 		case MENSAJE_HANDSHAKE:
-			//TODO: atender
+			//TODO: Tomar valor de pagina
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 0] handshake");
+
+			if(id_proceso_emisor == PROCESO_UMC)
+				handshake_UMC(socket_conexion);
+			else
+				handshake_error(socket_conexion);
+
 			break;
 		case MENSAJE_LEER_PAGINA:
-			//TODO: atender
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1] leer_pagina");
 			break;
 		case MENSAJE_ESCRIBIR_PAGINA:
-			//TODO: atender
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 2] escribir_pagina");
 			break;
 		case MENSAJE_INICIAR_PROGRAMA:
-			//TODO: atender
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 3] iniciar_programa");
 			break;
 		case MENSAJE_FINALIZAR_PROGRAMA:
-			//TODO: atender
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 4] finalizar_programa");
 			break;
 		default:
-			//TODO: tratar
+			log_error(loggerManager,"[Comunicacion UMC] El código de mensaje: %i, no es un mensaje aceptado por el SWAP", id_mensaje_recibido);
 			break;
 	}
-
 }
+
+void handshake_UMC(int socket_umc) {
+		t_header *header = malloc(sizeof(t_header));
+		header->id_proceso_emisor = PROCESO_SWAP;
+		header->id_proceso_receptor = PROCESO_UMC;
+
+		header->id_mensaje = RESPUESTA_HANDSHAKE;
+		header->longitud_mensaje = 0;
+
+		int cantidad_bytes_enviados = enviar_header(socket_umc, header);
+
+		if (cantidad_bytes_enviados < sizeof(t_header))
+			log_error(loggerManager,"[Comunicacion UMC][Respuesta Handshake] No se pudo enviar completamente");
+		else
+			log_trace(loggerManager,"[Comunicacion UMC][Respuesta Handshake] Se realizo el envio del mensaje correctamente");
+
+		free(header);
+	}
+
+void handshake_error(int socket_remitente) {
+		t_header *header = malloc(sizeof(t_header));
+		header->id_proceso_emisor = PROCESO_SWAP;
+		header->id_proceso_receptor = -1;
+
+		header->id_mensaje = ERROR_HANDSHAKE;
+		header->longitud_mensaje = 0;
+
+		int cantidad_bytes_enviados = enviar_header(socket_remitente, header);
+
+		if (cantidad_bytes_enviados < sizeof(t_header))
+			log_error(loggerManager,"[Comunicacion X][Respuesta Handshake erroneo] No se pudo enviar completamente");
+		else
+			log_trace(loggerManager,"[Comunicacion X][Respuesta Handshake erroneo] Se realizo el envio del mensaje correctamente");
+
+		free(header);
+	}
 
