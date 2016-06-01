@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 	struct sigaction sa;
 	t_config_consola *configuracion = malloc(sizeof(t_config_consola)); // Estructura de configuracion de la consola
 	cargaConfiguracionConsola("src/config.consola.ini", configuracion);
-	int socket_nucleo = conectar_servidor(configuracion->ip, configuracion->puerto);
+	int socket_nucleo = conectar_servidor(configuracion->ip, configuracion->puerto,&atender_nucleo);
 
 	sa.sa_handler = sigchld_handler;
 		sigemptyset(&sa.sa_mask);
@@ -148,6 +148,18 @@ void enviar_codigo (FILE * archivo, int socket_nucleo){
 	}
 	free(buffer);
 	free(header);
+}
+
+// Funciones CPU - Nucleo
+void atender_nucleo(t_paquete *paquete, int socket_conexion) {
+	switch (paquete->header->id_mensaje) {
+	case RESPUESTA_HANDSHAKE:
+		printf("Recibi respuesta de handshake del nucleo\n");
+		break;
+	default:
+		printf("Comando no reconocido\n");
+		break;
+	}
 }
 
 t_buffer *serializar_imprimir_texto(t_texto *texto) {

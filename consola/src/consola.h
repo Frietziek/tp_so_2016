@@ -21,6 +21,7 @@
 #define DEF_PUERTO_Nucleo 3605 // Puerto para recibir conexiones (socket host)
 #define DEF_IP_Nucleo "10.0.0.100" // Ip del proceso Nucleo (socket Server)
 #define MENSAJE_HANDSHAKE 0
+#define RESPUESTA_HANDSHAKE 10
 #define CODIGO 0
 #define FINALIZAR 1
 
@@ -39,6 +40,7 @@ int Generar_Buffer_Programa(FILE *archivo,char **buffer);
 void sigchld_handler(int s);
 void enviar_codigo (FILE *, int);
 t_buffer *serializar_imprimir_texto(t_texto *texto);
+void atender_nucleo(t_paquete *paquete, int socket_conexion);
 
 
 #endif /* SRC_CONSOLA_H_ */
