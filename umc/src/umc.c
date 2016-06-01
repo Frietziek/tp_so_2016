@@ -10,21 +10,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h> // Funcion sleep y close
 #include <commons/config.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
 #include "umc.h"
 
 int socket_swap;
-int tamanio_pagina;
-int retardo;
 
 int main(void) {
-	int comando; // Comandos ingresados de la consola de UMC
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
 	carga_configuracion_UMC("src/config.umc.ini", configuracion);
-	tamanio_pagina = configuracion->marco_size;
-	retardo = configuracion->retardo;
 
 	// Se crea el bloque de la memoria principal
 	/*void memoria_principal = calloc(configuracion->marcos,
@@ -32,51 +28,16 @@ int main(void) {
 
 	// TODO Crear estructuras para programas
 	// TODO Crear Cache TLB
-	// Crear servidor (socket host)
-	t_configuracion_servidor *servidor_umc = malloc(
-			sizeof(t_configuracion_servidor));
-	servidor_umc->puerto = configuracion->puerto;
-	servidor_umc->funcion = &atender_peticiones;
-	servidor_umc->parametros_funcion = configuracion;
+	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);
 
-	crear_servidor(servidor_umc);
-	printf("Servidor UMC corriendo\n");
+	// Se realiza una conexión con el swap (server)
+	socket_swap = conecto_con_swap(configuracion);
 
-	//Se realiza una conexión con el swap (server)
-	if ((socket_swap = conectar_servidor(configuracion->ip_swap,
-			configuracion->puerto_swap, &atender_swap)) > 0) {
-		printf("UMC conectado con SWAP\n");
-		handshake_umc_swap();
-	} else {
-		perror("Error al conectarse con el Swap");
-	}
+	menu_principal(configuracion);
 
-	// TODO Administrar los pedidos de las CPUs y el nucleo
-
-	printf("Ingrese uno de los siguientes comandos para continuar:\n");
-	printf("1 - Cambiar retardo de la consola UMC\n");
-	printf("2 - Generar reporte y archivo Dump\n");
-	printf("3 - Limpiar contenido de LTB o paginas\n");
-	scanf("%d", &comando);
-	// TODO Implementar funciones de la consola de UMC
-	switch (comando) {
-	case RETARDO:
-		printf("Entro en Retardo\n");
-		cambiar_retardo();
-		break;
-	case DUMP:
-		printf("Entro en Dump\n");
-		generar_dump();
-		break;
-	case TLB:
-		printf("Entro en Flush de TLB\n");
-		limpiar_contenido();
-		break;
-	default:
-		printf("Comando no reconocido\n");
-		break;
-	}
 	free(configuracion);
+	free(servidor_umc);
+	close(socket_swap);
 	return EXIT_SUCCESS;
 }
 
@@ -118,13 +79,63 @@ void carga_configuracion_UMC(char *archivo, t_config_umc *configuracionUMC) {
 	free(configuracion);
 }
 
-void atender_peticiones(t_paquete *paquete, int socket_conexion) {
+t_configuracion_servidor* creo_servidor_umc(t_config_umc* configuracion) {
+	t_configuracion_servidor* servidor_umc = malloc(
+			sizeof(t_configuracion_servidor));
+	servidor_umc->puerto = configuracion->puerto;
+	servidor_umc->funcion = &atender_peticiones;
+	servidor_umc->parametros_funcion = configuracion;
+	crear_servidor(servidor_umc);
+	printf("Servidor UMC corriendo\n");
+	return servidor_umc;
+}
+
+int conecto_con_swap(t_config_umc* configuracion) {
+	int socket_servidor;
+	if ((socket_servidor = conectar_servidor(configuracion->ip_swap,
+			configuracion->puerto_swap, &atender_swap)) > 0) {
+		printf("UMC conectado con SWAP\n");
+		handshake_umc_swap(socket_servidor, configuracion);
+	} else {
+		perror("Error al conectarse con el Swap");
+	}
+	return socket_servidor;
+}
+
+void menu_principal(t_config_umc *configuracion) {
+	int comando;
+	// Comandos ingresados de la consola de UMC
+	printf("Ingrese uno de los siguientes comandos para continuar:\n");
+	printf("1 - Cambiar retardo de la consola UMC\n");
+	printf("2 - Generar reporte y archivo Dump\n");
+	printf("3 - Limpiar contenido de LTB o paginas\n");
+	scanf("%d", &comando);
+	switch (comando) {
+	case RETARDO:
+		cambiar_retardo(configuracion);
+		break;
+	case DUMP:
+		printf("Entro en Dump\n");
+		generar_dump();
+		break;
+	case TLB:
+		printf("Entro en Flush de TLB\n");
+		limpiar_contenido();
+		break;
+	default:
+		printf("Comando no reconocido\n");
+		break;
+	}
+}
+
+void atender_peticiones(t_paquete *paquete, int socket_conexion,
+		t_config_umc *configuracion) {
 	switch (paquete->header->id_proceso_emisor) {
 	case PROCESO_CPU:
-		atender_cpu(paquete, socket_conexion);
+		atender_cpu(paquete, socket_conexion, configuracion);
 		break;
 	case PROCESO_NUCLEO:
-		atender_nucleo(paquete, socket_conexion);
+		atender_nucleo(paquete, socket_conexion, configuracion);
 		break;
 	default:
 		perror("No tiene permisos para comunicarse con la UMC\n");
@@ -132,15 +143,16 @@ void atender_peticiones(t_paquete *paquete, int socket_conexion) {
 	}
 }
 
-void atender_cpu(t_paquete *paquete, int socket_conexion) {
+void atender_cpu(t_paquete *paquete, int socket_conexion,
+		t_config_umc *configuracion) {
 	switch (paquete->header->id_mensaje) {
 	case MENSAJE_HANDSHAKE:
 		printf("Handshake recibido de CPU\n");
-		handshake_umc_cpu(socket_conexion);
+		handshake_umc_cpu(socket_conexion, configuracion);
 		break;
 	case MENSAJE_LEER_PAGINA:
 		printf("Recibido mensaje derefenciar\n");
-		leer_pagina(paquete->payload, socket_conexion);
+		leer_pagina(paquete->payload, socket_conexion, configuracion);
 		break;
 	case MENSAJE_ESCRIBIR_PAGINA:
 		printf("Recibido mensaje asignar\n");
@@ -152,11 +164,12 @@ void atender_cpu(t_paquete *paquete, int socket_conexion) {
 	}
 }
 
-void atender_nucleo(t_paquete *paquete, int socket_conexion) {
+void atender_nucleo(t_paquete *paquete, int socket_conexion,
+		t_config_umc *configuracion) {
 	switch (paquete->header->id_mensaje) {
 	case MENSAJE_HANDSHAKE:
 		printf("Handshake recibido de Nucleo\n");
-		handshake_umc_nucleo(socket_conexion);
+		handshake_umc_nucleo(socket_conexion, configuracion);
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -166,12 +179,14 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 
 void atender_swap(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
+	case REPUESTA_HANDSHAKE:
+		respuesta_handshake_umc_swap();
+		break;
 	case RESPUESTA_INICIALIZAR_PROGRAMA:
 		respuesta_iniciar_programa(paquete->payload);
 		break;
 	case RESPUESTA_LEER_PAGINA:
 		respuesta_leer_pagina(paquete->payload);
-		printf("Respuesta leer pagina\n");
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -184,8 +199,13 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
  // Como se en que pagina debo escribir?
  }*/
 
-void handshake_umc_swap() {
-	handshake_proceso(socket_swap, PROCESO_SWAP, MENSAJE_HANDSHAKE);
+void handshake_umc_swap(int socket_servidor, t_config_umc *configuracion) {
+	handshake_proceso(socket_servidor, configuracion, PROCESO_SWAP,
+	MENSAJE_HANDSHAKE);
+}
+
+void respuesta_handshake_umc_swap() {
+	printf("Handshake de Swap confirmado\n");
 }
 
 void iniciar_programa(void *buffer, int socket) {
@@ -243,9 +263,9 @@ void respuesta_iniciar_programa(void *buffer) {
 
 }
 
-void leer_pagina(void *buffer, int socket_conexion) {
+void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion) {
 
-	sleep(retardo);
+	sleep(configuracion->retardo);
 
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
@@ -297,6 +317,8 @@ void leer_pagina(void *buffer, int socket_conexion) {
 }
 
 void respuesta_leer_pagina(void *buffer) {
+
+	printf("Respuesta leer pagina\n");
 
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina);
@@ -387,22 +409,25 @@ void respuesta_finalizar_programa(void *buffer) {
 
 }
 
-void handshake_umc_cpu(int socket_cpu) {
-	handshake_proceso(socket_cpu, PROCESO_CPU, REPUESTA_HANDSHAKE);
+void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
+	handshake_proceso(socket_cpu, configuracion, PROCESO_CPU,
+	REPUESTA_HANDSHAKE);
 }
 
-void handshake_umc_nucleo(int socket_nucleo) {
-	handshake_proceso(socket_nucleo, PROCESO_NUCLEO, REPUESTA_HANDSHAKE);
+void handshake_umc_nucleo(int socket_nucleo, t_config_umc *configuracion) {
+	handshake_proceso(socket_nucleo, configuracion, PROCESO_NUCLEO,
+	REPUESTA_HANDSHAKE);
 }
 
-void handshake_proceso(int socket, int proceso_receptor, int id_mensaje) {
+void handshake_proceso(int socket, t_config_umc *configuracion,
+		int proceso_receptor, int id_mensaje) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_UMC;
 	header->id_proceso_receptor = proceso_receptor;
 	header->id_mensaje = id_mensaje;
 
 	t_pagina_tamanio *pagina = malloc(sizeof(t_pagina_tamanio));
-	pagina->tamanio = tamanio_pagina;
+	pagina->tamanio = configuracion->marco_size;
 
 	t_buffer *payload = serializar_pagina_tamanio(pagina);
 
@@ -423,8 +448,13 @@ int pagina_en_memoria() {
 	return 1;
 }
 
-void cambiar_retardo() {
-// TODO Terminar funcion
+void cambiar_retardo(t_config_umc *configuracion) {
+	int comando_retardo;
+	printf("Ingrese el retardo (en segundos): ");
+	scanf("%d", &comando_retardo);
+	configuracion->retardo = comando_retardo;
+	printf("\n");
+	menu_principal(configuracion);
 }
 
 void generar_dump() {
@@ -434,4 +464,3 @@ void generar_dump() {
 void limpiar_contenido() {
 // TODO Terminar funcion
 }
-

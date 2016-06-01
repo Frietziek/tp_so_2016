@@ -23,7 +23,7 @@ typedef struct {
 	int pagina;
 	int offset;
 	int tamanio;
-	int valor;
+	void *valor;
 	int socket_pedido;
 } t_pagina_completa;
 

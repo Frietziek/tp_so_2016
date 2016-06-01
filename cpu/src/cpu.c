@@ -9,34 +9,37 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <commons/config.h>
-#include <semaphore.h>
+#include <stdlib.h> // EXIT_SUCCES y otros
+#include <unistd.h> // Funcion close
+#include <commons/config.h> // Funciones para leer archivos ini
+#include <semaphore.h> // Semaforos s_pagina y s_cpu_corriendo
+#include <signal.h> // Signal sigusr1
 #include <serializacion.h>
 #include <comunicaciones.h>
-#include "primitivas_ansisop.h"
-#include "cpu.h"
 
+#include "cpu.h"
+#include "primitivas_ansisop.h"
 #include "semaforo_cpu.h"
 #include "serializacion_cpu_nucleo.h"
 #include "serializacion_cpu_umc.h"
 
 // Primirivas AnSISOP
-AnSISOP_funciones functions = { .AnSISOP_definirVariable = definirVariable,
-		.AnSISOP_obtenerPosicionVariable = obtenerPosicionVariable,
-		.AnSISOP_dereferenciar = derefenciar, .AnSISOP_asignar = asignar,
-		.AnSISOP_obtenerValorCompartida = obtenerValorCompartida,
-		.AnSISOP_asignarValorCompartida = asignarValorCompartida,
-		.AnSISOP_irAlLabel = irAlLabel, .AnSISOP_retornar = retornar,
-		.AnSISOP_imprimir = imprimir, .AnSISOP_imprimirTexto = imprimirTexto,
-		.AnSISOP_entradaSalida = entradaSalida };
-AnSISOP_kernel kernel_functions = { .AnSISOP_wait = wait, .AnSISOP_signal =
-		signal };
+AnSISOP_funciones functions = { .AnSISOP_definirVariable =
+		ansisop_definir_variable, .AnSISOP_obtenerPosicionVariable =
+		ansisop_obtener_posicion_variable, .AnSISOP_dereferenciar =
+		ansisop_derefenciar, .AnSISOP_asignar = ansisop_asignar,
+		.AnSISOP_obtenerValorCompartida = ansisop_obtener_valor_compartida,
+		.AnSISOP_asignarValorCompartida = ansisop_asignar_valor_compartida,
+		.AnSISOP_irAlLabel = ansisop_ir_a_label, .AnSISOP_retornar =
+				ansisop_retornar, .AnSISOP_imprimir = ansisop_imprimir,
+		.AnSISOP_imprimirTexto = ansisop_imprimir_texto,
+		.AnSISOP_entradaSalida = ansisop_entrada_salida };
+AnSISOP_kernel kernel_functions = { .AnSISOP_wait = ansisop_wait,
+		.AnSISOP_signal = ansisop_signal };
 
 // Test para probar primitivas
 //static const char* DEFINICION_VARIABLES = "variables a, b, c";
-static const char* ASIGNACION = "a = b + 12";
+//static const char* ASIGNACION = "a = b + 12";
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;
@@ -45,95 +48,42 @@ int socket_umc;
 int tamanio_pagina;
 
 int main(void) {
-	sem_init(&s_pagina, 0, 0);
-	int comando; // Comandos ingresados de la consola de CPU
+	// Funcion para atender seniales
+	signal(SIGUSR1, atender_seniales);
+	signal(SIGUSR2, atender_seniales);
+	// Inicio semaforos
+	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para el funcionamiento de CPU
+	sem_init(&s_pagina, 0, 0); // Semaforo para pedido de lectura de UMC
+
+	// Cargo configuraciones desde archivo ini
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
 	carga_configuracion_cpu("src/config.cpu.ini", configuracion);
 	printf("Proceso CPU creado.\n");
 
-	if ((socket_nucleo = conectar_servidor(configuracion->ip_nucleo,
-			configuracion->puerto_nucleo, &atender_nucleo)) > 0) {
-		printf("CPU conectado con Nucleo\n");
-		handshake_cpu_nucleo();
-	} else {
-		perror("Error al conectarse con el Nucleo");
-	}
-
-	// INICIO EJEMPLO ENVIO PAQUETE SIN PAYLOAD
-
-	/*t_header *header_handshake = malloc(sizeof(t_header));
-	 header_handshake->id_proceso_emisor = PROCESO_CPU;
-	 header_handshake->id_proceso_receptor = PROCESO_NUCLEO;
-	 header_handshake->id_mensaje = MENSAJE_HANDSHAKE;
-	 header_handshake->longitud_mensaje = 0;
-	 enviar_header(socket_nucleo, header_handshake);
-	 free(header_handshake);*/
-
-	// FIN EJEMPLO ENVIO PAQUETE SIN PAYLOAD
-	// INICIO EJEMPLO ENVIO PAQUETE CON PAYLOAD
-	t_persona *persona = malloc(sizeof(t_persona));
-	persona->nombre = malloc(9);
-	persona->apellido = malloc(5);
-	persona->materias_aprobadas = 44;
-	persona->edad = 2223;
-	persona->cp = 14141;
-	persona->nombre = "santiago";
-	persona->apellido = "bose";
-
-	t_buffer *buffer_persona = serializar_persona(persona);
-	t_header *header = malloc(sizeof(t_header));
-
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = 1;
-	header->longitud_mensaje = buffer_persona->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, buffer_persona)
-			< sizeof(t_header) + buffer_persona->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(persona);
-	free(buffer_persona);
-	free(header);
-
-	// FIN EJEMPLO ENVIO PAQUETE CON PAYLOAD
+	socket_nucleo = conecto_con_nucleo(configuracion);
 
 	// TODO Recibir PCB del Nucleo
 	// TODO Incrementar registro Program Counter en PCB
 	// TODO Hacer el parser del indice de codigo
 
-	// TODO Conectarse al UMC y recibir prox sentencia
-	if ((socket_umc = conectar_servidor(configuracion->ip_umc,
-			configuracion->puerto_umc, &atender_umc)) > 0) {
-		printf("CPU conectado con UMC.\n");
-		handshake_cpu_umc();
-	} else {
-		perror("Error al conectarse con la UMC\n");
-	}
+	socket_umc = conecto_con_umc(configuracion);
 
-	// Test para probar la comunicacion de funciones con el UMC
-	//leer_pagina(5, 10, 4);
-
-	// TODO Ejecutar operaciones (Primitivas)
 	// Test para probar primitivas
 	//printf("Ejecutando '%s'\n", DEFINICION_VARIABLES);
 	//analizadorLinea(strdup(DEFINICION_VARIABLES), &functions,
 	//		&kernel_functions);
-	printf("Ejecutando '%s'\n", ASIGNACION);
-	analizadorLinea(strdup(ASIGNACION), &functions, &kernel_functions);
+	//printf("Ejecutando '%s'\n", ASIGNACION);
+	//analizadorLinea(strdup(ASIGNACION), &functions, &kernel_functions);
 
 	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
 	// TODO Notificar al nucleo que termino el Quantum
-	printf("Ingrese uno de los siguientes comandos para continuar:\n");
-	printf("Cualquier tecla para cerrar el CPU\n");
-	scanf("%d", &comando);
-	switch (comando) {
-	printf("Cerrando CPU.\n");
-	break;
-	}
 
+	sem_wait(&s_cpu_finaliza);
+	printf("Cerrando CPU\n");
+
+	sem_destroy(&s_pagina);
+	sem_destroy(&s_cpu_finaliza);
 	free(configuracion);
 	close(socket_umc);
 	return EXIT_SUCCESS;
@@ -161,6 +111,46 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 	free(configuracion);
 }
 
+int conecto_con_nucleo(t_config_cpu* configuracion) {
+	int socket_servidor;
+	if ((socket_servidor = conectar_servidor(configuracion->ip_nucleo,
+			configuracion->puerto_nucleo, &atender_nucleo)) > 0) {
+		printf("CPU conectado con Nucleo\n");
+		handshake_cpu_nucleo(socket_servidor);
+	} else {
+		perror("Error al conectarse con el Nucleo");
+	}
+	return socket_servidor;
+}
+
+int conecto_con_umc(t_config_cpu* configuracion) {
+	int socket_servidor;
+	if ((socket_servidor = conectar_servidor(configuracion->ip_umc,
+			configuracion->puerto_umc, &atender_umc)) > 0) {
+		printf("CPU conectado con UMC.\n");
+		handshake_cpu_umc(socket_servidor);
+	} else {
+		perror("Error al conectarse con la UMC\n");
+	}
+	return socket_servidor;
+}
+
+void atender_seniales(int signum) {
+	switch (signum) {
+	case SIGUSR1:
+		printf("Recibi sigusr1\n");
+		sem_post(&s_cpu_finaliza);
+		break;
+	case SIGUSR2:
+		printf("Recibi sigusr2, leyendo pag de umc\n");
+		leer_pagina(5, 4, 4);
+		break;
+	default:
+		printf("Recibi senial desconocida\n");
+		break;
+	}
+}
+
 // Funciones CPU - UMC
 
 void atender_umc(t_paquete *paquete, int socket_conexion) {
@@ -170,13 +160,21 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		respuesta_handshake_cpu_umc(paquete->payload);
 		break;
 	case RESPUESTA_LEER_PAGINA:
-		// TODO Terminar funcion
 		respuesta_leer_pagina(paquete->payload);
 		printf("Recibi respuesta: se leyo la pagina\n");
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
 		// TODO Terminar funcion
 		printf("Recibi respuesta: se escribio la pagina\n");
+		break;
+	case ERROR_HANDSHAKE:
+		printf("Error en el Handshake de UMC\n");
+		break;
+	case ERROR_LEER_PAGINA:
+		printf("Error en lectura de pagina\n");
+		break;
+	case ERROR_ESCRIBIR_PAGINA:
+		printf("Error al escribir en pagina");
 		break;
 	default:
 		printf("Comando no reconocido\n");
@@ -192,7 +190,7 @@ void obtener_posicion_variable(char * variable) {
 	// TODO Terminar funcion
 }
 
-void handshake_cpu_umc() {
+void handshake_cpu_umc(int socket_servidor) {
 
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
@@ -200,7 +198,7 @@ void handshake_cpu_umc() {
 	header->id_mensaje = MENSAJE_HANDSHAKE;
 	header->longitud_mensaje = PAYLOAD_VACIO;
 
-	enviar_header(socket_umc, header);
+	enviar_header(socket_servidor, header);
 	free(header);
 
 }
@@ -248,7 +246,7 @@ void respuesta_leer_pagina(void *buffer) {
 	sem_post(&s_pagina);
 }
 
-void escribir_pagina(int pagina, int offset, int tamanio, int valor) {
+void escribir_pagina(int pagina, int offset, int tamanio, void *valor) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
 	header->id_proceso_receptor = PROCESO_UMC;
@@ -287,12 +285,12 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	}
 }
 
-void handshake_cpu_nucleo() {
+void handshake_cpu_nucleo(int socket_servidor) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
 	header->id_proceso_receptor = PROCESO_NUCLEO;
 	header->id_mensaje = MENSAJE_HANDSHAKE;
-	header->longitud_mensaje = 0;
+	header->longitud_mensaje = PAYLOAD_VACIO;
 
 	enviar_header(socket_nucleo, header);
 	free(header);

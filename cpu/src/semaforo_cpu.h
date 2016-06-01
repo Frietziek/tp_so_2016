@@ -11,7 +11,8 @@
 #include <semaphore.h>
 
 sem_t s_pagina;
-int valor_pagina;
+sem_t s_cpu_finaliza;
+void *valor_pagina;
 
 
 #endif /* SEMAFORO_CPU_H_ */

@@ -10,7 +10,7 @@
 
 // Handshake
 #define MENSAJE_HANDSHAKE 0
-#define REPUESTA_HANDSHAKE 10
+#define RESPUESTA_HANDSHAKE 10
 #define ERROR_HANDSHAKE 20
 
 // Perticiones del UMC
