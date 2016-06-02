@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "primitivas_ansisop.h"
-#include "semaforo_cpu.h"
+#include "semaforo_sockets_cpu.h"
 #include "serializacion_cpu_nucleo.h"
 #include "serializacion_cpu_umc.h"
 
@@ -40,10 +40,6 @@ AnSISOP_kernel kernel_functions = { .AnSISOP_wait = ansisop_wait,
 // Test para probar primitivas
 //static const char* DEFINICION_VARIABLES = "variables a, b, c";
 //static const char* ASIGNACION = "a = b + 12";
-
-// Sockets de los procesos a los cuales me conecto
-int socket_nucleo;
-int socket_umc;
 
 int tamanio_pagina;
 
@@ -182,14 +178,6 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 	}
 }
 
-void definir_variable(char *variable) {
-	// TODO Terminar funcion
-}
-
-void obtener_posicion_variable(char * variable) {
-	// TODO Terminar funcion
-}
-
 void handshake_cpu_umc(int socket_servidor) {
 
 	t_header *header = malloc(sizeof(t_header));
@@ -212,31 +200,6 @@ void respuesta_handshake_cpu_umc(void *buffer) {
 
 }
 
-void leer_pagina(int pagina, int offset, int tamanio) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_LEER_PAGINA;
-
-	t_pagina *p_pagina = malloc(sizeof(t_pagina));
-	p_pagina->pagina = pagina;
-	p_pagina->offset = offset;
-	p_pagina->tamanio = tamanio;
-	p_pagina->socket_pedido = socket_umc;
-	t_buffer *payload = serializar_pagina(p_pagina);
-
-	header->longitud_mensaje = payload->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, payload)
-			< sizeof(t_header) + payload->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_pagina);
-	free(payload);
-}
-
 void respuesta_leer_pagina(void *buffer) {
 
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
@@ -244,33 +207,6 @@ void respuesta_leer_pagina(void *buffer) {
 
 	valor_pagina = pagina->valor;
 	sem_post(&s_pagina);
-}
-
-void escribir_pagina(int pagina, int offset, int tamanio, void *valor) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_ESCRIBIR_PAGINA;
-
-	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
-	p_pagina->pagina = pagina;
-	p_pagina->offset = offset;
-	p_pagina->tamanio = tamanio;
-	p_pagina->valor = valor;
-	p_pagina->socket_pedido = socket_umc;
-
-	t_buffer * payload = serializar_pagina_completa(p_pagina);
-
-	header->longitud_mensaje = payload->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, payload)
-			< sizeof(t_header) + payload->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_pagina);
-	free(payload);
 }
 
 // Funciones CPU - Nucleo
@@ -294,168 +230,4 @@ void handshake_cpu_nucleo(int socket_servidor) {
 
 	enviar_header(socket_nucleo, header);
 	free(header);
-}
-
-void obtener_valor_compartida(char *variable) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_OBTENER_VALOR_COMPARTIDA;
-
-	t_variable *p_compartida = malloc(sizeof(t_variable));
-	p_compartida->nombre = variable;
-
-	t_buffer * p_buffer = serializar_variable_compartida(p_compartida);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_compartida);
-	free(p_buffer);
-}
-
-void asignar_valor_compartida(char *variable, int valor) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA;
-
-	t_variable_completa *p_compartida = malloc(sizeof(t_variable_completa));
-	p_compartida->nombre = variable;
-	p_compartida->valor = valor;
-
-	t_buffer * p_buffer = serializar_asignar_variable_compartida(p_compartida);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_compartida);
-	free(p_buffer);
-}
-
-void imprimir_variable(char *variable, int valor) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_IMPRIMIR;
-
-	t_variable_completa *p_variable = malloc(sizeof(t_variable_completa));
-	p_variable->nombre = variable;
-	p_variable->valor = valor;
-
-	t_buffer * p_buffer = serializar_imprimir_variable(p_variable);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_variable);
-	free(p_buffer);
-}
-
-void imprimir_texto(char *texto) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_IMPRIMIR_TEXTO;
-
-	t_texto *p_texto = malloc(sizeof(t_texto));
-	p_texto->texto = texto;
-
-	t_buffer * p_buffer = serializar_imprimir_texto(p_texto);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_texto);
-	free(p_buffer);
-}
-
-void entrada_salida(char *nombre, int tiempo) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_ENTRADA_SALIDA;
-
-	t_entrada_salida *p_entrada_salida = malloc(sizeof(t_entrada_salida));
-	p_entrada_salida->nombre_dispositivo = nombre;
-	p_entrada_salida->tiempo = tiempo;
-
-	t_buffer * p_buffer = serializar_entrada_salida(p_entrada_salida);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_entrada_salida);
-	free(p_buffer);
-}
-
-void wait_semaforo(char *semaforo) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_WAIT;
-
-	t_semaforo *p_semaforo = malloc(sizeof(t_semaforo));
-	p_semaforo->nombre = semaforo;
-
-	t_buffer * p_buffer = serializar_semaforo(p_semaforo);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_semaforo);
-	free(p_buffer);
-}
-
-void signal_semaforo(char *semaforo) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_SIGNAL;
-
-	t_semaforo *p_semaforo = malloc(sizeof(t_semaforo));
-	p_semaforo->nombre = semaforo;
-
-	t_buffer * p_buffer = serializar_semaforo(p_semaforo);
-
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		perror("Fallo enviar buffer");
-	}
-
-	free(header);
-	free(p_semaforo);
-	free(p_buffer);
 }

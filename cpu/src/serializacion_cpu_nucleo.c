@@ -9,7 +9,7 @@
 #include <serializacion.h>
 #include "serializacion_cpu_nucleo.h"
 
-t_buffer *serializar_variable_compartida(t_variable *variable) {
+t_buffer *serializar_variable(t_variable *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre);
 	void *buffer = malloc(cantidad_a_reservar);
 
@@ -24,8 +24,7 @@ t_buffer *serializar_variable_compartida(t_variable *variable) {
 	return (estructura_buffer);
 }
 
-void deserializar_variable_compartida(void *buffer,
-		t_variable *variable) {
+void deserializar_variable(void *buffer, t_variable *variable) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(variable->nombre),
@@ -33,7 +32,7 @@ void deserializar_variable_compartida(void *buffer,
 
 }
 
-t_buffer *serializar_asignar_variable_compartida(t_variable_completa *variable) {
+t_buffer *serializar_variable_completa(t_variable_completa *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre)
 			+ sizeof(variable->valor);
 	void *buffer = malloc(cantidad_a_reservar);
@@ -50,7 +49,7 @@ t_buffer *serializar_asignar_variable_compartida(t_variable_completa *variable) 
 	return (estructura_buffer);
 }
 
-void deserializar_asignar_variable_compartida(void *buffer,
+void deserializar_variable_completa(void *buffer,
 		t_variable_completa *variable) {
 	int posicion_buffer = 0;
 
@@ -61,14 +60,12 @@ void deserializar_asignar_variable_compartida(void *buffer,
 
 }
 
-t_buffer *serializar_imprimir_variable(t_variable_completa *variable) {
-	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre)
-			+ sizeof(variable->valor);
+t_buffer *serializar_variable_valor(t_variable_valor *variable) {
+	int cantidad_a_reservar = sizeof(variable->valor);
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
-	copiar_string_en_buffer(buffer, variable->nombre, &posicion_buffer);
 	copiar_int_en_buffer(buffer, variable->valor, &posicion_buffer);
 
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
@@ -78,17 +75,15 @@ t_buffer *serializar_imprimir_variable(t_variable_completa *variable) {
 	return (estructura_buffer);
 }
 
-void deserializar_imprimir_variable(void *buffer, t_variable_completa *variable) {
+void deserializar_variable_valor(void *buffer, t_variable_valor *variable) {
 	int posicion_buffer = 0;
 
-	escribir_atributo_desde_string_de_buffer(buffer, &(variable->nombre),
-			&posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer, &(variable->valor),
 			&posicion_buffer);
 
 }
 
-t_buffer *serializar_imprimir_texto(t_texto *texto) {
+t_buffer *serializar_texto(t_texto *texto) {
 	int cantidad_a_reservar = sizeof(int) + strlen(texto->texto);
 	void *buffer = malloc(cantidad_a_reservar);
 
@@ -103,7 +98,7 @@ t_buffer *serializar_imprimir_texto(t_texto *texto) {
 	return (estructura_buffer);
 }
 
-void deserializar_imprimir_texto(void *buffer, t_texto *texto) {
+void deserializar_texto(void *buffer, t_texto *texto) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(texto->texto),
