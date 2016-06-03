@@ -139,7 +139,7 @@ void atender_seniales(int signum) {
 		break;
 	case SIGUSR2:
 		printf("Recibi sigusr2, leyendo pag de umc\n");
-		leer_pagina(5, 4, 4);
+		//leer_pagina(5, 4, 4);
 		break;
 	default:
 		printf("Recibi senial desconocida\n");

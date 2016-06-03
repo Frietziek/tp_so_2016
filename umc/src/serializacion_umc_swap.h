@@ -15,7 +15,7 @@ typedef struct {
 typedef struct {
 	int id_programa;
 	int paginas_requeridas;
-	int socket_pedido;
+	char *codigo;
 } t_programa_completo;
 
 typedef struct {

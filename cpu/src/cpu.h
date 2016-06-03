@@ -32,14 +32,48 @@ typedef struct {
 	int puerto_umc;
 } t_config_cpu;
 
-void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
+typedef struct {
+	int indice[50][2];
+} t_indice_codigo;
 
+typedef struct {
+// TODO Terminarlo
+} t_indice_etiquetas;
+
+typedef struct {
+	int pagina;
+	int offset;
+	int size;
+} t_posicion_memoria;
+
+typedef struct {
+	char *nombre_id;
+	t_posicion_memoria posicion;
+} t_variable_stack;
+
+typedef struct {
+	t_posicion_memoria *args;
+	t_variable_stack *vars;
+	int retPos;
+	int retVar;
+} t_indice_stack;
+
+typedef struct {
+	int pid;
+	int pc;
+	int paginas_codigo;
+	t_indice_codigo *indice_codigo;
+	t_indice_etiquetas *indice_etiquetas;
+	t_indice_stack *indice_stack[100];
+} t_pcb_completo;
+
+void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 void inicio_variables_cpu();
 int conecto_con_nucleo(t_config_cpu* configuracion);
 int conecto_con_umc(t_config_cpu* configuracion);
+void atender_seniales(int signum);
 
 // Funciones CPU - UMC
-void atender_seniales(int signum);
 void atender_umc(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_umc(int socket_servidor);
 void respuesta_handshake_cpu_umc(void *buffer);

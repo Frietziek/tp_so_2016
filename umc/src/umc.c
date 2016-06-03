@@ -17,20 +17,26 @@
 #include "umc.h"
 
 int socket_swap;
+int socket_nucleo;
+void *memoria_principal;
+void *cache_tlb;
+t_fila_tabla_pagina *tabla_paginas_procesos[];
 
 int main(void) {
 	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
 	carga_configuracion_UMC("src/config.umc.ini", configuracion);
 
 	// Se crea el bloque de la memoria principal
-	/*void memoria_principal = calloc(configuracion->marcos,
-	 configuracion->marco_size);*/
+	memoria_principal = calloc(configuracion->marcos,
+			configuracion->marco_size);
 
-	// TODO Crear estructuras para programas
-	// TODO Crear Cache TLB
+	// Creo Cache TLB
+	cache_tlb = calloc(configuracion->entradas_tlb, sizeof(t_tlb));
+
+	// Inicio servidor UMC
 	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);
 
-	// Se realiza una conexión con el swap (server)
+	// Se realiza la conexión con el swap
 	socket_swap = conecto_con_swap(configuracion);
 
 	menu_principal(configuracion);
@@ -38,6 +44,8 @@ int main(void) {
 	free(configuracion);
 	free(servidor_umc);
 	close(socket_swap);
+	free(memoria_principal);
+	free(cache_tlb);
 	return EXIT_SUCCESS;
 }
 
@@ -158,6 +166,9 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		printf("Recibido mensaje asignar\n");
 		escribir_pagina(paquete->payload, socket_conexion);
 		break;
+	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
+		// TODO Terminar funcion
+		break;
 	default:
 		perror("Comando no reconocido\n");
 		break;
@@ -171,6 +182,10 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 		printf("Handshake recibido de Nucleo\n");
 		handshake_umc_nucleo(socket_conexion, configuracion);
 		break;
+	case MENSAJE_INICIALIZAR_PROGRAMA:
+		printf("Creo nuevo programa y mando al Swap\n");
+		iniciar_programa(paquete->payload);
+		break;
 	default:
 		perror("Comando no reconocido\n");
 		break;
@@ -182,11 +197,17 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 	case REPUESTA_HANDSHAKE:
 		respuesta_handshake_umc_swap();
 		break;
-	case RESPUESTA_INICIALIZAR_PROGRAMA:
-		respuesta_iniciar_programa(paquete->payload);
-		break;
 	case RESPUESTA_LEER_PAGINA:
 		respuesta_leer_pagina(paquete->payload);
+		break;
+	case RESPUESTA_ESCRIBIR_PAGINA:
+		// TODO Terminar funcion
+		break;
+	case RESPUESTA_INICIAR_PROGRAMA:
+		respuesta_iniciar_programa(paquete->payload);
+		break;
+	case RESPUESTA_FINALIZAR_PROGRAMA:
+		// TODO Terminar funcion
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -208,12 +229,16 @@ void respuesta_handshake_umc_swap() {
 	printf("Handshake de Swap confirmado\n");
 }
 
-void iniciar_programa(void *buffer, int socket) {
+void iniciar_programa(void *buffer) {
 
 	t_programa_completo *programa = malloc(sizeof(t_programa_completo));
 	deserializar_programa_completo(buffer, programa);
 
-	// TODO Crear estructuras para administrar los programas
+	// TODO Verificar que se administren bien
+	// Creo la tabla de paginas del proceso
+	t_fila_tabla_pagina *tabla_paginas[programa->paginas_requeridas];
+	// Agrego en el vector de tabla de paginas de todos los procesos
+	tabla_paginas_procesos[programa->id_programa];
 
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -223,7 +248,7 @@ void iniciar_programa(void *buffer, int socket) {
 	t_programa_completo *programa_swap = malloc(sizeof(t_programa_completo));
 	programa_swap->id_programa = programa->id_programa;
 	programa_swap->paginas_requeridas = programa->paginas_requeridas;
-	programa_swap->socket_pedido = socket;
+	programa_swap->codigo = programa->codigo;
 
 	t_buffer *payload_swap = serializar_programa_completo(programa_swap);
 
@@ -233,6 +258,8 @@ void iniciar_programa(void *buffer, int socket) {
 			< sizeof(header_swap) + payload_swap->longitud_buffer) {
 		perror("Fallo al iniciar el programa");
 	}
+
+	// TODO Mandar el codigo de a paginas al Swap
 
 	free(programa);
 	free(header_swap);
@@ -253,8 +280,7 @@ void respuesta_iniciar_programa(void *buffer) {
 	header_nucleo->id_proceso_receptor = RESPUESTA_INICIALIZAR_PROGRAMA;
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
 
-	if (enviar_header(programa->socket_pedido, header_nucleo)
-			< sizeof(header_nucleo)) {
+	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
 		perror("Error al iniciar programa");
 	}
 
@@ -399,8 +425,7 @@ void respuesta_finalizar_programa(void *buffer) {
 	header_nucleo->id_proceso_receptor = RESPUESTA_FINALIZAR_PROGRAMA;
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
 
-	if (enviar_header(programa->socket_pedido, header_nucleo)
-			< sizeof(header_nucleo)) {
+	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
 		perror("Error al finalizar programa");
 	}
 
