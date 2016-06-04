@@ -19,6 +19,7 @@ typedef struct {
 } t_programa_completo;
 
 typedef struct {
+	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;
@@ -30,6 +31,7 @@ typedef struct {
 } t_pagina_tamanio;
 
 typedef struct {
+	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;

@@ -112,7 +112,7 @@ void handshake_umc_nucleo(int socket_nucleo, t_config_umc *configuracion);
 void handshake_proceso(int socket, t_config_umc *configuracion,
 		int proceso_receptor, int id_mensaje);
 
-int pagina_en_memoria();
+int pagina_en_tlb();
 
 void cambiar_retardo(t_config_umc *configuracion);
 

@@ -29,6 +29,7 @@ int main(void) {
 	// Se crea el bloque de la memoria principal
 	memoria_principal = calloc(configuracion->marcos,
 			configuracion->marco_size);
+	// TODO Crear estructura para el manejo de memoria principal
 
 	// Creo Cache TLB
 	cache_tlb = calloc(configuracion->entradas_tlb, sizeof(t_tlb));
@@ -259,8 +260,6 @@ void iniciar_programa(void *buffer) {
 		perror("Fallo al iniciar el programa");
 	}
 
-	// TODO Mandar el codigo de a paginas al Swap
-
 	free(programa);
 	free(header_swap);
 	free(programa_swap);
@@ -274,7 +273,7 @@ void respuesta_iniciar_programa(void *buffer) {
 	deserializar_programa_completo(buffer, programa);
 
 	t_header *header_nucleo = malloc(sizeof(t_header));
-	header_nucleo->id_proceso_emisor = PROCESO_SWAP;
+	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 	// TODO Definir los mensajes entre el nucleo y umc y actualizar esta linea
 	header_nucleo->id_proceso_receptor = RESPUESTA_INICIALIZAR_PROGRAMA;
@@ -283,6 +282,8 @@ void respuesta_iniciar_programa(void *buffer) {
 	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
 		perror("Error al iniciar programa");
 	}
+
+	// TODO Asignar paginas de la memoria princ para el programa nuevo
 
 	free(programa);
 	free(header_nucleo);
@@ -296,7 +297,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
 
-	if (pagina_en_memoria()) {
+	if (pagina_en_tlb()) {
 		// Devuelvo la pagina pedida
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 		pagina_cpu->pagina = pagina->pagina;
@@ -468,7 +469,7 @@ void handshake_proceso(int socket, t_config_umc *configuracion,
 	free(payload);
 }
 
-int pagina_en_memoria() {
+int pagina_en_tlb() {
 	// TODO Terminar funcion
 	return 1;
 }
