@@ -202,13 +202,14 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		respuesta_leer_pagina(paquete->payload);
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
-		// TODO Terminar funcion
+		printf("Escritura de pagina exitosa\n");
 		break;
 	case RESPUESTA_INICIAR_PROGRAMA:
 		respuesta_iniciar_programa(paquete->payload);
 		break;
 	case RESPUESTA_FINALIZAR_PROGRAMA:
 		// TODO Terminar funcion
+		printf("Finalizacion del programa exitoso");
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -292,8 +293,6 @@ void respuesta_iniciar_programa(void *buffer) {
 
 void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion) {
 
-	sleep(configuracion->retardo);
-
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
 
@@ -313,6 +312,9 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		free(pagina_cpu);
 
 	} else {
+
+		sleep(configuracion->retardo);
+
 		// Pido la pagina a Swap
 		t_header *header_swap = malloc(sizeof(t_header));
 		header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -331,7 +333,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 		if (enviar_buffer(socket_swap, header_swap, payload_swap)
 				< sizeof(t_header) + payload_swap->longitud_buffer) {
-			perror("Fallo enviar buffer Leer pagina de Swap");
+			perror("Fallo enviar buffer Leer pagina de Swap\n");
 		}
 
 		free(header_swap);
@@ -471,7 +473,7 @@ void handshake_proceso(int socket, t_config_umc *configuracion,
 
 int pagina_en_tlb() {
 	// TODO Terminar funcion
-	return 1;
+	return 0;
 }
 
 void cambiar_retardo(t_config_umc *configuracion) {
