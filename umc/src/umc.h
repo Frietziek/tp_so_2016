@@ -39,12 +39,15 @@
 #define ERROR_FINALIZAR_PROGRAMA 24
 #define ERROR_CAMBIO_PROCESO_ACTIVO 5
 
-// Funciones Nucleo
+// Funciones Nucleo - UMC
 #define MENSAJE_INICIALIZAR_PROGRAMA 1
+#define MENSAJE_MATAR_PROGRAMA 2
 // Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
+#define RESPUESTA_FINALIZAR_PROGRAMA 12
 // Respuestas Error
 #define ERROR_INICIALIZAR_PROGRAMA 21
+#define ERROR_MATAR_PROGRAMA 22
 
 typedef struct {
 	int puerto;
