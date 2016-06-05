@@ -116,28 +116,28 @@ void handshake_consola_nucleo(int socket_nucleo) {
 
 void enviar_codigo(FILE * archivo, int socket_nucleo) {
 	t_header *header = malloc(sizeof(t_header));
-	t_buffer * p_buffer;
+	t_buffer *p_buffer;
 
-	char Aux_Archivo[100];
+	char *Aux_Archivo[100];
 	int Largo_Mensaje;
-	t_texto * buffer;
 
 	fseek(archivo, 0, SEEK_END);
 	Largo_Mensaje = ftell(archivo);
 	rewind(archivo);
 
-	buffer = malloc(sizeof(t_texto));
+	t_texto *buffer = malloc(sizeof(t_texto));
+	buffer->texto = malloc(Largo_Mensaje);
+	*buffer->texto = NULL;
 	//buffer->texto = malloc(Largo_Mensaje);
 
 	while (feof(archivo) == 0) {
-
 		fgets(Aux_Archivo, 100, archivo);
 
 		strcat(buffer->texto, Aux_Archivo);
 
 	}
 
-	printf("\n\n\n\nEl Codigo linea: %s \n\n\n\n", buffer->texto);
+	printf("El Codigo linea: %s \n", buffer->texto);
 
 	p_buffer = serializar_imprimir_texto(buffer);
 
