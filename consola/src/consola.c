@@ -8,8 +8,9 @@
  ============================================================================
  */
 
-#include <commons/string.h>
 #include "consola.h"
+
+int aux_socket_nucleo;
 
 int main(int argc, char **argv) {
 
@@ -21,14 +22,9 @@ int main(int argc, char **argv) {
 	cargaConfiguracionConsola("src/config.consola.ini", configuracion);
 	int socket_nucleo = conectar_servidor(configuracion->ip,
 			configuracion->puerto, &atender_nucleo);
+	aux_socket_nucleo = socket_nucleo;
 
-	sa.sa_handler = sigchld_handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
+	signal (SIGINT, sig_handler);
 
 	printf("Proceso Consola creado.\n");
 
@@ -40,11 +36,13 @@ int main(int argc, char **argv) {
 	}
 
 	// Lee Archivo y envia el archivo Ansisop
-	//archivo = fopen(argv[1], "r"); //El argv[1] tiene la direccion del archivo Ansisop
-	archivo = fopen("./Programa", "r");
+	archivo = fopen(argv[1], "r"); //El argv[1] tiene la direccion del archivo Ansisop
+	//archivo = fopen("./Programa", "r");
 
 	if (archivo == NULL)
 		exit(1);
+
+	getchar();
 
 	enviar_codigo(archivo, socket_nucleo);
 
@@ -103,16 +101,6 @@ int Generar_Buffer_Programa(FILE *archivo, char **Aux_Buff) {
 	return (len);
 }
 
-void handshake_consola_nucleo(int socket_nucleo) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CONSOLA;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_HANDSHAKE;
-	header->longitud_mensaje = 0;
-
-	enviar_header(socket_nucleo, header);
-	free(header);
-}
 
 void enviar_codigo(FILE * archivo, int socket_nucleo) {
 	t_header *header = malloc(sizeof(t_header));
@@ -157,8 +145,17 @@ void enviar_codigo(FILE * archivo, int socket_nucleo) {
 // Funciones CPU - Nucleo
 void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
-	case RESPUESTA_HANDSHAKE:
-		printf("Recibi respuesta de handshake del nucleo\n");
+	case MENSAJE_IMPRIMIR:
+		printf("La variable vale:\n");
+		t_variable_valor * valor_imprimir = malloc (sizeof (t_variable_valor));
+		deserializar_variable_valor (paquete->payload,valor_imprimir);
+		printf("%d",valor_imprimir->valor);
+		break;
+	case MENSAJE_IMPRIMIR_TEXTO:
+		printf("El texto es:\n");
+		t_texto * texto_imprimir = malloc (sizeof (t_texto));
+		deserializar_texto (paquete->payload,texto_imprimir);
+		printf("%s",texto_imprimir->texto);
 		break;
 	default:
 		printf("Comando no reconocido\n");
@@ -166,22 +163,14 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	}
 }
 
-t_buffer *serializar_imprimir_texto(t_texto *texto) {
-	int cantidad_a_reservar = sizeof(int) + strlen(texto->texto);
-	void *buffer = malloc(cantidad_a_reservar);
 
-	int posicion_buffer = 0;
-
-	copiar_string_en_buffer(buffer, texto->texto, &posicion_buffer);
-
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-	estructura_buffer->contenido_buffer = buffer;
-	estructura_buffer->longitud_buffer = posicion_buffer;
-
-	return (estructura_buffer);
-}
-
-void sigchld_handler(int s) {
-
+void sig_handler() {
+	int opcion = MENSAJE_MATAR_PROCESO;
+	pid_t pid;
+	consola_nucleo(aux_socket_nucleo, opcion);
+	printf("llego");
+	pid = getpid ();
+	kill (pid,SIGTERM);
+	printf("No llego");
 }
 
