@@ -7,12 +7,19 @@
  Description : Hello World in C, Ansi-style
  ============================================================================
  */
+
+//TODO serializar pcb
+//TODO terminar MENSAJES DE UMC
+//TODO probar circuito entero el jueves
+//TODO logica de colas entrada cpu
 #include <stdio.h>
 #include <stdlib.h>
 #include <serializacion.h>
 #include <comunicaciones.h>
+#include <commons/collections/dictionary.h>
 #include "nucleo.h"
 #include <commons/config.h>
+#include <commons/string.h>
 #include "serializacion_nucleo_consola.h"
 #include "serializacion_nucleo_cpu.h"
 #include "serializacion_nucleo_umc.h"
@@ -34,6 +41,8 @@ int socket_umc;
 int pid_count;
 t_fila_tabla_procesos *tabla_procesos[];
 t_config_nucleo *configuracion;
+t_dictionary *variables_compartidas;
+t_solicitudes_semaforo *solitudes_semaforo[];
 
 ////////////////////FUNCION PRINCIPAL///////////////////////////
 
@@ -55,10 +64,19 @@ int main(void) {
 	sem_init(&mutex_cola_exec, 0, 1);
 	sem_init(&mutex_cola_block, 0, 1);
 	sem_init(&mutex_tabla_procesos, 0, 1);
+	sem_init(&mutex_variables_compartidas, 0, 1);
+	sem_init(&mutex_lista_entrada_salida, 0, 1);
+	sem_init(&mutex_solicitudes_semaforo, 0, 1);
 //TODO sem init  tabla io
 
 	inicializar_colas_entrada_salida(configuracion->io_id,
 			configuracion->io_sleep);
+
+	inicializar_variables_compartidas(configuracion->shared_vars);
+
+	inicializar_solicitudes_semaforo(configuracion->sem_id,
+			configuracion->sem_init);
+
 	// INICIO PIDO LONGITUD PAGINA  AL UMC Y LO ATIENDO
 
 	socket_umc = conectar_servidor(configuracion->ip_umc,
@@ -170,22 +188,17 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		t_texto *codigo_de_consola = malloc(sizeof(t_texto));
 		//TODO ver si esta bien
 		deserializar_codigo(paquete_buffer->payload, codigo_de_consola);
-		char *codigo = malloc(paquete_buffer->header->longitud_mensaje + 1);
-		memcpy(codigo, codigo_de_consola->texto,
-				paquete_buffer->header->longitud_mensaje);
-		codigo[paquete_buffer->header->longitud_mensaje] = '\0';
-		printf("el codigo es:\n %s\n\n", codigo);
+		printf("el codigo es:\n %s\n\n", codigo_de_consola->texto);
 
 		//fin para ver lo que contiene el payload,
 
-		t_pcb *pcb = crearPCB(codigo_de_consola->texto);
+		t_pcb *pcb = crear_PCB(codigo_de_consola->texto);
 
 		agregar_pcb_a_tabla_procesos(pcb, socket_consola);
 
 		enviar_programa_completo_a_umc(pcb->pid, pcb->cant_paginas_codigo_stack,
-				codigo);
+				codigo_de_consola->texto);
 		free(codigo_de_consola);
-		free(codigo);
 		break;
 	case FINALIZAR:
 		printf("Terminando la ejecucion");
@@ -195,11 +208,29 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		break;
 	}
 
-	free(paquete_buffer);
 }
 
 ////////////////////FUNCIONES AUXILIARES///////////////////////////
 
+//TODO probar
+int *buscar_socket_consola_por_socket_cpu(int socket_cpu) {
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->socket_cpu == socket_cpu) {
+			sem_post(&mutex_tabla_procesos);
+			return tabla_procesos[i]->socket_consola;
+		} else {
+			++i;
+		}
+	}
+
+	sem_post(&mutex_tabla_procesos);
+	return NULL;
+}
+
+//TODO probar
 t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
 
 	sem_wait(&mutex_tabla_procesos);
@@ -271,7 +302,7 @@ int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola) {
 		return division + 1;
 }
 
-t_pcb *crearPCB(char *codigo_de_consola) {
+t_pcb *crear_PCB(char *codigo_de_consola) {
 	t_metadata_program *metadata = malloc(sizeof(t_metadata_program));
 	metadata = metadata_desde_literal(codigo_de_consola);
 	t_pcb *pcb = malloc(sizeof(t_pcb));
@@ -282,16 +313,17 @@ t_pcb *crearPCB(char *codigo_de_consola) {
 			codigo_de_consola);
 	pcb->pc = 0;
 	pcb->etiquetas = metadata->etiquetas;
-	pcb->etiquetas_size = metadata->etiquetas_size;
-	pcb->stack_size = configuracion->stack_size;
-	//TODO Ver con Lea
+	//pcb->etiquetas_size = metadata->etiquetas_size;
+	pcb->stack_size_maximo = configuracion->stack_size;
 	pcb->stack_position = strlen(codigo_de_consola);
 	sem_wait(&mutex_pid_count);
 	pcb->pid = pid_count;
 	++pid_count;
 	sem_post(&mutex_pid_count);
-
-	//falta estructura stack
+//	t_indice_stack *indice_stack = malloc(sizeof(t_indice_stack));
+//	indice_stack->variables = list_create();
+//	indice_stack->argumentos = list_create();
+//	pcb->indice_stack[0] = indice_stack;
 
 	return pcb;
 }
@@ -362,6 +394,36 @@ int buscar_socket_cpu_por_pcb(t_pcb *pcb_a_finalizar) {
 	return NO_ASIGNADO;
 }
 
+void inicializar_variables_compartidas(char **shared_vars) {
+	sem_wait(&mutex_variables_compartidas);
+	variables_compartidas = dictionary_create();
+	int i = 0;
+	int j = 0;
+	while (shared_vars[i] != NULL) {
+		if (string_starts_with(shared_vars[i], "!")) {
+			dictionary_put(variables_compartidas, shared_vars[j], 0);
+			++j;
+		}
+		++i;
+	}
+	sem_post(&mutex_variables_compartidas);
+}
+
+void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init) {
+	int i = 0;
+	while (sem_id[i] != NULL || sem_init[i] != NULL) {
+		t_solicitudes_semaforo* _solicitudes_semaforo = malloc(
+				sizeof(t_solicitudes_semaforo));
+		_solicitudes_semaforo->nombre_semaforo = sem_id[i];
+		_solicitudes_semaforo->valor = atoi(sem_init[i]);
+		_solicitudes_semaforo->solicitudes = queue_create();
+		++i;
+		sem_wait(&mutex_solicitudes_semaforo);
+		solitudes_semaforo[i] = _solicitudes_semaforo;
+		sem_post(&mutex_solicitudes_semaforo);
+
+	}
+}
 void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	lista_entrada_salida = list_create();
 	int i = 0;
@@ -482,7 +544,7 @@ void pedir_pagina_tamanio(int socket_umc) {
 	t_header* header_pido_tam_pag = malloc(sizeof(t_header));
 	header_pido_tam_pag->id_proceso_emisor = 1;
 	header_pido_tam_pag->id_proceso_receptor = 3;
-	header_pido_tam_pag->id_mensaje = RECIBIR_TAMANIO_PAGINA;
+	header_pido_tam_pag->id_mensaje = HANDSHAKE_UMC;
 	header_pido_tam_pag->longitud_mensaje = 0;
 	enviar_header(socket_umc, header_pido_tam_pag);
 	free(header_pido_tam_pag);

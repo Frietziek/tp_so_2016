@@ -194,8 +194,8 @@ void atiendo_entrada_salida(void *buffer, int socket_conexion,
 	t_entrada_salida *entrada_salida = malloc(sizeof(t_entrada_salida));
 	deserializar_entrada_salida(buffer, entrada_salida);
 
-	bloquear_pcb_dispositivo(socket_conexion, entrada_salida->nombre_dispositivo,
-			entrada_salida->tiempo);
+	bloquear_pcb_dispositivo(socket_conexion,
+			entrada_salida->nombre_dispositivo, entrada_salida->tiempo);
 	asignar_pcb(socket_conexion);
 
 	free(entrada_salida);
@@ -399,7 +399,9 @@ int devuelve_socket_consola(int socket_cpu) {
 	return 1;
 }
 
-void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo, int tiempo) {
+//TODO hacer para leo
+void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
+		int tiempo) {
 }
 
 void bloquear_pcb_semaforo(char *nombre_semaforo) {
@@ -413,4 +415,228 @@ int wait_semaforo(char *semaforo_nombre) {
 }
 
 void signal_semaforo(char *semaforo_nombre) {
+}
+
+//Serializacion pcb
+
+//typedef struct {
+//	int pid;
+//	int pc;
+//	int cant_paginas_codigo_stack;
+//	int estado;
+//	int stack_size_maximo;
+//	int stack_position;
+//	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
+//	char* etiquetas;
+//	t_size instrucciones_size;
+//	t_intructions **instrucciones_serializadas;
+//	int stack_size_actual;
+//	t_indice_stack **indice_stack;
+//} t_pcb;
+
+t_buffer *serializar_pcb(t_pcb *pcb) {
+	int cantidad_a_reservar = sizeof(pcb->pid) + sizeof(pcb->pc)
+			+ sizeof(pcb->cant_paginas_codigo_stack) + sizeof(pcb->estado)
+			+ sizeof(pcb->stack_size_maximo) + sizeof(pcb->stack_position)
+			+ sizeof(int) + strlen(pcb->etiquetas)
+			+ sizeof(pcb->instrucciones_size)
+			+ sizeof(pcb->instrucciones_serializadas)
+			+ sizeof(pcb->stack_size_actual) + sizeof(pcb->indice_stack)
+			+ sizeof(int) + sizeof(int); // Cantidad variables + Cantidad argumentos
+	void *buffer = malloc(cantidad_a_reservar);
+
+	int posicion_buffer = 0;
+
+	copiar_int_en_buffer(buffer, pcb->pid, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb->pc, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb->cant_paginas_codigo_stack,
+			&posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb->estado, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb->stack_size_maximo, &posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb->stack_position, &posicion_buffer);
+	copiar_string_en_buffer(buffer, pcb->etiquetas, &posicion_buffer);
+
+	copiar_int_en_buffer(buffer, pcb->instrucciones_size, &posicion_buffer);
+	int i_instrucciones;
+	for (i_instrucciones = 0; i_instrucciones < pcb->instrucciones_size;
+			++i_instrucciones) {
+		copiar_int_en_buffer(buffer,
+				pcb->instrucciones_serializadas[i_instrucciones]->offset,
+				&posicion_buffer);
+		copiar_int_en_buffer(buffer,
+				pcb->instrucciones_serializadas[i_instrucciones]->start,
+				&posicion_buffer);
+	}
+
+	copiar_int_en_buffer(buffer, pcb->stack_size_actual, &posicion_buffer);
+	int i_stack;
+	for (i_stack = 0; i_stack < pcb->stack_size_actual; ++i_stack) {
+		copiar_int_en_buffer(buffer,
+				pcb->indice_stack[i_stack]->posicion_retorno, &posicion_buffer);
+		copiar_int_en_buffer(buffer,
+				pcb->indice_stack[i_stack]->posicion_variable_retorno->offset,
+				&posicion_buffer);
+		copiar_int_en_buffer(buffer,
+				pcb->indice_stack[i_stack]->posicion_variable_retorno->pagina,
+				&posicion_buffer);
+		copiar_int_en_buffer(buffer,
+				pcb->indice_stack[i_stack]->posicion_variable_retorno->size,
+				&posicion_buffer);
+
+		int cant_argumentos =
+				pcb->indice_stack[i_stack]->argumentos->elements_count;
+
+		copiar_int_en_buffer(buffer, cant_argumentos, &posicion_buffer);
+		int i_argumentos;
+		for (i_argumentos = 0; i_argumentos < cant_argumentos; ++i_argumentos) {
+			copiar_int_en_buffer(buffer,
+					((t_posicion_memoria*) (list_get(
+							pcb->indice_stack[i_stack]->argumentos,
+							i_argumentos)))->offset, &posicion_buffer);
+			copiar_int_en_buffer(buffer,
+					((t_posicion_memoria*) (list_get(
+							pcb->indice_stack[i_stack]->argumentos,
+							i_argumentos)))->pagina, &posicion_buffer);
+			copiar_int_en_buffer(buffer,
+					((t_posicion_memoria*) (list_get(
+							pcb->indice_stack[i_stack]->argumentos,
+							i_argumentos)))->size, &posicion_buffer);
+		}
+
+		int cant_variables =
+				pcb->indice_stack[i_stack]->variables->elements_count;
+		copiar_int_en_buffer(buffer, cant_variables, &posicion_buffer);
+		int i_variables;
+		for (i_variables = 0; i_variables < cant_variables; ++i_variables) {
+			copiar_int_en_buffer(buffer,
+					((t_variables_stack*) (list_get(
+							pcb->indice_stack[i_stack]->variables, i_variables)))->id,
+					&posicion_buffer);
+			copiar_int_en_buffer(buffer,
+					((t_variables_stack*) (list_get(
+							pcb->indice_stack[i_stack]->variables, i_variables)))->posicion_memoria->offset,
+					&posicion_buffer);
+			copiar_int_en_buffer(buffer,
+					((t_variables_stack*) (list_get(
+							pcb->indice_stack[i_stack]->variables, i_variables)))->posicion_memoria->pagina,
+					&posicion_buffer);
+			copiar_int_en_buffer(buffer,
+					((t_variables_stack*) (list_get(
+							pcb->indice_stack[i_stack]->variables, i_variables)))->posicion_memoria->size,
+					&posicion_buffer);
+
+		}
+
+	}
+
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+	estructura_buffer->contenido_buffer = buffer;
+	estructura_buffer->longitud_buffer = posicion_buffer;
+
+	return (estructura_buffer);
+}
+
+void deserializar_pcb(void *buffer, t_pcb *pcb) {
+	int posicion_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->pid),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->pc), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(pcb->cant_paginas_codigo_stack), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->estado),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->stack_size_maximo),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->stack_position),
+			&posicion_buffer);
+	escribir_atributo_desde_string_de_buffer(buffer, &(pcb->etiquetas),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->instrucciones_size),
+			&posicion_buffer);
+	int i_instrucciones;
+	for (i_instrucciones = 0; i_instrucciones < pcb->instrucciones_size;
+			++i_instrucciones) {
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(pcb->instrucciones_serializadas[i_instrucciones]->offset),
+				&posicion_buffer);
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(pcb->instrucciones_serializadas[i_instrucciones]->start),
+				&posicion_buffer);
+	}
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(pcb->stack_size_actual),
+			&posicion_buffer);
+	int i_stack;
+	for (i_stack = 0; i_stack < pcb->stack_size_actual; ++i_stack) {
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(pcb->indice_stack[i_stack]->posicion_retorno),
+				&posicion_buffer);
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(pcb->indice_stack[i_stack]->posicion_variable_retorno->offset),
+				&posicion_buffer);
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(pcb->indice_stack[i_stack]->posicion_variable_retorno->pagina),
+				&posicion_buffer);
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(pcb->indice_stack[i_stack]->posicion_variable_retorno->size),
+				&posicion_buffer);
+
+		int cant_argumentos;
+
+		escribir_atributo_desde_int_de_buffer(buffer, &cant_argumentos,
+				&posicion_buffer);
+		if (cant_argumentos > 0) {
+			pcb->indice_stack[i_stack]->argumentos = list_create();
+			int i_argumentos;
+			for (i_argumentos = 0; i_argumentos < cant_argumentos;
+					++i_argumentos) {
+				t_posicion_memoria *posicion_memoria = malloc(
+						sizeof(t_posicion_memoria));
+
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(posicion_memoria->offset), &posicion_buffer);
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(posicion_memoria->pagina), &posicion_buffer);
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(posicion_memoria->size), &posicion_buffer);
+
+				list_add(pcb->indice_stack[i_stack]->argumentos,
+						posicion_memoria);
+			}
+		}
+		int cant_variables;
+		escribir_atributo_desde_int_de_buffer(buffer, &cant_variables,
+				&posicion_buffer);
+		if (cant_variables > 0) {
+			pcb->indice_stack[i_stack]->variables = list_create();
+			int i_variables;
+			for (i_variables = 0; i_variables < cant_variables; ++i_variables) {
+
+				t_variables_stack * variables_stack = malloc(
+						sizeof(t_variables_stack));
+
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(variables_stack->id), &posicion_buffer);
+
+				variables_stack->posicion_memoria = malloc(
+						sizeof(t_posicion_memoria));
+
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(variables_stack->posicion_memoria->offset),
+						&posicion_buffer);
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(variables_stack->posicion_memoria->pagina),
+						&posicion_buffer);
+				escribir_atributo_desde_int_de_buffer(buffer,
+						&(variables_stack->posicion_memoria->size),
+						&posicion_buffer);
+
+				list_add(pcb->indice_stack[i_stack]->variables,
+						variables_stack);
+
+			}
+		}
+	}
+
 }

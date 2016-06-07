@@ -77,7 +77,7 @@ typedef struct {
 	char *nombre_dispositivo;
 	int tiempo;
 } t_entrada_salida;
-
+//TODO cambiar por otro nombre para que no haya conflictos con el t_semaforo de nucleo.h
 typedef struct {
 	char *nombre;
 } t_semaforo;
@@ -124,10 +124,15 @@ void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida);
 int obtener_variable_compartida(char *nombre_variable_compartida);
 int asignar_variable_compartida(char *nombre_variable_compartida, int valor);
 int devuelve_socket_consola(int socket_cpu);
-void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo, int tiempo);
+void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
+		int tiempo);
 void bloquear_pcb_semaforo(char *nombre_semaforo);
 void asignar_pcb(int socket_cpu);
 int wait_semaforo(char *semaforo_nombre);
 void signal_semaforo(char *semaforo_nombre);
+
+t_buffer *serializar_pcb(t_pcb *pcb);
+
+void deserializar_pcb(void *buffer, t_pcb *pcb);
 
 #endif /* ATIENDO_CPU_H_ */

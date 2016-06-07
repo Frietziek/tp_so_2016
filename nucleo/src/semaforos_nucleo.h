@@ -16,5 +16,8 @@ sem_t mutex_cola_ready;
 sem_t mutex_cola_exec;
 sem_t mutex_cola_block;
 sem_t mutex_tabla_procesos;
+sem_t mutex_variables_compartidas;
+sem_t mutex_lista_entrada_salida;
+sem_t mutex_solicitudes_semaforo;
 
 #endif /* SEMAFOROS_NUCLEO_H_ */

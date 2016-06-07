@@ -12,7 +12,7 @@
 #include "atiendo_cpu.h"
 
 // Funciones Consola - Nucleo
-#define CODIGO 1
+#define CODIGO 0
 #define FINALIZAR 2
 
 // Funciones Nucleo - Consola
