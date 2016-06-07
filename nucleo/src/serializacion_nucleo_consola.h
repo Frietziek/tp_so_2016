@@ -13,6 +13,10 @@
 #define CODIGO 0
 #define FINALIZAR 1
 
-void deserializar_codigo(void* buffer, char **codigo, int longitud_mensaje);
+typedef struct {
+	char *texto;
+} t_texto;
+
+void deserializar_codigo(void* buffer, t_texto *codigo);
 
 #endif /* SERIALIZACION_NUCLE_CONSOLA_H_ */
