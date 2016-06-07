@@ -11,13 +11,13 @@
 #include <stdlib.h>
 #include <serializacion.h>
 #include <comunicaciones.h>
-#include <parser/metadata_program.h>
 #include "nucleo.h"
 #include <commons/config.h>
 #include "serializacion_nucleo_consola.h"
 #include "serializacion_nucleo_cpu.h"
 #include "serializacion_nucleo_umc.h"
 #include "semaforos_nucleo.h"
+#include "atiendo_cpu.h"
 
 //TODO acomodar este mounstruo
 
@@ -71,11 +71,7 @@ int main(void) {
 
 	t_configuracion_servidor *configuracion_servidor_consola = malloc(
 			sizeof(t_configuracion_servidor));
-
 	configuracion_servidor_consola->puerto = configuracion->puerto_prog;
-
-	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
-
 	configuracion_servidor_consola->funcion = &atender_consola;
 
 	crear_servidor(configuracion_servidor_consola);
@@ -86,11 +82,9 @@ int main(void) {
 
 	t_configuracion_servidor *configuracion_servidor_cpu = malloc(
 			sizeof(t_configuracion_servidor));
-
 	configuracion_servidor_cpu->puerto = configuracion->puerto_cpu;
-
-	//ESTO ES LO QUE HAY QUE HACER, EN configuracion_servidor->funcion  PONER &nombre_de_funcion
 	configuracion_servidor_cpu->funcion = &atender_cpu;
+	configuracion_servidor_cpu->parametros_funcion = configuracion;
 
 	crear_servidor(configuracion_servidor_cpu);
 
@@ -158,52 +152,6 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		//avisar a la consola que no se pudo cerrar umc y liberar t0do lo del proceso
 		break;
 	}
-}
-
-void atender_cpu(t_paquete *paquete, int socket_cpu) {
-
-	printf("proceso emisor: %d\n", paquete->header->id_proceso_emisor);
-	printf("proceso receptor: %d\n", paquete->header->id_proceso_receptor);
-	printf("id mensaje: %d\n", paquete->header->id_mensaje);
-	printf("longitud payload: %d\n\n", paquete->header->longitud_mensaje);
-	printf("el socket del cpu es: %d\n", socket_cpu);
-
-	switch (paquete->header->id_mensaje) {
-	case MENSAJE_HANDSHAKE:
-		printf("Empieza handshake\n\n");
-		handshake(socket_cpu, PROCESO_CPU, MENSAJE_HANDSHAKE);
-		printf("Se establecio conexion con cpu\n\n");
-		printf("termina handshake\n\n");
-		break;
-	case MENSAJE_OBTENER_VALOR_COMPARTIDA:
-		//TODO
-		break;
-	case MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA:
-		//TODO
-		break;
-	case MENSAJE_IMPRIMIR:
-		//TODO
-		break;
-	case MENSAJE_IMPRIMIR_TEXTO:
-		//TODO
-		break;
-	case MENSAJE_ENTRADA_SALIDA:
-		//TODO
-		break;
-	case MENSAJE_WAIT:
-		//TODO
-		break;
-	case MENSAJE_SIGNAL:
-		//TODO
-		break;
-	case MENSAJE_QUANTUM:
-		//TODO
-		break;
-	case MENSAJE_PROGRAMA_FINALIZADO:
-		//TODO
-		break;
-	}
-
 }
 
 void atender_consola(t_paquete *paquete_buffer, int socket_consola) {

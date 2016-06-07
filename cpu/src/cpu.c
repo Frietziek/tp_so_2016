@@ -231,3 +231,5 @@ void handshake_cpu_nucleo(int socket_servidor) {
 	enviar_header(socket_nucleo, header);
 	free(header);
 }
+
+// TODO Hacer funcion quantum, mandar PCB actualizado al Nucleo

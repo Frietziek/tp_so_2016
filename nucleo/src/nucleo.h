@@ -10,6 +10,7 @@
 
 #include <commons/collections/dictionary.h>
 #include <commons/collections/queue.h>
+#include <parser/metadata_program.h>
 
 // Valores de la configuracion
 
@@ -86,8 +87,6 @@ t_pcb *buscar_pcb_por_socket_consola(int _socket_consola);
 void pedir_pagina_tamanio(int socket_umc);
 
 void atender_umc(t_paquete *paquete, int socket_conexion);
-
-void atender_cpu(t_paquete *paquete, int socket_cpu);
 
 void atender_consola(t_paquete *paquete_buffer, int socket_consola);
 
