@@ -5,14 +5,7 @@
  *      Author: utnso
  */
 
-#include <serializacion.h>
-#include <comunicaciones.h>
-#include "semaphore.h"
-#include "serializacion_cpu_umc.h"
-#include "serializacion_cpu_nucleo.h"
 #include "primitivas_ansisop.h"
-
-#include "semaforo_sockets_cpu.h"
 
 static const int CONTENIDO_VARIABLE = 20;
 static const int POSICION_MEMORIA = 0x10;
@@ -83,7 +76,7 @@ void ansisop_asignar(t_puntero direccion_variable, t_valor_variable valor) {
 	p_pagina->valor = valor;
 	p_pagina->socket_pedido = socket_umc;
 
-	t_buffer * payload = serializar_pagina_completa(p_pagina);
+	t_buffer *payload = serializar_pagina_completa(p_pagina);
 
 	header->longitud_mensaje = payload->longitud_buffer;
 

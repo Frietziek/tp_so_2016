@@ -9,6 +9,9 @@
 #define CPU_H_
 
 #include <serializacion.h>
+#include "serializaciones_cpu.h"
+#include "semaforo_sockets_cpu.h"
+#include "primitivas_ansisop.h"
 
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0

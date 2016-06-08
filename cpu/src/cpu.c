@@ -14,14 +14,9 @@
 #include <commons/config.h> // Funciones para leer archivos ini
 #include <semaphore.h> // Semaforos s_pagina y s_cpu_corriendo
 #include <signal.h> // Signal sigusr1
-#include <serializacion.h>
 #include <comunicaciones.h>
 
 #include "cpu.h"
-#include "primitivas_ansisop.h"
-#include "semaforo_sockets_cpu.h"
-#include "serializacion_cpu_nucleo.h"
-#include "serializacion_cpu_umc.h"
 
 // Primirivas AnSISOP
 AnSISOP_funciones functions = { .AnSISOP_definirVariable =

@@ -10,6 +10,11 @@
 
 #include <stdio.h>
 #include <parser/parser.h>
+#include <serializacion.h>
+#include <comunicaciones.h>
+#include "semaphore.h"
+#include "serializaciones_cpu.h"
+#include "semaforo_sockets_cpu.h"
 
 // Funciones CPU - UMC
 #define MENSAJE_LEER_PAGINA 1
@@ -58,7 +63,6 @@
 #define MENSAJE_PCB 1
 #define MENSAJE_MATAR 2
 // Respuestas OK
-#define RESPUESTA_PCB 11
 #define RESPUESTA_MATAR 12
 // Respuestas Error
 #define ERROR_PCB 21
