@@ -8,6 +8,14 @@
 #ifndef CPU_H_
 #define CPU_H_
 
+#include <stdio.h>
+#include <stdlib.h> // EXIT_SUCCES y otros
+#include <unistd.h> // Funcion close
+#include <commons/config.h> // Funciones para leer archivos ini
+#include <semaphore.h> // Semaforos s_pagina y s_cpu_corriendo
+#include <signal.h> // Signal sigusr1
+#include <commons/log.h> // Libreria de Logs
+#include <comunicaciones.h>
 #include <serializacion.h>
 #include "serializaciones_cpu.h"
 #include "semaforo_sockets_cpu.h"
@@ -71,6 +79,7 @@ typedef struct {
 } t_pcb_completo;
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
+void inicio_seniales_semaforos();
 void inicio_variables_cpu();
 int conecto_con_nucleo(t_config_cpu* configuracion);
 int conecto_con_umc(t_config_cpu* configuracion);
