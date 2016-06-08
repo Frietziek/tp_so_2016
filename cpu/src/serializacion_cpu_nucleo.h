@@ -35,8 +35,7 @@ typedef struct {
 } t_semaforo;
 
 t_buffer *serializar_variable(t_variable *variable);
-void deserializar_variable(void *buffer,
-		t_variable *variable);
+void deserializar_variable(void *buffer, t_variable *variable);
 
 t_buffer *serializar_variable_completa(t_variable_completa *variable);
 void deserializar_variable_completa(void *buffer,

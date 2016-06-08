@@ -64,6 +64,24 @@ typedef struct {
 	int valor;
 } t_variable_valor;
 
+typedef struct {
+	char *nombre;
+	int valor;
+} t_variable_completa;
+
+typedef struct {
+	char *texto;
+} t_texto;
+
+typedef struct {
+	char *nombre_dispositivo;
+	int tiempo;
+} t_entrada_salida;
+
+typedef struct {
+	char *nombre;
+} t_semaforo;
+
 // Funciones para atender a CPU
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion);
@@ -86,7 +104,30 @@ void atiendo_quantum(void *buffer, int socket_conexion);
 void atiendo_programa_finalizado(void *buffer, int socket_conexion);
 
 // Funciones de Serializacion
+t_buffer *serializar_variable(t_variable *variable);
+void deserializar_variable(void *buffer, t_variable *variable);
+
 t_buffer *serializar_variable_valor(t_variable_valor *variable);
 void deserializar_variable_valor(void *buffer, t_variable_valor*variable);
+
+t_buffer *serializar_variable_completa(t_variable_completa *variable);
+void deserializar_variable_completa(void *buffer, t_variable_completa *variable);
+
+t_buffer *serializar_texto(t_texto *texto);
+void deserializar_texto(void *buffer, t_texto *texto);
+
+void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida);
+
+void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida);
+
+// Funciones del nucleo que hay que desarrollar
+int obtener_variable_compartida(char *nombre_variable_compartida);
+int asignar_variable_compartida(char *nombre_variable_compartida, int valor);
+int devuelve_socket_consola(int socket_cpu);
+void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo, int tiempo);
+void bloquear_pcb_semaforo(char *nombre_semaforo);
+void asignar_pcb(int socket_cpu);
+int wait_semaforo(char *semaforo_nombre);
+void signal_semaforo(char *semaforo_nombre);
 
 #endif /* ATIENDO_CPU_H_ */

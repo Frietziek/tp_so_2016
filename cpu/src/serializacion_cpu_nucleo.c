@@ -49,8 +49,7 @@ t_buffer *serializar_variable_completa(t_variable_completa *variable) {
 	return (estructura_buffer);
 }
 
-void deserializar_variable_completa(void *buffer,
-		t_variable_completa *variable) {
+void deserializar_variable_completa(void *buffer, t_variable_completa *variable) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_string_de_buffer(buffer, &(variable->nombre),
