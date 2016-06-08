@@ -5,10 +5,9 @@
  *      Author: utnso
  */
 
-#include "semaphore.h"
-//#include "cpu.h"
 #include <serializacion.h>
 #include <comunicaciones.h>
+#include "semaphore.h"
 #include "serializacion_cpu_umc.h"
 #include "serializacion_cpu_nucleo.h"
 #include "primitivas_ansisop.h"
