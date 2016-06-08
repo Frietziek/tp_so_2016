@@ -12,6 +12,9 @@
 
 int aux_socket_nucleo;
 
+void contar ();
+
+
 int main(int argc, char **argv) {
 
 	FILE *archivo;
@@ -24,7 +27,7 @@ int main(int argc, char **argv) {
 			configuracion->puerto, &atender_nucleo);
 	aux_socket_nucleo = socket_nucleo;
 
-	signal (SIGINT, sig_handler);
+	signal (SIGINT, contar);
 
 	printf("Proceso Consola creado.\n");
 
@@ -36,17 +39,15 @@ int main(int argc, char **argv) {
 	}
 
 	// Lee Archivo y envia el archivo Ansisop
-	archivo = fopen(argv[1], "r"); //El argv[1] tiene la direccion del archivo Ansisop
-	//archivo = fopen("./Programa", "r");
+	//archivo = fopen(argv[1], "r"); //El argv[1] tiene la direccion del archivo Ansisop
+	archivo = fopen("./Programa", "r");
 
 	if (archivo == NULL)
 		exit(1);
 
-	getchar();
-
 	enviar_codigo(archivo, socket_nucleo);
 
-	getchar();
+	while (1);
 
 	fclose(archivo);
 	close(socket_nucleo);
@@ -144,27 +145,50 @@ void enviar_codigo(FILE * archivo, int socket_nucleo) {
 
 // Funciones CPU - Nucleo
 void atender_nucleo(t_paquete *paquete, int socket_conexion) {
+	int opcion;
 	switch (paquete->header->id_mensaje) {
 	case MENSAJE_IMPRIMIR:
 		printf("La variable vale:\n");
 		t_variable_valor * valor_imprimir = malloc (sizeof (t_variable_valor));
 		deserializar_variable_valor (paquete->payload,valor_imprimir);
-		printf("%d",valor_imprimir->valor);
+		printf("%d\n",valor_imprimir->valor);
+		opcion = RESPUESTA_IMPRIMIR;
+		consola_nucleo(aux_socket_nucleo, opcion);
 		break;
 	case MENSAJE_IMPRIMIR_TEXTO:
 		printf("El texto es:\n");
 		t_texto * texto_imprimir = malloc (sizeof (t_texto));
 		deserializar_texto (paquete->payload,texto_imprimir);
-		printf("%s",texto_imprimir->texto);
+		printf("%s\n",texto_imprimir->texto);
+		opcion = RESPUESTA_IMPRIMIR_TEXTO;
+		consola_nucleo(aux_socket_nucleo, opcion);
 		break;
+	case MENSAJE_PROGRAMA_FINALIZADO:
+		printf ("Programa Finalizado Correctamente\n");
+		opcion = RESPUESTA_PROGRAMA_FINALIZADO;
+		consola_nucleo(aux_socket_nucleo, opcion);
+		exit (1);
 	default:
 		printf("Comando no reconocido\n");
 		break;
 	}
 }
 
-
-void sig_handler() {
+void contar ()
+{
+    /* Primero desactivamos la señal SIGINT por si se pulsa CTRL+C
+       mientras se está ejecutando esta función. */
+	int opcion = MENSAJE_MATAR_PROCESO;
+	pid_t pid;
+    signal (SIGINT, SIG_IGN);
+    printf ("Has pulsado CTRL-C\n");
+    printf("llego");
+    consola_nucleo(aux_socket_nucleo, opcion);
+    pid = getpid ();
+    kill (pid,SIGTERM);
+}
+/*
+void handler_señal(int s) {
 	int opcion = MENSAJE_MATAR_PROCESO;
 	pid_t pid;
 	consola_nucleo(aux_socket_nucleo, opcion);
@@ -174,3 +198,4 @@ void sig_handler() {
 	printf("No llego");
 }
 
+*/
