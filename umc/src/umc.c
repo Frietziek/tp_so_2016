@@ -14,16 +14,19 @@
 #include <commons/config.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
+#include <commons/collections/list.h>
 #include "umc.h"
 
 int socket_swap;
 int socket_nucleo;
 void *memoria_principal;
 void *cache_tlb;
-t_fila_tabla_pagina *tabla_paginas_procesos[];
+t_lista_algoritmo * listas_algoritmo;
+t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas;
+t_config_umc *configuracion;
 
 int main(void) {
-	t_config_umc *configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
+	configuracion = malloc(sizeof(t_config_umc)); // Estructura de configuracion de la UMC
 	carga_configuracion_UMC("src/config.umc.ini", configuracion);
 
 	// Se crea el bloque de la memoria principal
@@ -34,11 +37,18 @@ int main(void) {
 	// Creo Cache TLB
 	cache_tlb = calloc(configuracion->entradas_tlb, sizeof(t_tlb));
 
+	//iniciar listas
+	lista_de_marcos = list_create();
+	lista_paginas_tlb = list_create();
+	lista_tablas = list_create();
+
 	// Inicio servidor UMC
 	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);
 
 	// Se realiza la conexión con el swap
-	socket_swap = conecto_con_swap(configuracion);
+	//socket_swap = conecto_con_swap(configuracion);
+
+	test();
 
 	menu_principal(configuracion);
 
@@ -84,6 +94,10 @@ void carga_configuracion_UMC(char *archivo, t_config_umc *configuracionUMC) {
 	if (config_has_property(configuracion, "RETARDO")) {
 		configuracionUMC->retardo = config_get_int_value(configuracion,
 				"RETARDO");
+	}
+	if (config_has_property(configuracion, "ALGORITMO")) {
+		configuracionUMC->algoritmo = config_get_string_value(configuracion,
+				"ALGORITMO");
 	}
 	free(configuracion);
 }
@@ -232,15 +246,32 @@ void respuesta_handshake_umc_swap() {
 }
 
 void iniciar_programa(void *buffer) {
-
+	int i;
 	t_programa_completo *programa = malloc(sizeof(t_programa_completo));
 	deserializar_programa_completo(buffer, programa);
+	t_fila_tabla_pagina * tabla_paginas = (t_fila_tabla_pagina *) malloc(programa->paginas_requeridas * sizeof(t_fila_tabla_pagina));
+
+
+	//armo la tabla:
+	for(i = 0; i < programa->paginas_requeridas; i++){
+
+		tabla_paginas[i].frame = NULL;
+		tabla_paginas[i].modificado = 0;
+		tabla_paginas[i].pid = programa->id_programa;
+		tabla_paginas[i].presencia = 0;
+		tabla_paginas[i].uso = 0;
+		tabla_paginas[i].numero_pagina = i;
+		printf(" tabla_paginas[0]->pid = %d \n" ,tabla_paginas[i].pid);//para probar
+	}
+
+	list_add_in_index(lista_tablas,tabla_paginas,programa->id_programa); // lista de tablas. El index va a coincidir con el pid
+
+	//tablas_de_procesos + programa->paginas_requeridas  = malloc(programa->paginas_requeridas * sizeof(t_fila_tabla_pagina));
+	//tablas_de_procesos + programa->paginas_requeridas = tabla_paginas; // array con todas las tablas de pag de los diferentes procesos
 
 	// TODO Verificar que se administren bien
 	// Creo la tabla de paginas del proceso
-	t_fila_tabla_pagina *tabla_paginas[programa->paginas_requeridas];
-	// Agrego en el vector de tabla de paginas de todos los procesos
-	tabla_paginas_procesos[programa->id_programa];
+
 
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -491,4 +522,144 @@ void generar_dump() {
 
 void limpiar_contenido() {
 // TODO Terminar funcion
+}
+
+//Busca una pagina dentro de la TLB. Si está retorna el marco asociado o si no está retorna null
+t_marco * buscar_pagina_tlb(int id_programa,int pagina){
+	t_marco * marco;
+	bool esta_en_tlb(t_tlb *un_tlb){
+		return (un_tlb->pid == id_programa && un_tlb->pagina == pagina);
+	}
+	marco = list_find(lista_paginas_tlb,(void*)esta_en_tlb);
+	return marco;
+}
+
+t_marco * buscar_pagina_mp(int id_programa,int pagina){
+	t_marco * marco;
+
+	bool esta_en_memoria(t_fila_tabla_pagina *una_pagina_mp){
+		return (una_pagina_mp->pid == id_programa && una_pagina_mp->numero_pagina == pagina);
+	}
+	marco = list_find(lista_paginas_tlb,(void*)esta_en_memoria);
+	return marco;
+}
+
+
+
+void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
+	t_fila_tabla_pagina * pagina_a_sustituir = NULL;
+	int pid = pagina_a_ubicar->pid;
+
+	//CLOCK
+	if(string_equals_ignore_case(configuracion->algoritmo,"CLOCK")){
+		while (pagina_a_sustituir == NULL ){
+			pagina_a_sustituir = list_get(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero);
+			if (pagina_a_sustituir->uso == 0) {
+				break;
+			}
+			else {
+				pagina_a_sustituir->uso = 0;
+				listas_algoritmo[pid].puntero++;
+				pagina_a_sustituir = NULL;
+				if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+					listas_algoritmo[pid].puntero = 0;
+					}
+			}
+		}
+		pagina_a_ubicar->frame = pagina_a_sustituir->frame;
+		list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
+		// ver que mas tengo que hacer
+	}
+
+	//CLOCK MODIFICADO
+	if(string_equals_ignore_case(configuracion->algoritmo,"CLOCK_MODIFICADO")){
+
+		// 1° caso: U = 0 y M = 0
+		int i = 0;
+		while(pagina_a_sustituir == NULL && i < list_size(listas_algoritmo[pid].lista_paginas_mp)){ // hago maximo una vuelta
+			pagina_a_sustituir = list_get(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero);
+			if (pagina_a_sustituir->uso == 0 && pagina_a_sustituir->modificado == 0) {  break;}  //encuentro
+			else {
+				listas_algoritmo[pid].puntero++;
+				pagina_a_sustituir = NULL;
+				if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+					listas_algoritmo[pid].puntero = 0;
+					}
+				i++;
+			}
+		}
+
+		// 2° caso: U = 0 y M = 1  .  Si hay U = 1 lo pongo en U = 0
+		i = 0;
+		while(pagina_a_sustituir == NULL && i < list_size(listas_algoritmo[pid].lista_paginas_mp)){ // hago maximo una vuelta
+			pagina_a_sustituir = list_get(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero);
+			if (pagina_a_sustituir->uso == 0 && pagina_a_sustituir->modificado == 1) {  break;}  //encuentro
+			else {
+				listas_algoritmo[pid].puntero++;
+				pagina_a_sustituir->uso = 0;
+				pagina_a_sustituir = NULL;
+				if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+					listas_algoritmo[pid].puntero = 0;
+					}
+				i++;
+			}
+		}
+
+		// 3° caso: U = 1 y M = 0 ( En realidad al cambiarlo en el anterior check busco nuevamente U = 0 y M = 0)
+		i = 0;
+		while(pagina_a_sustituir == NULL && i < list_size(listas_algoritmo[pid].lista_paginas_mp)){ // hago maximo una vuelta
+			pagina_a_sustituir = list_get(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero);
+			if (pagina_a_sustituir->uso == 0 && pagina_a_sustituir->modificado == 0) {  break;}  //encuentro
+			else {
+				listas_algoritmo[pid].puntero++;
+				pagina_a_sustituir = NULL;
+				if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+					listas_algoritmo[pid].puntero = 0;
+					}
+				i++;
+			}
+		}
+
+		//4° caso: U = 1 y M = 1  ( busco U = 0 y M = 1)
+		while(pagina_a_sustituir == NULL){ // hago toda una vuelta
+			pagina_a_sustituir = list_get(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero);
+			if (pagina_a_sustituir->uso == 0 && pagina_a_sustituir->modificado == 0) {  break;}  //encuentro
+			else {
+				listas_algoritmo[pid].puntero++;
+				pagina_a_sustituir = NULL;
+				i++;
+			}
+		}
+
+	pagina_a_ubicar->frame = pagina_a_sustituir->frame;
+	list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
+	// ver que mas tengo que hacer
+
+	}
+}
+
+void test(){
+	t_programa_completo *programa1 = malloc(sizeof(t_programa_completo));
+	t_programa_completo *programa2 = malloc(sizeof(t_programa_completo));
+	t_programa_completo *programa3 = malloc(sizeof(t_programa_completo));
+	programa1->id_programa = 1;
+	programa1->paginas_requeridas = 3;
+	programa1->codigo = malloc(10);
+	programa1->codigo = "soy pid 1\0";
+	programa2->id_programa = 2;
+	programa2->paginas_requeridas = 1;
+	programa2->codigo = malloc(10);
+	programa2->codigo = "soy pid 2\0";
+	programa3->id_programa = 3;
+	programa3->paginas_requeridas = 4;
+	programa3->codigo = malloc(10);
+	programa3->codigo = "soy pid 3\0";
+	t_buffer * buffer1 = serializar_programa_completo(programa1);
+	t_buffer * buffer2 = serializar_programa_completo(programa2);
+	t_buffer * buffer3 = serializar_programa_completo(programa3);
+	iniciar_programa(buffer1->contenido_buffer);
+	iniciar_programa(buffer2->contenido_buffer);
+	iniciar_programa(buffer3->contenido_buffer);
+	t_fila_tabla_pagina * tabla3 =  list_get(lista_tablas, 3);
+	printf("pid 2 -> tabla3[2].numero_pagina %d \n",tabla3[2].numero_pagina);
 }
