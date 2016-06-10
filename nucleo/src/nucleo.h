@@ -10,6 +10,7 @@
 
 #include <commons/collections/dictionary.h>
 #include <commons/collections/queue.h>
+#include <parser/metadata_program.h>
 
 // Valores de la configuracion
 
@@ -32,6 +33,8 @@
 #define BLOCK 3
 #define EXIT 4
 
+#define NO_ASIGNADO -10
+
 typedef struct {
 	int puerto_prog;
 	int puerto_cpu;
@@ -47,24 +50,98 @@ typedef struct {
 	int stack_size;
 } t_config_nucleo;
 
-typedef struct { //TODO llenarme con parser metadata
+typedef struct {
+	int pagina;
+	int offset;
+	int size;
+} t_posicion_memoria;
+
+typedef struct {
+	int id;
+	t_posicion_memoria *posicion_memoria;
+} t_variables_stack;
+
+typedef struct {
+	int posicion_retorno;
+	t_posicion_memoria *posicion_variable_retorno;
+	t_list *variables;	//t_variables_stack
+	t_list *argumentos; //t_posicion_memoria
+} t_indice_stack;
+
+typedef struct {
 	int pid;
 	int pc;
-	int cant_paginas_codigo;
+	int cant_paginas_codigo_stack;
+	int estado;
+	int stack_size_maximo;
+	int stack_position;
+	//t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
+	char* etiquetas;
+	t_size instrucciones_size;
+	t_intructions **instrucciones_serializadas;
+	int stack_size_actual;
+	t_indice_stack **indice_stack;
 } t_pcb;
 
-void cargarConfiguracionNucleo(char *archivo, t_config_nucleo *configuracion);
+typedef struct {
+	char *nombre_dispositivo;
+	int retardo;
+	t_queue *solicitudes; //t_solicitud_entrada_salida_cpu
+} t_solicitudes_entrada_salida;
 
-void obtener_tamanio_pagina(t_paquete *paquete);
+typedef struct {
+	char *nombre_semaforo;
+	int valor;
+	t_queue *solicitudes;      //t_solicitud_semaforo
+} t_solicitudes_semaforo;
 
-void atender_cpu(t_paquete *paquete, int socket_cpu);
+typedef struct {
+	int socket_cpu;
+	int operacion; //siempre va a sumar operacion a valor, si es 1 suma 1 si es -1 resta 1
+} t_solicitud_semaforo_cpu;
 
-void atender_consola(t_paquete *paquete_buffer);
+typedef struct {
+	int socket_cpu;
+	int cantidad_operaciones;
+} t_solicitud_entrada_salida_cpu;
 
-t_pcb *crearPCB(char *codigo_de_consola);
+typedef struct {
+	t_pcb *pcb;
+	int socket_consola;
+	int socket_cpu;
+} t_fila_tabla_procesos;
 
-void agregar_pcb_a_cola(t_queue *cola, t_pcb *pcb);
+void inicializar_variables_compartidas(char **shared_vars);
 
-void terminar_ejecucion();
+void cargar_configuracion_nucleo(char *archivo, t_config_nucleo *configuracion);
+
+t_pcb *buscar_pcb_por_socket_consola(int _socket_consola);
+
+void pedir_pagina_tamanio(int socket_umc);
+
+void atender_umc(t_paquete *paquete, int socket_conexion);
+
+void atender_consola(t_paquete *paquete_buffer, int socket_consola);
+
+t_pcb *buscar_pcb_por_socket_consola(int socket_consola);
+
+void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
+		char *codigo);
+
+void agregar_pcb_a_tabla_procesos(t_pcb *pcb, int socket_consola);
+
+int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
+
+t_pcb *crear_PCB(char *codigo_de_consola);
+
+void terminar_ejecucion(t_pcb *pcb);
+
+int buscar_socket_cpu_por_pcb(t_pcb *pcb_a_finalizar);
+
+void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep);
+
+void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init);
+
+void handshake(int socket, int proceso_receptor, int id_mensaje);
 
 #endif /* NUCLEO_H_ *///

@@ -8,8 +8,12 @@
  ============================================================================
  */
 
-#include <commons/string.h>
 #include "consola.h"
+
+int aux_socket_nucleo;
+
+void contar ();
+
 
 int main(int argc, char **argv) {
 
@@ -21,14 +25,9 @@ int main(int argc, char **argv) {
 	cargaConfiguracionConsola("src/config.consola.ini", configuracion);
 	int socket_nucleo = conectar_servidor(configuracion->ip,
 			configuracion->puerto, &atender_nucleo);
+	aux_socket_nucleo = socket_nucleo;
 
-	sa.sa_handler = sigchld_handler;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
+	signal (SIGINT, contar);
 
 	printf("Proceso Consola creado.\n");
 
@@ -48,7 +47,7 @@ int main(int argc, char **argv) {
 
 	enviar_codigo(archivo, socket_nucleo);
 
-	getchar();
+	while (1);
 
 	fclose(archivo);
 	close(socket_nucleo);
@@ -103,41 +102,31 @@ int Generar_Buffer_Programa(FILE *archivo, char **Aux_Buff) {
 	return (len);
 }
 
-void handshake_consola_nucleo(int socket_nucleo) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CONSOLA;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_HANDSHAKE;
-	header->longitud_mensaje = 0;
-
-	enviar_header(socket_nucleo, header);
-	free(header);
-}
 
 void enviar_codigo(FILE * archivo, int socket_nucleo) {
 	t_header *header = malloc(sizeof(t_header));
-	t_buffer * p_buffer;
+	t_buffer *p_buffer;
 
-	char Aux_Archivo[100];
+	char *Aux_Archivo[100];
 	int Largo_Mensaje;
-	t_texto * buffer;
 
 	fseek(archivo, 0, SEEK_END);
 	Largo_Mensaje = ftell(archivo);
 	rewind(archivo);
 
-	buffer = malloc(sizeof(t_texto));
+	t_texto *buffer = malloc(sizeof(t_texto));
+	buffer->texto = malloc(Largo_Mensaje);
+	*buffer->texto = NULL;
 	//buffer->texto = malloc(Largo_Mensaje);
 
 	while (feof(archivo) == 0) {
-
 		fgets(Aux_Archivo, 100, archivo);
 
 		strcat(buffer->texto, Aux_Archivo);
 
 	}
 
-	printf("\n\n\n\nEl Codigo linea: %s \n\n\n\n", buffer->texto);
+	printf("El Codigo linea: %s \n", buffer->texto);
 
 	p_buffer = serializar_imprimir_texto(buffer);
 
@@ -156,32 +145,57 @@ void enviar_codigo(FILE * archivo, int socket_nucleo) {
 
 // Funciones CPU - Nucleo
 void atender_nucleo(t_paquete *paquete, int socket_conexion) {
+	int opcion;
 	switch (paquete->header->id_mensaje) {
-	case RESPUESTA_HANDSHAKE:
-		printf("Recibi respuesta de handshake del nucleo\n");
+	case MENSAJE_IMPRIMIR:
+		printf("La variable vale:\n");
+		t_variable_valor * valor_imprimir = malloc (sizeof (t_variable_valor));
+		deserializar_variable_valor (paquete->payload,valor_imprimir);
+		printf("%d\n",valor_imprimir->valor);
+		opcion = RESPUESTA_IMPRIMIR;
+		consola_nucleo(aux_socket_nucleo, opcion);
 		break;
+	case MENSAJE_IMPRIMIR_TEXTO:
+		printf("El texto es:\n");
+		t_texto * texto_imprimir = malloc (sizeof (t_texto));
+		deserializar_texto (paquete->payload,texto_imprimir);
+		printf("%s\n",texto_imprimir->texto);
+		opcion = RESPUESTA_IMPRIMIR_TEXTO;
+		consola_nucleo(aux_socket_nucleo, opcion);
+		break;
+	case MENSAJE_PROGRAMA_FINALIZADO:
+		printf ("Programa Finalizado Correctamente\n");
+		opcion = RESPUESTA_PROGRAMA_FINALIZADO;
+		consola_nucleo(aux_socket_nucleo, opcion);
+		exit (1);
 	default:
 		printf("Comando no reconocido\n");
 		break;
 	}
 }
 
-t_buffer *serializar_imprimir_texto(t_texto *texto) {
-	int cantidad_a_reservar = sizeof(int) + strlen(texto->texto);
-	void *buffer = malloc(cantidad_a_reservar);
-
-	int posicion_buffer = 0;
-
-	copiar_string_en_buffer(buffer, texto->texto, &posicion_buffer);
-
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-	estructura_buffer->contenido_buffer = buffer;
-	estructura_buffer->longitud_buffer = posicion_buffer;
-
-	return (estructura_buffer);
+void contar ()
+{
+    /* Primero desactivamos la señal SIGINT por si se pulsa CTRL+C
+       mientras se está ejecutando esta función. */
+	int opcion = MENSAJE_MATAR_PROCESO;
+	pid_t pid;
+    signal (SIGINT, SIG_IGN);
+    printf ("Has pulsado CTRL-C\n");
+    printf("llego");
+    consola_nucleo(aux_socket_nucleo, opcion);
+    pid = getpid ();
+    kill (pid,SIGTERM);
+}
+/*
+void handler_señal(int s) {
+	int opcion = MENSAJE_MATAR_PROCESO;
+	pid_t pid;
+	consola_nucleo(aux_socket_nucleo, opcion);
+	printf("llego");
+	pid = getpid ();
+	kill (pid,SIGTERM);
+	printf("No llego");
 }
 
-void sigchld_handler(int s) {
-
-}
-
+*/

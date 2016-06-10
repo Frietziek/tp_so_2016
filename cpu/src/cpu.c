@@ -8,20 +8,7 @@
  ============================================================================
  */
 
-#include <stdio.h>
-#include <stdlib.h> // EXIT_SUCCES y otros
-#include <unistd.h> // Funcion close
-#include <commons/config.h> // Funciones para leer archivos ini
-#include <semaphore.h> // Semaforos s_pagina y s_cpu_corriendo
-#include <signal.h> // Signal sigusr1
-#include <serializacion.h>
-#include <comunicaciones.h>
-
 #include "cpu.h"
-#include "primitivas_ansisop.h"
-#include "semaforo_sockets_cpu.h"
-#include "serializacion_cpu_nucleo.h"
-#include "serializacion_cpu_umc.h"
 
 // Primirivas AnSISOP
 AnSISOP_funciones functions = { .AnSISOP_definirVariable =
@@ -41,20 +28,15 @@ AnSISOP_kernel kernel_functions = { .AnSISOP_wait = ansisop_wait,
 //static const char* DEFINICION_VARIABLES = "variables a, b, c";
 //static const char* ASIGNACION = "a = b + 12";
 
-int tamanio_pagina;
-
 int main(void) {
-	// Funcion para atender seniales
-	signal(SIGUSR1, atender_seniales);
-	signal(SIGUSR2, atender_seniales);
-	// Inicio semaforos
-	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para el funcionamiento de CPU
-	sem_init(&s_pagina, 0, 0); // Semaforo para pedido de lectura de UMC
+
+	logger_manager = log_create("cpu.log", "CPU", true, LOG_LEVEL_TRACE); // Creo archivo de log
+	inicio_seniales_semaforos();
 
 	// Cargo configuraciones desde archivo ini
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
 	carga_configuracion_cpu("src/config.cpu.ini", configuracion);
-	printf("Proceso CPU creado.\n");
+	log_trace(logger_manager, "Proceso CPU creado.");
 
 	socket_nucleo = conecto_con_nucleo(configuracion);
 
@@ -76,8 +58,9 @@ int main(void) {
 	// TODO Notificar al nucleo que termino el Quantum
 
 	sem_wait(&s_cpu_finaliza);
-	printf("Cerrando CPU\n");
+	log_trace(logger_manager, "Cerrando CPU.");
 
+	log_destroy(logger_manager);
 	sem_destroy(&s_pagina);
 	sem_destroy(&s_cpu_finaliza);
 	free(configuracion);
@@ -107,14 +90,22 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 	free(configuracion);
 }
 
+void inicio_seniales_semaforos() {
+	// Funcion para atender seniales
+	signal(SIGUSR1, atender_seniales);
+	// Inicio semaforos
+	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para el funcionamiento de CPU
+	sem_init(&s_pagina, 0, 0); // Semaforo para pedido de lectura de UMC
+}
+
 int conecto_con_nucleo(t_config_cpu* configuracion) {
 	int socket_servidor;
 	if ((socket_servidor = conectar_servidor(configuracion->ip_nucleo,
 			configuracion->puerto_nucleo, &atender_nucleo)) > 0) {
-		printf("CPU conectado con Nucleo\n");
+		log_trace(logger_manager, "CPU conectado con Nucleo.");
 		handshake_cpu_nucleo(socket_servidor);
 	} else {
-		perror("Error al conectarse con el Nucleo");
+		log_warning(logger_manager, "Error al conectarse con Nucleo.");
 	}
 	return socket_servidor;
 }
@@ -123,10 +114,10 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 	int socket_servidor;
 	if ((socket_servidor = conectar_servidor(configuracion->ip_umc,
 			configuracion->puerto_umc, &atender_umc)) > 0) {
-		printf("CPU conectado con UMC.\n");
+		log_trace(logger_manager, "CPU conectado con UMC.");
 		handshake_cpu_umc(socket_servidor);
 	} else {
-		perror("Error al conectarse con la UMC\n");
+		log_warning(logger_manager, "Error al conectarse con UMC.");
 	}
 	return socket_servidor;
 }
@@ -134,15 +125,11 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 void atender_seniales(int signum) {
 	switch (signum) {
 	case SIGUSR1:
-		printf("Recibi sigusr1\n");
+		log_trace(logger_manager, "Se recibio la senial SIGUSR1.");
 		sem_post(&s_cpu_finaliza);
 		break;
-	case SIGUSR2:
-		printf("Recibi sigusr2, leyendo pag de umc\n");
-		//leer_pagina(5, 4, 4);
-		break;
 	default:
-		printf("Recibi senial desconocida\n");
+		log_trace(logger_manager, "Se recibio una senial desconocida.");
 		break;
 	}
 }
@@ -152,34 +139,35 @@ void atender_seniales(int signum) {
 void atender_umc(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
 	case RESPUESTA_HANDSHAKE:
-		printf("Handshake recibido de UMC\n");
+		log_info(logger_manager, "Handshake recibido de UMC.");
 		respuesta_handshake_cpu_umc(paquete->payload);
 		break;
 	case RESPUESTA_LEER_PAGINA:
+		log_info(logger_manager, "Se leyo una pagina de UMC.");
 		respuesta_leer_pagina(paquete->payload);
-		printf("Recibi respuesta: se leyo la pagina\n");
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
-		// TODO Terminar funcion
-		printf("Recibi respuesta: se escribio la pagina\n");
+		log_info(logger_manager, "Se escribio una pagina en UMC.");
 		break;
 	case ERROR_HANDSHAKE:
-		printf("Error en el Handshake de UMC\n");
+		log_error(logger_manager, "Error en Handshake con UMC.");
+		// TODO Terminar funcion
 		break;
 	case ERROR_LEER_PAGINA:
-		printf("Error en lectura de pagina\n");
+		log_error(logger_manager, "Error en lectura de pagina de UMC.");
+		// TODO Terminar funcion
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
-		printf("Error al escribir en pagina");
+		log_error(logger_manager, "Error en escritura de pagina en UMC.");
+		// TODO Termianr funcion
 		break;
 	default:
-		printf("Comando no reconocido\n");
+		log_warning(logger_manager, "Comando no reconocido de UMC.");
 		break;
 	}
 }
 
 void handshake_cpu_umc(int socket_servidor) {
-
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_CPU;
 	header->id_proceso_receptor = PROCESO_UMC;
@@ -188,20 +176,17 @@ void handshake_cpu_umc(int socket_servidor) {
 
 	enviar_header(socket_servidor, header);
 	free(header);
-
 }
 
 void respuesta_handshake_cpu_umc(void *buffer) {
-
 	t_pagina_tamanio *pagina = malloc(sizeof(t_pagina_tamanio));
 	deserializar_pagina_tamanio(buffer, pagina);
 	tamanio_pagina = pagina->tamanio;
-	printf("Se cargo el tamanio de la pagina: %i\n", tamanio_pagina);
-
+	log_info(logger_manager, "Se cargo el tamanio de la pagina: %i",
+			tamanio_pagina);
 }
 
 void respuesta_leer_pagina(void *buffer) {
-
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina);
 
@@ -213,10 +198,10 @@ void respuesta_leer_pagina(void *buffer) {
 void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
 	case RESPUESTA_HANDSHAKE:
-		printf("Recibi respuesta de handshake del nucleo\n");
+		log_info(logger_manager, "Handshake recibido de Nucleo.");
 		break;
 	default:
-		printf("Comando no reconocido\n");
+		log_warning(logger_manager, "Comando no reconocido de Nucleo.");
 		break;
 	}
 }
@@ -231,3 +216,5 @@ void handshake_cpu_nucleo(int socket_servidor) {
 	enviar_header(socket_nucleo, header);
 	free(header);
 }
+
+// TODO Hacer funcion quantum, mandar PCB actualizado al Nucleo

@@ -10,6 +10,11 @@
 
 #include <stdio.h>
 #include <parser/parser.h>
+#include <serializacion.h>
+#include <comunicaciones.h>
+#include "semaphore.h"
+#include "serializaciones_cpu.h"
+#include "semaforo_sockets_cpu.h"
 
 // Funciones CPU - UMC
 #define MENSAJE_LEER_PAGINA 1
@@ -31,7 +36,15 @@
 #define RESPUESTA_IMPRIMIR 13
 #define RESPUESTA_IMPRIMIR_TEXTO 14
 #define RESPUESTA_ENTRADA_SALIDA 15
+// Respuesta de 16, me bloqueo
 #define RESPUESTA_WAIT 16
+// Cuando recibo un 16, respondo con un 56 y mando PCB
+#define RESPUESTA_PCB 56
+// Recibio el PCB correctamente
+#define RESPUESTA_PCB_OK 66
+#define ERROR_RESPUESTA_PCB 76
+// Sigo con mi rafaga actual
+#define RESPUESTA_SEGUI_RAFAGA 86
 #define RESPUESTA_SIGNAL 17
 #define RESPUESTA_QUANTUM 18
 #define RESPUESTA_PROGRAMA_FINALIZADO 19
@@ -45,6 +58,15 @@
 #define ERROR_SIGNAL 27
 #define ERROR_QUANTUM 28
 #define ERROR_PROGRAMA_FINALIZADO 29
+
+// Funciones Nucleo - CPU
+#define MENSAJE_PCB 1
+#define MENSAJE_MATAR 2
+// Respuestas OK
+#define RESPUESTA_MATAR 12
+// Respuestas Error
+#define ERROR_PCB 21
+#define ERROR_MATAR 22
 
 t_puntero ansisop_definir_variable(t_nombre_variable identificador_variable);
 t_puntero ansisop_obtener_posicion_variable(

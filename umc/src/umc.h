@@ -39,12 +39,15 @@
 #define ERROR_FINALIZAR_PROGRAMA 24
 #define ERROR_CAMBIO_PROCESO_ACTIVO 5
 
-// Funciones Nucleo
+// Funciones Nucleo - UMC
 #define MENSAJE_INICIALIZAR_PROGRAMA 1
+#define MENSAJE_MATAR_PROGRAMA 2
 // Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
+#define RESPUESTA_MATAR_PROGRAMA 12
 // Respuestas Error
 #define ERROR_INICIALIZAR_PROGRAMA 21
+#define ERROR_MATAR_PROGRAMA 22
 
 typedef struct {
 	int puerto;
@@ -55,18 +58,36 @@ typedef struct {
 	int marco_x_proc;
 	int entradas_tlb;
 	int retardo;
+	char * algoritmo;
 } t_config_umc;
 
 typedef struct {
+	int pid;
 	int pagina;
 	int frame;
 } t_tlb;
 
 typedef struct {
+	int numero_pagina;
+	int pid;
 	int frame;
-	char presencia;
-	char modificado;
+	int presencia; // 0 -> no está en memoria / 1 -> si está en memoria
+	int modificado;// 0 -> no está modificado / 1 -> si está modificado
+	int uso; 		// usado por los algoritmos
 } t_fila_tabla_pagina;
+
+typedef struct{
+	//int numero_pagina;
+	//int pid;
+	bool libre;
+	int numero_marco;
+} t_marco;
+
+typedef struct {
+	t_list * lista_paginas_mp;
+	int pid;
+	int puntero;
+} t_lista_algoritmo;
 
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
@@ -119,5 +140,11 @@ void cambiar_retardo(t_config_umc *configuracion);
 void generar_dump();
 
 void limpiar_contenido();
+
+void limpiar_contenido();
+
+t_marco * buscar_pagina_tlb(int id_programa,int pagina);
+
+t_marco * buscar_pagina_mp(int id_programa,int pagina);
 
 #endif /* SRC_UMC_H_ */
