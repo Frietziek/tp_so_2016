@@ -386,12 +386,12 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 	for (i_instrucciones = 0;
 			i_instrucciones < pcb_quantum->pcb->instrucciones_size;
 			++i_instrucciones) {
-		/*copiar_int_en_buffer(buffer,
+		copiar_int_en_buffer(buffer,
 				pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->offset,
 				&posicion_buffer);
 		copiar_int_en_buffer(buffer,
 				pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->start,
-				&posicion_buffer);*/
+				&posicion_buffer);
 	}
 
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size_actual,
@@ -489,12 +489,12 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 	for (i_instrucciones = 0;
 			i_instrucciones < pcb_quantum->pcb->instrucciones_size;
 			++i_instrucciones) {
-		/*escribir_atributo_desde_int_de_buffer(buffer,
+		escribir_atributo_desde_int_de_buffer(buffer,
 				&(pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->offset),
 				&posicion_buffer);
 		escribir_atributo_desde_int_de_buffer(buffer,
 				&(pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->start),
-				&posicion_buffer);*/
+				&posicion_buffer);
 	}
 
 	escribir_atributo_desde_int_de_buffer(buffer,
