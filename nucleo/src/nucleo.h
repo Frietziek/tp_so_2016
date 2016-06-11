@@ -34,6 +34,7 @@
 #define EXIT 4
 
 #define NO_ASIGNADO -10
+#define VALOR_INICIAL_VARIABLE_COMPARTIDA 0
 
 typedef struct {
 	int puerto_prog;
@@ -90,15 +91,14 @@ typedef struct {
 } t_solicitudes_entrada_salida;
 
 typedef struct {
-	char *nombre_semaforo;
 	int valor;
-	t_queue *solicitudes;      //t_solicitud_semaforo
-} t_solicitudes_semaforo;
+	t_queue *solicitudes;      //contiene (int) socket de cpu
+} t_atributos_semaforo;
 
-typedef struct {
-	int socket_cpu;
-	int operacion; //siempre va a sumar operacion a valor, si es 1 suma 1 si es -1 resta 1
-} t_solicitud_semaforo_cpu;
+//typedef struct {
+//	int socket_cpu;
+//	int operacion; //siempre va a sumar operacion a valor, si es 1 suma 1 si es -1 resta 1
+//} t_solicitud_semaforo_cpu;
 
 typedef struct {
 	int socket_cpu;
@@ -111,11 +111,17 @@ typedef struct {
 	int socket_cpu;
 } t_fila_tabla_procesos;
 
+typedef struct {
+	int valor;
+} t_valor_variable_compartida;
+
+typedef struct {
+	int socket;
+} t_valor_socket_cola_semaforos;
+
 void inicializar_variables_compartidas(char **shared_vars);
 
 void cargar_configuracion_nucleo(char *archivo, t_config_nucleo *configuracion);
-
-t_pcb *buscar_pcb_por_socket_consola(int _socket_consola);
 
 void pedir_pagina_tamanio(int socket_umc);
 
@@ -124,6 +130,8 @@ void atender_umc(t_paquete *paquete, int socket_conexion);
 void atender_consola(t_paquete *paquete_buffer, int socket_consola);
 
 t_pcb *buscar_pcb_por_socket_consola(int socket_consola);
+
+int buscar_socket_consola_por_socket_cpu(int socket_cpu);
 
 void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
 		char *codigo);
@@ -143,5 +151,18 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep);
 void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init);
 
 void handshake(int socket, int proceso_receptor, int id_mensaje);
+
+// Funciones del nucleo que hay que desarrollar
+int obtener_variable_compartida(char *nombre_variable_compartida);
+void asignar_variable_compartida(char *nombre_variable_compartida, int valor);
+int devuelve_socket_consola(int socket_cpu);
+void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
+		int tiempo);
+void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu);
+void asignar_pcb(int socket_cpu);
+int wait_semaforo(char *semaforo_nombre);
+int signal_semaforo(char *semaforo_nombre);
+
+void sacar_socket_cpu_de_tabla(t_pcb *pcb);
 
 #endif /* NUCLEO_H_ *///

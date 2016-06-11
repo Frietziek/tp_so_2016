@@ -222,7 +222,7 @@ void atiendo_wait(void *buffer, int socket_conexion,
 
 		free(h_semaforo);
 	} else {
-		bloquear_pcb_semaforo(semaforo->nombre);
+		bloquear_pcb_semaforo(semaforo->nombre, socket_conexion);
 
 		t_header *h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
@@ -385,39 +385,7 @@ void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida) {
 	escribir_atributo_desde_string_de_buffer(buffer, &(entrada_salida->nombre),
 			&posicion_buffer);
 
-}
-
-int obtener_variable_compartida(char *nombre_variable_compartida) {
-	return 1;
-}
-
-int asignar_variable_compartida(char *nombre_variable_compartida, int valor) {
-	return 1;
-}
-
-int devuelve_socket_consola(int socket_cpu) {
-	return 1;
-}
-
-//TODO hacer para leo
-void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
-		int tiempo) {
-}
-
-void bloquear_pcb_semaforo(char *nombre_semaforo) {
-}
-
-void asignar_pcb(int socket_cpu) {
-}
-
-int wait_semaforo(char *semaforo_nombre) {
-	return 1;
-}
-
-void signal_semaforo(char *semaforo_nombre) {
-}
-
-//Serializacion pcb
+}//Serializacion pcb
 
 //typedef struct {
 //	int pid;

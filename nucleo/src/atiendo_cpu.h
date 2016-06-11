@@ -120,17 +120,6 @@ void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida)
 
 void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida);
 
-// Funciones del nucleo que hay que desarrollar
-int obtener_variable_compartida(char *nombre_variable_compartida);
-int asignar_variable_compartida(char *nombre_variable_compartida, int valor);
-int devuelve_socket_consola(int socket_cpu);
-void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
-		int tiempo);
-void bloquear_pcb_semaforo(char *nombre_semaforo);
-void asignar_pcb(int socket_cpu);
-int wait_semaforo(char *semaforo_nombre);
-void signal_semaforo(char *semaforo_nombre);
-
 t_buffer *serializar_pcb(t_pcb *pcb);
 
 void deserializar_pcb(void *buffer, t_pcb *pcb);

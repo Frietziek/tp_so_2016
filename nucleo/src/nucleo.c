@@ -42,7 +42,7 @@ int pid_count;
 t_fila_tabla_procesos *tabla_procesos[];
 t_config_nucleo *configuracion;
 t_dictionary *variables_compartidas;
-t_solicitudes_semaforo *solitudes_semaforo[];
+t_dictionary *solitudes_semaforo;
 
 ////////////////////FUNCION PRINCIPAL///////////////////////////
 
@@ -211,7 +211,26 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 ////////////////////FUNCIONES AUXILIARES///////////////////////////
 
 //TODO probar
-int *buscar_socket_consola_por_socket_cpu(int socket_cpu) {
+t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
+
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->socket_consola == socket_consola) {
+			sem_post(&mutex_tabla_procesos);
+			return tabla_procesos[i]->pcb;
+		} else {
+			++i;
+		}
+	}
+	sem_post(&mutex_tabla_procesos);
+	return NULL;
+
+}
+
+//TODO probar
+int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 	sem_wait(&mutex_tabla_procesos);
 	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
 	int i;
@@ -229,13 +248,13 @@ int *buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 }
 
 //TODO probar
-t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
+t_pcb *buscar_pcb_por_socket_cpu(int socket_cpu) {
 
 	sem_wait(&mutex_tabla_procesos);
 	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
 	int i;
 	for (i = 0; i < cant_filas; ++i) {
-		if (tabla_procesos[i]->socket_consola == socket_consola) {
+		if (tabla_procesos[i]->socket_cpu == socket_cpu) {
 			sem_post(&mutex_tabla_procesos);
 			return tabla_procesos[i]->pcb;
 		} else {
@@ -244,7 +263,6 @@ t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
 	}
 	sem_post(&mutex_tabla_procesos);
 	return NULL;
-
 }
 
 void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
@@ -399,7 +417,12 @@ void inicializar_variables_compartidas(char **shared_vars) {
 	int j = 0;
 	while (shared_vars[i] != NULL) {
 		if (string_starts_with(shared_vars[i], "!")) {
-			dictionary_put(variables_compartidas, shared_vars[j], 0);
+			t_valor_variable_compartida *valor_variable_compartida = malloc(
+					sizeof(t_valor_variable_compartida));
+			valor_variable_compartida->valor =
+			VALOR_INICIAL_VARIABLE_COMPARTIDA;
+			dictionary_put(variables_compartidas, shared_vars[j],
+					valor_variable_compartida);
 			++j;
 		}
 		++i;
@@ -409,19 +432,19 @@ void inicializar_variables_compartidas(char **shared_vars) {
 
 void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init) {
 	int i = 0;
+	solitudes_semaforo = malloc(sizeof(t_dictionary));
 	while (sem_id[i] != NULL || sem_init[i] != NULL) {
-		t_solicitudes_semaforo* _solicitudes_semaforo = malloc(
-				sizeof(t_solicitudes_semaforo));
-		_solicitudes_semaforo->nombre_semaforo = sem_id[i];
-		_solicitudes_semaforo->valor = atoi(sem_init[i]);
-		_solicitudes_semaforo->solicitudes = queue_create();
+		t_atributos_semaforo *atributos = malloc(sizeof(t_atributos_semaforo));
+		atributos->valor = atoi(sem_init[i]);
+		atributos->solicitudes = queue_create();
 		++i;
 		sem_wait(&mutex_solicitudes_semaforo);
-		solitudes_semaforo[i] = _solicitudes_semaforo;
+		dictionary_put(solitudes_semaforo, sem_id[i], atributos);
 		sem_post(&mutex_solicitudes_semaforo);
 
 	}
 }
+
 void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	lista_entrada_salida = list_create();
 	int i = 0;
@@ -547,3 +570,96 @@ void pedir_pagina_tamanio(int socket_umc) {
 	enviar_header(socket_umc, header_pido_tam_pag);
 	free(header_pido_tam_pag);
 }
+
+int obtener_variable_compartida(char *nombre_variable_compartida) {
+	sem_wait(&mutex_variables_compartidas);
+	t_valor_variable_compartida *valor_variable_compartida = dictionary_get(
+			variables_compartidas, nombre_variable_compartida);
+	sem_post(&mutex_variables_compartidas);
+	return valor_variable_compartida->valor;
+}
+
+void asignar_variable_compartida(char *nombre_variable_compartida, int valor) {
+	sem_wait(&mutex_variables_compartidas);
+	((t_valor_variable_compartida*) dictionary_get(variables_compartidas,
+			nombre_variable_compartida))->valor = valor;
+	sem_post(&mutex_variables_compartidas);
+}
+
+int devuelve_socket_consola(int socket_cpu) {
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->socket_cpu == socket_cpu) {
+			sem_post(&mutex_tabla_procesos);
+			return tabla_procesos[i]->socket_consola;
+		} else {
+			++i;
+		}
+	}
+	sem_post(&mutex_tabla_procesos);
+	return NO_ASIGNADO;
+}
+
+//TODO hacer para leo
+void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
+		int tiempo) {
+}
+//TODO hacer para leo
+void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
+	t_valor_socket_cola_semaforos *socket = malloc(
+			sizeof(t_valor_socket_cola_semaforos));
+	socket->socket = socket_cpu;
+
+	sem_wait(&mutex_solicitudes_semaforo);
+
+	queue_push(
+			((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
+					nombre_semaforo))->solicitudes, socket);
+	sem_post(&mutex_solicitudes_semaforo);
+
+	sem_wait(&mutex_cola_block);
+	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
+	sacar_socket_cpu_de_tabla(pcb);
+	queue_push(cola_block, pcb);
+	sem_post(&mutex_cola_block);
+
+	sem_wait(&mutex_cola_exec);
+	bool busqueda_pcb(t_pcb *_pcb) {
+		return (pcb->pid == _pcb->pid);
+	}
+	list_remove_by_condition(cola_exec->elements, (void *) busqueda_pcb);
+	sem_post(&mutex_cola_exec);
+
+	free(socket);
+}
+
+void sacar_socket_cpu_de_tabla(t_pcb *pcb) {
+
+}
+
+//TODO hacer para leo
+void asignar_pcb(int socket_cpu) {
+}
+//TODO hacer para leo,
+int wait_semaforo(char *semaforo_nombre) {
+	sem_wait(&mutex_solicitudes_semaforo);
+	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
+			semaforo_nombre))->valor)--;
+	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
+			solitudes_semaforo, semaforo_nombre))->valor);
+	sem_post(&mutex_solicitudes_semaforo);
+	return valor_semaforo;
+}
+//TODO hacer para leo
+int signal_semaforo(char *semaforo_nombre) {
+	sem_wait(&mutex_solicitudes_semaforo);
+	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
+			semaforo_nombre))->valor)++;
+	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
+			solitudes_semaforo, semaforo_nombre))->valor);
+	sem_post(&mutex_solicitudes_semaforo);
+	return valor_semaforo;
+}
+
