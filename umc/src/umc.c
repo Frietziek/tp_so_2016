@@ -245,10 +245,8 @@ void respuesta_handshake_umc_swap() {
 	printf("Handshake de Swap confirmado\n");
 }
 
-void iniciar_programa(void *buffer) {
+void iniciar_programa(t_programa_completo *programa) {
 	int i;
-	t_programa_completo *programa = malloc(sizeof(t_programa_completo));
-	deserializar_programa_completo(buffer, programa);
 	t_fila_tabla_pagina * tabla_paginas = (t_fila_tabla_pagina *) malloc(programa->paginas_requeridas * sizeof(t_fila_tabla_pagina));
 
 	listas_algoritmo[programa->id_programa].lista_paginas_mp = list_create();
@@ -265,15 +263,11 @@ void iniciar_programa(void *buffer) {
 		tabla_paginas[i].numero_pagina = i;
 		list_add(listas_algoritmo[programa->id_programa].lista_paginas_mp,(tabla_paginas + i));
 	}
-	//para probar:
-
 
 	list_add_in_index(lista_tablas,programa->id_programa,tabla_paginas); // lista de tablas. El index va a coincidir con el pid
 	// ejemplo: t_fila_tabla_pagina * tabla =  list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
 
 	// TODO Verificar que se administren bien
-	// Creo la tabla de paginas del proceso
-
 
 
 	t_header *header_swap = malloc(sizeof(t_header));
@@ -319,8 +313,8 @@ void respuesta_iniciar_programa(void *buffer) {
 	}
 
 	// TODO Asignar paginas de la memoria princ para el programa nuevo
+	iniciar_programa(programa);
 
-	free(programa);
 	free(header_nucleo);
 
 }
@@ -329,9 +323,11 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
-
-	if (pagina_en_tlb()) {
+	int marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
+	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 		// Devuelvo la pagina pedida
+
+
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 		pagina_cpu->id_programa = pagina->id_programa;
 		pagina_cpu->pagina = pagina->pagina;
@@ -508,11 +504,6 @@ void handshake_proceso(int socket, t_config_umc *configuracion,
 	free(payload);
 }
 
-int pagina_en_tlb() {
-	// TODO Terminar funcion
-	return 1;
-}
-
 void cambiar_retardo(t_config_umc *configuracion) {
 	int comando_retardo;
 	printf("Ingrese el retardo (en segundos): ");
@@ -672,32 +663,28 @@ void test(){
 	t_programa_completo *programa2 = malloc(sizeof(t_programa_completo));
 	t_programa_completo *programa3 = malloc(sizeof(t_programa_completo));
 	programa1->id_programa = 1;
-	programa1->paginas_requeridas = 3;
+	programa1->paginas_requeridas = 5;
 	programa1->codigo = malloc(10);
 	programa1->codigo = "soy pid 1\0";
-	programa2->id_programa = 2;
-	programa2->paginas_requeridas = 1;
-	programa2->codigo = malloc(10);
-	programa2->codigo = "soy pid 2\0";
-	programa3->id_programa = 3;
-	programa3->paginas_requeridas = 4;
-	programa3->codigo = malloc(10);
-	programa3->codigo = "soy pid 3\0";
 	t_buffer * buffer1 = serializar_programa_completo(programa1);
-	t_buffer * buffer2 = serializar_programa_completo(programa2);
-	t_buffer * buffer3 = serializar_programa_completo(programa3);
 	iniciar_programa(buffer1->contenido_buffer);
-	iniciar_programa(buffer2->contenido_buffer);
-	iniciar_programa(buffer3->contenido_buffer);
-
 	t_fila_tabla_pagina * pagina = list_get(listas_algoritmo[3].lista_paginas_mp,2);
 	printf("id:%d pagina:%d\n",pagina->pid,pagina->numero_pagina);
 }
 
 void crear_listas(){
 	int i;
+
 	lista_de_marcos = list_create();
+	for(i = 0; i < configuracion->marcos;i++){
+		t_marco * marco = malloc(sizeof(t_marco));
+		marco->libre = 1;
+		marco->numero_marco = i+1;
+		list_add(lista_de_marcos,marco);
+	}
+
 	lista_paginas_tlb = list_create();
+
 	lista_tablas = list_create();
 	t_fila_tabla_pagina * pagina;//meto paginas vacias para que me funcione el index por lista
 	pagina->pid = 0;

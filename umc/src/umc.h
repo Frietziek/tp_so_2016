@@ -114,7 +114,7 @@ void handshake_umc_swap(int socket_servidor, t_config_umc *configuracion);
 
 void respuesta_handshake_umc_swap();
 
-void iniciar_programa(void *buffer);
+void iniciar_programa(t_programa_completo *programa);
 
 void respuesta_iniciar_programa(void *buffer);
 
@@ -148,6 +148,8 @@ void limpiar_contenido();
 int buscar_pagina_tlb(int id_programa,int pagina);
 
 t_marco * buscar_pagina_mp(int id_programa,int pagina);
+
+void crear_listas();
 
 void test();
 
