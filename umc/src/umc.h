@@ -48,6 +48,8 @@
 // Respuestas Error
 #define ERROR_INICIALIZAR_PROGRAMA 21
 #define ERROR_MATAR_PROGRAMA 22
+// Variables utilizadas
+#define CANT_TABLAS_MAX 100 // numero suficientemente alto usado para reserver memoria, ver en todo caso otra mejor manera
 
 typedef struct {
 	int puerto;
@@ -85,7 +87,7 @@ typedef struct{
 
 typedef struct {
 	t_list * lista_paginas_mp;
-	int pid;
+	//int pid;
 	int puntero;
 } t_lista_algoritmo;
 
@@ -143,8 +145,10 @@ void limpiar_contenido();
 
 void limpiar_contenido();
 
-t_marco * buscar_pagina_tlb(int id_programa,int pagina);
+int buscar_pagina_tlb(int id_programa,int pagina);
 
 t_marco * buscar_pagina_mp(int id_programa,int pagina);
+
+void test();
 
 #endif /* SRC_UMC_H_ */
