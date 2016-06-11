@@ -35,13 +35,14 @@ t_queue *cola_ready;
 t_queue *cola_block;
 t_queue *cola_exec;
 
-t_list *lista_entrada_salida;
+t_dictionary *diccionario_entrada_salida;
 int tamanio_pagina;
 int socket_umc;
 int pid_count;
 t_fila_tabla_procesos *tabla_procesos[];
 t_config_nucleo *configuracion;
 t_dictionary *variables_compartidas;
+//TODO inicializar variables no compartidas
 t_dictionary *solitudes_semaforo;
 
 ////////////////////FUNCION PRINCIPAL///////////////////////////
@@ -64,7 +65,7 @@ int main(void) {
 	sem_init(&mutex_cola_block, 0, 1);
 	sem_init(&mutex_tabla_procesos, 0, 1);
 	sem_init(&mutex_variables_compartidas, 0, 1);
-	sem_init(&mutex_lista_entrada_salida, 0, 1);
+	sem_init(&mutex_diccionario_entrada_salida, 0, 1);
 	sem_init(&mutex_solicitudes_semaforo, 0, 1);
 //TODO sem init  tabla io
 
@@ -244,7 +245,7 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 	}
 
 	sem_post(&mutex_tabla_procesos);
-	return NULL;
+	return NO_ASIGNADO;
 }
 
 //TODO probar
@@ -322,7 +323,7 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	t_metadata_program *metadata = malloc(sizeof(t_metadata_program));
 	metadata = metadata_desde_literal(codigo_de_consola);
 	t_pcb *pcb = malloc(sizeof(t_pcb));
-	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;
+	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;//TODO * vs ** OJO
 	pcb->instrucciones_size = metadata->instrucciones_size;
 	pcb->estado = NEW;
 	pcb->cant_paginas_codigo_stack = obtener_cantidad_paginas_codigo_stack(
@@ -446,16 +447,14 @@ void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init) {
 }
 
 void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
-	lista_entrada_salida = list_create();
+	diccionario_entrada_salida = dictionary_create();
 	int i = 0;
 	while (io_ids[i] != NULL) {
 		t_solicitudes_entrada_salida *io = malloc(
 				sizeof(t_solicitudes_entrada_salida));
-		io->nombre_dispositivo = malloc(strlen(io_ids[i]));
-		io->nombre_dispositivo = io_ids[i];
 		io->retardo = atoi(io_sleep[i]);
 		io->solicitudes = queue_create();
-		list_add(lista_entrada_salida, io);
+		dictionary_put(diccionario_entrada_salida, io_ids[i], io);
 		++i;
 	}
 }
@@ -602,11 +601,34 @@ int devuelve_socket_consola(int socket_cpu) {
 	return NO_ASIGNADO;
 }
 
-//TODO hacer para leo
 void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
 		int tiempo) {
+	t_solicitud_entrada_salida_cpu *solicitud_io = malloc(
+			sizeof(t_solicitud_entrada_salida_cpu));
+	solicitud_io->cantidad_operaciones = tiempo;
+	solicitud_io->socket_cpu = socket_cpu;
+	sem_wait(&mutex_diccionario_entrada_salida);
+	queue_push(
+			(((t_solicitudes_entrada_salida *) dictionary_get(
+					diccionario_entrada_salida, nombre_dispositivo))->solicitudes),
+			solicitud_io);
+	sem_post(&mutex_diccionario_entrada_salida);
+	sacar_socket_cpu_de_tabla(socket_cpu);
+
+	sem_wait(&mutex_cola_block);
+	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
+	queue_push(cola_block, pcb);
+	sem_post(&mutex_cola_block);
+
+	sem_wait(&mutex_cola_exec);
+	bool busqueda_pcb(t_pcb *_pcb) {
+		return (pcb->pid == _pcb->pid);
+	}
+	list_remove_by_condition(cola_exec->elements, (void *) busqueda_pcb);
+	sem_post(&mutex_cola_exec);
+
 }
-//TODO hacer para leo
+
 void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 	t_valor_socket_cola_semaforos *socket = malloc(
 			sizeof(t_valor_socket_cola_semaforos));
@@ -656,7 +678,7 @@ void sacar_socket_cpu_de_tabla(int socket_cpu) {
 //TODO hacer para leo
 void asignar_pcb(int socket_cpu) {
 }
-//TODO hacer para leo,
+
 int wait_semaforo(char *semaforo_nombre) {
 	sem_wait(&mutex_solicitudes_semaforo);
 	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
@@ -666,7 +688,7 @@ int wait_semaforo(char *semaforo_nombre) {
 	sem_post(&mutex_solicitudes_semaforo);
 	return valor_semaforo;
 }
-//TODO hacer para leo
+
 int signal_semaforo(char *semaforo_nombre) {
 	sem_wait(&mutex_solicitudes_semaforo);
 	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,

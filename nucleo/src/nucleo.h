@@ -85,25 +85,20 @@ typedef struct {
 } t_pcb;
 
 typedef struct {
-	char *nombre_dispositivo;
 	int retardo;
 	t_queue *solicitudes; //t_solicitud_entrada_salida_cpu
 } t_solicitudes_entrada_salida;
+
+typedef struct {
+	int socket_cpu;
+	int cantidad_operaciones;
+} t_solicitud_entrada_salida_cpu;
 
 typedef struct {
 	int valor;
 	t_queue *solicitudes;      //contiene (int) socket de cpu
 } t_atributos_semaforo;
 
-//typedef struct {
-//	int socket_cpu;
-//	int operacion; //siempre va a sumar operacion a valor, si es 1 suma 1 si es -1 resta 1
-//} t_solicitud_semaforo_cpu;
-
-typedef struct {
-	int socket_cpu;
-	int cantidad_operaciones;
-} t_solicitud_entrada_salida_cpu;
 
 typedef struct {
 	t_pcb *pcb;

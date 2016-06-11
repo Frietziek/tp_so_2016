@@ -196,7 +196,7 @@ void atiendo_entrada_salida(void *buffer, int socket_conexion,
 
 	bloquear_pcb_dispositivo(socket_conexion,
 			entrada_salida->nombre_dispositivo, entrada_salida->tiempo);
-	asignar_pcb(socket_conexion);
+	asignar_pcb(socket_conexion);//TODO PREGUNTAR SI ES NECESARIO EJECUTARLO AHI
 
 	free(entrada_salida);
 
