@@ -33,14 +33,14 @@ int main(void) {
 	memoria_principal = calloc(configuracion->marcos,
 			configuracion->marco_size);
 	// TODO Crear estructura para el manejo de memoria principal
+	//Para usar los algoritmos
+	listas_algoritmo = (t_lista_algoritmo *) malloc(CANT_TABLAS_MAX * sizeof(t_lista_algoritmo));
 
 	// Creo Cache TLB
 	cache_tlb = calloc(configuracion->entradas_tlb, sizeof(t_tlb));
 
 	//iniciar listas
-	lista_de_marcos = list_create();
-	lista_paginas_tlb = list_create();
-	lista_tablas = list_create();
+	crear_listas();
 
 	// Inicio servidor UMC
 	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);
@@ -251,6 +251,8 @@ void iniciar_programa(void *buffer) {
 	deserializar_programa_completo(buffer, programa);
 	t_fila_tabla_pagina * tabla_paginas = (t_fila_tabla_pagina *) malloc(programa->paginas_requeridas * sizeof(t_fila_tabla_pagina));
 
+	listas_algoritmo[programa->id_programa].lista_paginas_mp = list_create();
+	listas_algoritmo[programa->id_programa].puntero = 0;
 
 	//armo la tabla:
 	for(i = 0; i < programa->paginas_requeridas; i++){
@@ -261,16 +263,17 @@ void iniciar_programa(void *buffer) {
 		tabla_paginas[i].presencia = 0;
 		tabla_paginas[i].uso = 0;
 		tabla_paginas[i].numero_pagina = i;
-		printf(" tabla_paginas[0]->pid = %d \n" ,tabla_paginas[i].pid);//para probar
+		list_add(listas_algoritmo[programa->id_programa].lista_paginas_mp,(tabla_paginas + i));
 	}
+	//para probar:
 
-	list_add_in_index(lista_tablas,tabla_paginas,programa->id_programa); // lista de tablas. El index va a coincidir con el pid
 
-	//tablas_de_procesos + programa->paginas_requeridas  = malloc(programa->paginas_requeridas * sizeof(t_fila_tabla_pagina));
-	//tablas_de_procesos + programa->paginas_requeridas = tabla_paginas; // array con todas las tablas de pag de los diferentes procesos
+	list_add_in_index(lista_tablas,programa->id_programa,tabla_paginas); // lista de tablas. El index va a coincidir con el pid
+	// ejemplo: t_fila_tabla_pagina * tabla =  list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
 
 	// TODO Verificar que se administren bien
 	// Creo la tabla de paginas del proceso
+
 
 
 	t_header *header_swap = malloc(sizeof(t_header));
@@ -330,13 +333,16 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	if (pagina_en_tlb()) {
 		// Devuelvo la pagina pedida
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		pagina_cpu->id_programa = pagina->id_programa;
 		pagina_cpu->pagina = pagina->pagina;
 		pagina_cpu->offset = pagina->offset;
 		pagina_cpu->tamanio = pagina->tamanio;
 		pagina_cpu->socket_pedido = socket_conexion;
 
 		// TODO Cargar la pagina desde la memoria, completar con el valor real
-		pagina_cpu->valor = 5;
+		pagina_cpu->valor = malloc(pagina->tamanio);
+		memcpy(pagina_cpu->valor, "variables a, b", 14);
+		//pagina_cpu->valor = "variables a, b";
 
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu);
 
@@ -373,7 +379,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 	}
 
-	free(pagina);
+	//free(pagina);
 }
 
 void respuesta_leer_pagina(void *buffer) {
@@ -504,7 +510,7 @@ void handshake_proceso(int socket, t_config_umc *configuracion,
 
 int pagina_en_tlb() {
 	// TODO Terminar funcion
-	return 0;
+	return 1;
 }
 
 void cambiar_retardo(t_config_umc *configuracion) {
@@ -524,27 +530,25 @@ void limpiar_contenido() {
 // TODO Terminar funcion
 }
 
-//Busca una pagina dentro de la TLB. Si está retorna el marco asociado o si no está retorna null
-t_marco * buscar_pagina_tlb(int id_programa,int pagina){
-	t_marco * marco;
+//Busca una pagina dentro de la TLB. Si está retorna el marco asociado o si no está retorna null => Los marcos tendrian que empezar desde el 1
+int buscar_pagina_tlb(int id_programa,int pagina){
+	t_tlb * pagina_tlb;
 	bool esta_en_tlb(t_tlb *un_tlb){
 		return (un_tlb->pid == id_programa && un_tlb->pagina == pagina);
 	}
-	marco = list_find(lista_paginas_tlb,(void*)esta_en_tlb);
-	return marco;
+	pagina_tlb = list_find(lista_paginas_tlb,(void*)esta_en_tlb);
+	return pagina_tlb->frame;//ver si no se rompe al no encontrar nada
 }
 
+/*
 t_marco * buscar_pagina_mp(int id_programa,int pagina){
 	t_marco * marco;
-
 	bool esta_en_memoria(t_fila_tabla_pagina *una_pagina_mp){
 		return (una_pagina_mp->pid == id_programa && una_pagina_mp->numero_pagina == pagina);
 	}
 	marco = list_find(lista_paginas_tlb,(void*)esta_en_memoria);
 	return marco;
-}
-
-
+}*/
 
 void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	t_fila_tabla_pagina * pagina_a_sustituir = NULL;
@@ -627,7 +631,9 @@ void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 			else {
 				listas_algoritmo[pid].puntero++;
 				pagina_a_sustituir = NULL;
-				i++;
+				if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+					listas_algoritmo[pid].puntero = 0;
+					}
 			}
 		}
 
@@ -636,6 +642,29 @@ void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	// ver que mas tengo que hacer
 
 	}
+}
+
+
+void LRU(t_tlb * pagina_a_ubicar){
+	//validar antes de usuarlo que no este deshabilitado
+	//valido si hay lugar y sino reemplazo:
+	if(list_size(lista_paginas_tlb) < configuracion->entradas_tlb){
+		list_add(lista_paginas_tlb,pagina_a_ubicar);
+	}
+	else{
+		list_remove(lista_paginas_tlb,0);//el que esta primero va a ser el Least recently used
+		list_add(lista_paginas_tlb,pagina_a_ubicar);
+	}
+}
+
+//cada vez que uso una pagina voy a tener que ponerla ultima en la lista
+void LRU_ubicar_al_final(t_tlb * pagina_a_ubicar){
+	bool esta_en_tlb(t_tlb *un_tlb){
+		return (un_tlb->pid == pagina_a_ubicar->pid && un_tlb->pagina == pagina_a_ubicar->pagina);
+	}
+	//la elimino y la agrego al final
+	list_remove_by_condition(lista_paginas_tlb,(void*)esta_en_tlb);
+	list_add(lista_paginas_tlb,pagina_a_ubicar);
 }
 
 void test(){
@@ -660,6 +689,20 @@ void test(){
 	iniciar_programa(buffer1->contenido_buffer);
 	iniciar_programa(buffer2->contenido_buffer);
 	iniciar_programa(buffer3->contenido_buffer);
-	t_fila_tabla_pagina * tabla3 =  list_get(lista_tablas, 3);
-	printf("pid 2 -> tabla3[2].numero_pagina %d \n",tabla3[2].numero_pagina);
+
+	t_fila_tabla_pagina * pagina = list_get(listas_algoritmo[3].lista_paginas_mp,2);
+	printf("id:%d pagina:%d\n",pagina->pid,pagina->numero_pagina);
 }
+
+void crear_listas(){
+	int i;
+	lista_de_marcos = list_create();
+	lista_paginas_tlb = list_create();
+	lista_tablas = list_create();
+	t_fila_tabla_pagina * pagina;//meto paginas vacias para que me funcione el index por lista
+	pagina->pid = 0;
+	for(i=0;i < CANT_TABLAS_MAX; i++){
+		list_add(lista_tablas,pagina);
+	}
+}
+

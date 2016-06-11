@@ -71,7 +71,8 @@ void handshake_cpu_nucleo(int socket_servidor);
 void recibo_PCB(void *buffer);
 void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum);
 int calcula_pagina(t_puntero_instruccion *instruccion);
-void leo_instruccion_desde_UMC(t_pcb *pcb);
+//void leo_instruccion_desde_UMC(t_pcb *pcb);
+void leo_instruccion_desde_UMC();
 
 t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
 void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);

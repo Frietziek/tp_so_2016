@@ -59,16 +59,17 @@ int main(void) {
 	// TODO Actualizar PC en PCB
 	// TODO Notificar al nucleo que termino el Quantum
 
-	char *codigo = "function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,  A,  g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\n\t\n    f = 8\t  \n";
+	//char *codigo =
+	//		"function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,  A,  g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\n\t\n    f = 8\t  \n";
 	//char *codigo = "function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
-	//char *codigo = "begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
-	t_pcb *pcb = crear_PCB(codigo);
+	char *codigo =
+			"begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
+	//t_pcb *pcb = crear_PCB(codigo);
 	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
-	pcb_quantum->pcb = pcb;
+	//pcb_quantum->pcb = pcb;
 	pcb_quantum->quantum = 1;
 
-
-	t_buffer *pcb_q = serializar_pcb_quantum(pcb_quantum);
+	//t_buffer *pcb_q = serializar_pcb_quantum(pcb_quantum);
 
 	ejecuto_instrucciones(pcb_quantum);
 
@@ -89,7 +90,7 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	t_pcb *pcb = malloc(sizeof(t_pcb));
 	pcb->instrucciones_size = metadata->instrucciones_size;
 	/*pcb->instrucciones_serializadas = malloc(
-			sizeof(t_intructions) * pcb->instrucciones_size);*/
+	 sizeof(t_intructions) * pcb->instrucciones_size);*/
 	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;
 
 	pcb->estado = NEW;
@@ -99,7 +100,10 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	pcb->etiquetas = "hola";
 	//pcb->etiquetas_size = metadata->etiquetas_size;
 	pcb->stack_size_actual = 1;
+	pcb->indice_stack = malloc(sizeof(t_indice_stack));
 	pcb->indice_stack[0]->posicion_retorno = 2;
+	pcb->indice_stack[0]->posicion_variable_retorno = malloc(
+			sizeof(t_posicion_memoria));
 	pcb->indice_stack[0]->posicion_variable_retorno->offset = 4;
 	pcb->indice_stack[0]->posicion_variable_retorno->pagina = 4;
 	pcb->indice_stack[0]->posicion_variable_retorno->size = 4;
@@ -252,7 +256,9 @@ void respuesta_leer_pagina(void *buffer) {
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina);
 
-	memcpy(valor_pagina, &pagina->valor, pagina->tamanio);
+	valor_pagina = malloc(pagina->tamanio);
+	size_pagina = pagina->tamanio;
+	memcpy(valor_pagina, pagina->valor, pagina->tamanio);
 	sem_post(&s_pagina);
 }
 
@@ -296,13 +302,13 @@ void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum) {
 		// Espero hasta que llega la pagina
 		sem_wait(&s_pagina);
 
-		char *instruccion_a_ejecutar = valor_pagina;
+		char instruccion_a_ejecutar[size_pagina + 1];
+		memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina);
+		instruccion_a_ejecutar[size_pagina] = '\0';
 		log_info(logger_manager, "Instruccion a ejecutar: %s",
 				instruccion_a_ejecutar);
 		analizadorLinea(strdup(instruccion_a_ejecutar), &functions,
 				&kernel_functions);
-		//pcb_quantum->pcb->instrucciones_serializadas[pcb_quantum->pcb->pc]->start;
-		//pcb_quantum->pcb->instrucciones_serializadas[pcb_quantum->pcb->pc]->offset;
 
 		--pcb_quantum->quantum;
 	}
@@ -326,10 +332,13 @@ void leo_instruccion_desde_UMC(t_pcb *pcb) {
 	header->id_mensaje = MENSAJE_LEER_PAGINA;
 
 	t_pagina *p_pagina = malloc(sizeof(t_pagina));
+	p_pagina->pagina = 0;
+	p_pagina->offset = 10;
+	p_pagina->tamanio = 14;
 	/*p_pagina->pagina = calcula_pagina(
-			pcb->instrucciones_serializadas[pcb->pc]->start);
-	p_pagina->offset = pcb->instrucciones_serializadas[pcb->pc]->start;
-	p_pagina->tamanio = pcb->instrucciones_serializadas[pcb->pc]->offset;*/
+	 pcb->instrucciones_serializadas[pcb->pc]->start);
+	 p_pagina->offset = pcb->instrucciones_serializadas[pcb->pc]->start;
+	 p_pagina->tamanio = pcb->instrucciones_serializadas[pcb->pc]->offset;*/
 	p_pagina->socket_pedido = socket_umc;
 	t_buffer *payload = serializar_pagina(p_pagina);
 
