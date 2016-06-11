@@ -68,6 +68,7 @@ void respuesta_leer_pagina(void *buffer);
 // Funciones CPU - Nucleo
 void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo(int socket_servidor);
+void recibo_PCB(void *buffer);
 void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum);
 int calcula_pagina(t_puntero_instruccion *instruccion);
 void leo_instruccion_desde_UMC(t_pcb *pcb);

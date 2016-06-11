@@ -41,7 +41,7 @@ typedef struct {
 	//t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
 	char* etiquetas;
 	t_size instrucciones_size;
-	t_intructions *instrucciones_serializadas;
+	t_intructions **instrucciones_serializadas;
 	int stack_size_actual;
 	t_indice_stack **indice_stack;
 } t_pcb;
