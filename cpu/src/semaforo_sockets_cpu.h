@@ -55,6 +55,7 @@ typedef struct {
 sem_t s_pagina;
 sem_t s_cpu_finaliza;
 void *valor_pagina;
+int size_pagina;
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;

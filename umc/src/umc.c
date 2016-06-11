@@ -330,13 +330,16 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	if (pagina_en_tlb()) {
 		// Devuelvo la pagina pedida
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		pagina_cpu->id_programa = pagina->id_programa;
 		pagina_cpu->pagina = pagina->pagina;
 		pagina_cpu->offset = pagina->offset;
 		pagina_cpu->tamanio = pagina->tamanio;
 		pagina_cpu->socket_pedido = socket_conexion;
 
 		// TODO Cargar la pagina desde la memoria, completar con el valor real
-		pagina_cpu->valor = 5;
+		pagina_cpu->valor = malloc(pagina->tamanio);
+		memcpy(pagina_cpu->valor, "variables a, b", 14);
+		//pagina_cpu->valor = "variables a, b";
 
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu);
 
@@ -373,7 +376,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 	}
 
-	free(pagina);
+	//free(pagina);
 }
 
 void respuesta_leer_pagina(void *buffer) {
@@ -504,7 +507,7 @@ void handshake_proceso(int socket, t_config_umc *configuracion,
 
 int pagina_en_tlb() {
 	// TODO Terminar funcion
-	return 0;
+	return 1;
 }
 
 void cambiar_retardo(t_config_umc *configuracion) {

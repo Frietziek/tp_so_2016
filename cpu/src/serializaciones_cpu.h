@@ -33,6 +33,7 @@ typedef struct {
 } t_semaforo;
 // Estructuras CPU - UMC
 typedef struct {
+	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;
@@ -42,6 +43,7 @@ typedef struct {
 	int tamanio;
 } t_pagina_tamanio;
 typedef struct {
+	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;
