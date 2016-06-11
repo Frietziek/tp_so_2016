@@ -163,6 +163,6 @@ void asignar_pcb(int socket_cpu);
 int wait_semaforo(char *semaforo_nombre);
 int signal_semaforo(char *semaforo_nombre);
 
-void sacar_socket_cpu_de_tabla(t_pcb *pcb);
+void sacar_socket_cpu_de_tabla(int socket_cpu);
 
 #endif /* NUCLEO_H_ *///

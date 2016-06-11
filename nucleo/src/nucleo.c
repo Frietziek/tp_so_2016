@@ -619,9 +619,10 @@ void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 					nombre_semaforo))->solicitudes, socket);
 	sem_post(&mutex_solicitudes_semaforo);
 
+	sacar_socket_cpu_de_tabla(socket_cpu);
+
 	sem_wait(&mutex_cola_block);
 	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
-	sacar_socket_cpu_de_tabla(pcb);
 	queue_push(cola_block, pcb);
 	sem_post(&mutex_cola_block);
 
@@ -635,7 +636,20 @@ void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 	free(socket);
 }
 
-void sacar_socket_cpu_de_tabla(t_pcb *pcb) {
+void sacar_socket_cpu_de_tabla(int socket_cpu) {
+
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->socket_cpu == socket_cpu) {
+			tabla_procesos[i]->socket_cpu = NO_ASIGNADO;
+			sem_post(&mutex_tabla_procesos);
+		} else {
+			++i;
+		}
+	}
+	sem_post(&mutex_tabla_procesos);
 
 }
 
