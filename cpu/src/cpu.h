@@ -15,6 +15,8 @@
 #include <semaphore.h> // Semaforos s_pagina y s_cpu_corriendo
 #include <signal.h> // Signal sigusr1
 #include <commons/log.h> // Libreria de Logs
+#include <commons/collections/list.h> // Libreria para listas
+#include <parser/metadata_program.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
 #include "serializaciones_cpu.h"
@@ -36,6 +38,8 @@
 #define ERROR_LEER_PAGINA 21
 #define ERROR_ESCRIBIR_PAGINA 22
 
+#define FIN_QUANTUM 0
+
 typedef struct {
 	char *ip_nucleo;
 	int puerto_nucleo;
@@ -43,40 +47,10 @@ typedef struct {
 	int puerto_umc;
 } t_config_cpu;
 
-typedef struct {
-	int indice[50][2];
-} t_indice_codigo;
+#define NEW 0
+int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
 
-typedef struct {
-// TODO Terminarlo
-} t_indice_etiquetas;
-
-typedef struct {
-	int pagina;
-	int offset;
-	int size;
-} t_posicion_memoria;
-
-typedef struct {
-	char *nombre_id;
-	t_posicion_memoria posicion;
-} t_variable_stack;
-
-typedef struct {
-	t_posicion_memoria *args;
-	t_variable_stack *vars;
-	int retPos;
-	int retVar;
-} t_indice_stack;
-
-typedef struct {
-	int pid;
-	int pc;
-	int paginas_codigo;
-	t_indice_codigo *indice_codigo;
-	t_indice_etiquetas *indice_etiquetas;
-	t_indice_stack *indice_stack[100];
-} t_pcb_completo;
+t_pcb *crear_PCB(char *codigo_de_consola);
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 void inicio_seniales_semaforos();
@@ -94,5 +68,12 @@ void respuesta_leer_pagina(void *buffer);
 // Funciones CPU - Nucleo
 void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo(int socket_servidor);
+void recibo_PCB(void *buffer);
+void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum);
+int calcula_pagina(t_puntero_instruccion *instruccion);
+void leo_instruccion_desde_UMC(t_pcb *pcb);
+
+t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
+void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
 
 #endif /* CPU_H_ */
