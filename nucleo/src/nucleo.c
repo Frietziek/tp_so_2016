@@ -34,7 +34,7 @@ t_queue *cola_new;
 t_queue *cola_ready;
 t_queue *cola_block;
 t_queue *cola_exec;
-t_queue *cola_exit;
+
 t_list *lista_entrada_salida;
 int tamanio_pagina;
 int socket_umc;
@@ -57,7 +57,6 @@ int main(void) {
 	cola_ready = queue_create();
 	cola_block = queue_create();
 	cola_exec = queue_create();
-	cola_exit = queue_create();
 
 	sem_init(&mutex_pid_count, 0, 1);
 	sem_init(&mutex_cola_ready, 0, 1);
@@ -125,7 +124,6 @@ int main(void) {
 	queue_destroy(cola_block);
 	queue_destroy(cola_ready);
 	queue_destroy(cola_exec);
-	queue_destroy(cola_exit);
 
 	sem_destroy(&mutex_pid_count);
 	sem_destroy(&mutex_cola_block);
