@@ -175,12 +175,16 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
 			retorno_de_funcion = inicializar_programa (programa_completo);
 
+			t_buffer *buffer_con_programa_completo = serializar_programa_completo(programa_completo);
+
 			if (retorno_de_funcion != -1)
-				enviar_header_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA);
+				//enviar_header_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA, buffer_con_programa_completo);
 			else
-				enviar_header_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA, buffer_con_programa_completo);
 
 			free (programa_completo);
+			free (buffer_con_programa_completo);
 
 			break;
 
