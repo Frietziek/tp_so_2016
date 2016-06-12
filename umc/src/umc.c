@@ -32,7 +32,7 @@ int main(void) {
 	// Se crea el bloque de la memoria principal
 	memoria_principal = calloc(configuracion->marcos,
 			configuracion->marco_size);
-	// TODO Crear estructura para el manejo de memoria principal
+
 	//Para usar los algoritmos
 	listas_algoritmo = (t_lista_algoritmo *) malloc(CANT_TABLAS_MAX * sizeof(t_lista_algoritmo));
 
@@ -41,6 +41,9 @@ int main(void) {
 
 	//iniciar listas
 	crear_listas();
+
+	//creo los marcos
+	crear_marcos();
 
 	// Inicio servidor UMC
 	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);
@@ -213,17 +216,27 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		respuesta_handshake_umc_swap();
 		break;
 	case RESPUESTA_LEER_PAGINA:
-		respuesta_leer_pagina(paquete->payload);
+		respuesta_leer_pagina(paquete->payload,RESPUESTA_LEER_PAGINA);
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
 		printf("Escritura de pagina exitosa\n");
 		break;
 	case RESPUESTA_INICIAR_PROGRAMA:
-		respuesta_iniciar_programa(paquete->payload);
+		respuesta_iniciar_programa(paquete->payload,RESPUESTA_INICIAR_PROGRAMA);
 		break;
 	case RESPUESTA_FINALIZAR_PROGRAMA:
 		// TODO Terminar funcion
 		printf("Finalizacion del programa exitoso");
+		break;
+	case ERROR_INICIAR_PROGRAMA:
+		respuesta_iniciar_programa(paquete->payload,ERROR_INICIAR_PROGRAMA);
+		break;
+	case ERROR_LEER_PAGINA:
+		respuesta_leer_pagina(paquete->payload,ERROR_LEER_PAGINA);
+		break;
+	case ERROR_ESCRIBIR_PAGINA:
+		break;
+	case ERROR_FINALIZAR_PROGRAMA:
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -245,7 +258,9 @@ void respuesta_handshake_umc_swap() {
 	printf("Handshake de Swap confirmado\n");
 }
 
-void iniciar_programa(t_programa_completo *programa) {
+void iniciar_programa(void* buffer) {
+	t_programa_completo *programa = malloc(sizeof(t_programa_completo));
+	deserializar_programa_completo(buffer, programa);
 	int i;
 	t_fila_tabla_pagina * tabla_paginas = (t_fila_tabla_pagina *) malloc(programa->paginas_requeridas * sizeof(t_fila_tabla_pagina));
 
@@ -255,7 +270,7 @@ void iniciar_programa(t_programa_completo *programa) {
 	//armo la tabla:
 	for(i = 0; i < programa->paginas_requeridas; i++){
 
-		tabla_paginas[i].frame = NULL;
+		tabla_paginas[i].frame = 0;
 		tabla_paginas[i].modificado = 0;
 		tabla_paginas[i].pid = programa->id_programa;
 		tabla_paginas[i].presencia = 0;
@@ -296,31 +311,24 @@ void iniciar_programa(t_programa_completo *programa) {
 
 }
 
-void respuesta_iniciar_programa(void *buffer) {
-
-	t_programa_completo *programa = malloc(sizeof(t_programa_completo));
-	deserializar_programa_completo(buffer, programa);
-
+void respuesta_iniciar_programa(void *buffer,int id_mensaje) {
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 	// TODO Definir los mensajes entre el nucleo y umc y actualizar esta linea
-	header_nucleo->id_proceso_receptor = RESPUESTA_INICIALIZAR_PROGRAMA;
+	header_nucleo->id_mensaje = id_mensaje;
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
+
+	// TODO En caso de que la swap no pudo iniciar el programa, tengo que borrar lo relacionado a ese programa. Necesitaria que la swap me pase el pid
 
 	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
 		perror("Error al iniciar programa");
 	}
 
-	// TODO Asignar paginas de la memoria princ para el programa nuevo
-	iniciar_programa(programa);
-
 	free(header_nucleo);
-
 }
 
 void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion) {
-
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
 	int marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
@@ -340,7 +348,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		memcpy(pagina_cpu->valor, "variables a, b", 14);
 		//pagina_cpu->valor = "variables a, b";
 
-		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu);
+		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
 		free(pagina_cpu);
 
@@ -378,7 +386,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	//free(pagina);
 }
 
-void respuesta_leer_pagina(void *buffer) {
+void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 
 	printf("Respuesta leer pagina\n");
 
@@ -387,18 +395,18 @@ void respuesta_leer_pagina(void *buffer) {
 
 	// TODO Cargo la pagina a memoria, utilizando LRU
 
-	enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina);
+	enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina, id_mensaje);
 
 	free(pagina);
 
 }
 
-void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina) {
+void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,int id_mensaje) {
 
 	t_header *header_cpu = malloc(sizeof(t_header));
 	header_cpu->id_proceso_emisor = PROCESO_UMC;
 	header_cpu->id_proceso_receptor = proceso_receptor;
-	header_cpu->id_mensaje = RESPUESTA_LEER_PAGINA;
+	header_cpu->id_mensaje = id_mensaje;
 
 	t_buffer *payload_cpu = serializar_pagina_completa(pagina);
 
@@ -523,12 +531,19 @@ void limpiar_contenido() {
 
 //Busca una pagina dentro de la TLB. Si está retorna el marco asociado o si no está retorna null => Los marcos tendrian que empezar desde el 1
 int buscar_pagina_tlb(int id_programa,int pagina){
+	int marco;
 	t_tlb * pagina_tlb;
 	bool esta_en_tlb(t_tlb *un_tlb){
 		return (un_tlb->pid == id_programa && un_tlb->pagina == pagina);
 	}
 	pagina_tlb = list_find(lista_paginas_tlb,(void*)esta_en_tlb);
-	return pagina_tlb->frame;//ver si no se rompe al no encontrar nada
+	if(pagina_tlb == NULL){
+		marco = 0;
+	}
+	else{
+		marco = pagina_tlb->frame;
+	}
+	return marco;
 }
 
 /*
@@ -658,38 +673,62 @@ void LRU_ubicar_al_final(t_tlb * pagina_a_ubicar){
 	list_add(lista_paginas_tlb,pagina_a_ubicar);
 }
 
+//elimina todas las entradas de un programa en la tlb
+void flush_programa_tlb(int pid){
+	int i = 0;
+	bool esta_en_tlb(t_tlb *un_tlb){
+		return (un_tlb->pid == pid);
+	}
+	int count = list_count_satisfying(lista_paginas_tlb,(void*)esta_en_tlb);
+	while(i < count){
+	list_remove_by_condition(lista_paginas_tlb,(void*)esta_en_tlb);
+	i++;
+	}
+}
+
 void test(){
 	t_programa_completo *programa1 = malloc(sizeof(t_programa_completo));
-	t_programa_completo *programa2 = malloc(sizeof(t_programa_completo));
-	t_programa_completo *programa3 = malloc(sizeof(t_programa_completo));
 	programa1->id_programa = 1;
 	programa1->paginas_requeridas = 5;
 	programa1->codigo = malloc(10);
 	programa1->codigo = "soy pid 1\0";
 	t_buffer * buffer1 = serializar_programa_completo(programa1);
 	iniciar_programa(buffer1->contenido_buffer);
-	t_fila_tabla_pagina * pagina = list_get(listas_algoritmo[3].lista_paginas_mp,2);
-	printf("id:%d pagina:%d\n",pagina->pid,pagina->numero_pagina);
 }
 
 void crear_listas(){
 	int i;
-
 	lista_de_marcos = list_create();
-	for(i = 0; i < configuracion->marcos;i++){
-		t_marco * marco = malloc(sizeof(t_marco));
-		marco->libre = 1;
-		marco->numero_marco = i+1;
-		list_add(lista_de_marcos,marco);
-	}
-
 	lista_paginas_tlb = list_create();
-
 	lista_tablas = list_create();
-	t_fila_tabla_pagina * pagina;//meto paginas vacias para que me funcione el index por lista
+	t_fila_tabla_pagina * pagina = malloc(sizeof(t_fila_tabla_pagina));//meto paginas vacias para que me funcione el index por lista
 	pagina->pid = 0;
 	for(i=0;i < CANT_TABLAS_MAX; i++){
 		list_add(lista_tablas,pagina);
 	}
+}
+
+void crear_marcos(){
+	int i;
+	int start = 0;
+	for(i = 0; i < configuracion->marcos;i++){ // creo los marcos
+		t_marco * nuevo_marco = malloc(sizeof(t_marco));
+		nuevo_marco->libre = 1;
+		nuevo_marco->numero_marco = i+1;
+		nuevo_marco->direccion_mp = (int)memoria_principal + start;
+		start = start + configuracion->marco_size;
+		list_add(lista_de_marcos,nuevo_marco); // numero_marco = index_de_lista + 1
+	}
+}
+
+int retornar_direccion_mp(int un_marco){
+	bool es_marco(t_marco * marco){
+		return (marco->numero_marco == un_marco);
+	}
+	//la elimino y la agrego al final
+	t_marco * marco_buscado = malloc(sizeof(t_marco));
+	marco_buscado = list_find(lista_paginas_tlb,(void*)es_marco);
+	int direccion_mp = marco_buscado->direccion_mp;
+	return direccion_mp;
 }
 
