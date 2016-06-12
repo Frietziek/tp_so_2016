@@ -7,6 +7,7 @@
 #include <commons/collections/list.h>
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
+#include "serializacion_swap_umc.h"
 
 /*------------------------- Valores por defecto de la configuracion del SWAP -------------------------*/
 #define DEFAULT_PUERTO_ESCUCHA 6000
@@ -147,6 +148,4 @@ void eliminar_programa(int PID, t_list *lista_programas){
 
 	list_remove_and_destroy_by_condition(lista_programas, (void *) eliminar_programa_logica, (void *) program_info_destroy);
 }
-
-
 
