@@ -13,7 +13,9 @@
 // Funciones de la consola de UMC
 #define RETARDO 1
 #define DUMP 2
-#define TLB 3
+#define FLUSH 3
+#define TLB 4
+#define MEMORY 5
 
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0
@@ -171,6 +173,8 @@ void guardar_en_TLB(t_pagina_completa * pagina,int marco);
 void LRU(t_tlb * pagina_a_ubicar);
 
 int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar);
+
+void marcar_modificada(int pid,int pagina);
 
 void test();
 
