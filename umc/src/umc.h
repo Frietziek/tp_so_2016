@@ -92,6 +92,13 @@ typedef struct {
 	int puntero;
 } t_lista_algoritmo;
 
+typedef struct {
+	char * buffer;
+	int tamanio_buffer;
+	int pid;
+	int pagina;
+}t_buffer_escritura;
+
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
 t_configuracion_servidor* creo_servidor_umc(t_config_umc* configuracion);
@@ -175,6 +182,8 @@ void LRU(t_tlb * pagina_a_ubicar);
 int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar);
 
 void marcar_modificada(int pid,int pagina);
+
+void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa);
 
 void test();
 
