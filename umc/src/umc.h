@@ -45,9 +45,7 @@
 // Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
 #define RESPUESTA_MATAR_PROGRAMA 12
-// Respuestas Error
-#define ERROR_INICIALIZAR_PROGRAMA 21
-#define ERROR_MATAR_PROGRAMA 22
+
 // Variables utilizadas
 #define CANT_TABLAS_MAX 100 // numero suficientemente alto usado para reserver memoria, ver en todo caso otra mejor manera
 
@@ -83,6 +81,7 @@ typedef struct{
 	//int pid;
 	bool libre;
 	int numero_marco;
+	int direccion_mp;
 } t_marco;
 
 typedef struct {
@@ -114,15 +113,15 @@ void handshake_umc_swap(int socket_servidor, t_config_umc *configuracion);
 
 void respuesta_handshake_umc_swap();
 
-void iniciar_programa(t_programa_completo *programa);
+void iniciar_programa(void* buffer);
 
-void respuesta_iniciar_programa(void *buffer);
+void respuesta_iniciar_programa(void *buffer,int id_mensaje);
 
 void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion);
 
-void respuesta_leer_pagina(void *bufferfff);
+void respuesta_leer_pagina(void *buffer,int id_mensaje);
 
-void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina);
+void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,int id_mensaje);
 
 void escribir_pagina(void *buffer, int socket_conexion);
 
@@ -150,6 +149,28 @@ int buscar_pagina_tlb(int id_programa,int pagina);
 t_marco * buscar_pagina_mp(int id_programa,int pagina);
 
 void crear_listas();
+
+void crear_marcos();
+
+int retornar_direccion_mp(int marco);
+
+void inicializar_pagina_cpu(t_pagina_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion);
+
+void flush_tlb();
+
+void flush_programa_tlb(int pid);
+
+int guardar_en_mp(t_pagina_completa *pagina);
+
+int cant_pag_x_proc(int pid);
+
+int obtener_marco();
+
+void guardar_en_TLB(t_pagina_completa * pagina,int marco);
+
+void LRU(t_tlb * pagina_a_ubicar);
+
+int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar);
 
 void test();
 

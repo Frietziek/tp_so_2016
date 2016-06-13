@@ -282,8 +282,6 @@ void iniciar_programa(void* buffer) {
 	list_add_in_index(lista_tablas,programa->id_programa,tabla_paginas); // lista de tablas. El index va a coincidir con el pid
 	// ejemplo: t_fila_tabla_pagina * tabla =  list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
 
-	// TODO Verificar que se administren bien
-
 
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -312,19 +310,24 @@ void iniciar_programa(void* buffer) {
 }
 
 void respuesta_iniciar_programa(void *buffer,int id_mensaje) {
+	t_programa_completo *programa_completo = malloc (sizeof (t_programa_completo));
+	deserializar_programa_completo(buffer , programa_completo);
+
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 	// TODO Definir los mensajes entre el nucleo y umc y actualizar esta linea
 	header_nucleo->id_mensaje = id_mensaje;
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
-
-	// TODO En caso de que la swap no pudo iniciar el programa, tengo que borrar lo relacionado a ese programa. Necesitaria que la swap me pase el pid
+	if(id_mensaje == ERROR_INICIAR_PROGRAMA){
+		t_fila_tabla_pagina * tabla =  list_get(lista_tablas, programa_completo->id_programa);
+		free(tabla);
+	}
 
 	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
 		perror("Error al iniciar programa");
 	}
-
+	free(programa_completo);
 	free(header_nucleo);
 }
 
@@ -332,55 +335,70 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
 	int marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
-	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
-		// Devuelvo la pagina pedida
 
+	//1° caso: esta en TLB
+	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
-		pagina_cpu->id_programa = pagina->id_programa;
-		pagina_cpu->pagina = pagina->pagina;
-		pagina_cpu->offset = pagina->offset;
-		pagina_cpu->tamanio = pagina->tamanio;
-		pagina_cpu->socket_pedido = socket_conexion;
+		inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 
-		// TODO Cargar la pagina desde la memoria, completar con el valor real
+		int direccion_mp = retornar_direccion_mp(marco);
+
 		pagina_cpu->valor = malloc(pagina->tamanio);
-		memcpy(pagina_cpu->valor, "variables a, b", 14);
+		memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
+
+		//memcpy(pagina_cpu->valor, "variables a, b", 14);
 		//pagina_cpu->valor = "variables a, b";
 
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
 		free(pagina_cpu);
 
-	} else {
+		//2° caso: esta en Memoria Principal
+		} else {
 
 		sleep(configuracion->retardo);
 
-		// Pido la pagina a Swap
-		t_header *header_swap = malloc(sizeof(t_header));
-		header_swap->id_proceso_emisor = PROCESO_UMC;
-		header_swap->id_proceso_receptor = PROCESO_SWAP;
-		header_swap->id_mensaje = MENSAJE_LEER_PAGINA;
+		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 
-		t_pagina *pagina_swap = malloc(sizeof(t_pagina));
-		pagina_swap->pagina = pagina->pagina;
-		pagina_swap->offset = pagina->offset;
-		pagina_swap->tamanio = pagina->tamanio;
-		pagina_swap->socket_pedido = socket_conexion;
-
-		t_buffer *payload_swap = serializar_pagina(pagina_swap);
-
-		header_swap->longitud_mensaje = payload_swap->longitud_buffer;
-
-		if (enviar_buffer(socket_swap, header_swap, payload_swap)
-				< sizeof(t_header) + payload_swap->longitud_buffer) {
-			perror("Fallo enviar buffer Leer pagina de Swap\n");
+		t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+		tabla = list_get(lista_tablas,pagina->id_programa);
+		if (tabla[pagina->pagina].presencia){
+			int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
+			memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
+			guardar_en_TLB(pagina_cpu,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
+			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
+			free(tabla);
+			free(pagina_cpu);
 		}
+		//3° caso: esta en Swap
+			else{
+				// Pido la pagina a Swap
+				t_header *header_swap = malloc(sizeof(t_header));
+				header_swap->id_proceso_emisor = PROCESO_UMC;
+				header_swap->id_proceso_receptor = PROCESO_SWAP;
+				header_swap->id_mensaje = MENSAJE_LEER_PAGINA;
+
+				t_pagina *pagina_swap = malloc(sizeof(t_pagina));
+				pagina_swap->pagina = pagina->pagina;
+				pagina_swap->offset = pagina->offset;
+				pagina_swap->tamanio = pagina->tamanio;
+				pagina_swap->socket_pedido = socket_conexion;
+
+				t_buffer *payload_swap = serializar_pagina(pagina_swap);
+
+				header_swap->longitud_mensaje = payload_swap->longitud_buffer;
+
+				if (enviar_buffer(socket_swap, header_swap, payload_swap)
+						< sizeof(t_header) + payload_swap->longitud_buffer) {
+					perror("Fallo enviar buffer Leer pagina de Swap\n");
+				}
 
 		free(header_swap);
 		free(pagina_swap);
 		free(payload_swap);
-
+		}
 	}
 
 	//free(pagina);
@@ -393,9 +411,30 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina);
 
-	// TODO Cargo la pagina a memoria, utilizando LRU
+	t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+	pagina_cpu->id_programa = pagina->id_programa;
+	pagina_cpu->pagina = pagina->pagina;
+	pagina_cpu->offset = pagina->offset;
+	pagina_cpu->tamanio = pagina->tamanio;
+	pagina_cpu->socket_pedido = pagina->socket_pedido;
 
-	enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina, id_mensaje);
+	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+	tabla = list_get(lista_tablas,pagina->id_programa);
+
+
+	if(guardar_en_mp(pagina) == 0){// guardo la pagina en memoria
+		id_mensaje = ERROR_INICIAR_PROGRAMA;
+	}
+	guardar_en_TLB(pagina,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
+
+
+	int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
+
+	pagina_cpu->valor = malloc(pagina->tamanio);
+
+	memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
+
+	enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu, id_mensaje);
 
 	free(pagina);
 
@@ -546,17 +585,7 @@ int buscar_pagina_tlb(int id_programa,int pagina){
 	return marco;
 }
 
-/*
-t_marco * buscar_pagina_mp(int id_programa,int pagina){
-	t_marco * marco;
-	bool esta_en_memoria(t_fila_tabla_pagina *una_pagina_mp){
-		return (una_pagina_mp->pid == id_programa && una_pagina_mp->numero_pagina == pagina);
-	}
-	marco = list_find(lista_paginas_tlb,(void*)esta_en_memoria);
-	return marco;
-}*/
-
-void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
+int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	t_fila_tabla_pagina * pagina_a_sustituir = NULL;
 	int pid = pagina_a_ubicar->pid;
 
@@ -578,7 +607,9 @@ void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 		}
 		pagina_a_ubicar->frame = pagina_a_sustituir->frame;
 		list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
-		// ver que mas tengo que hacer
+		pagina_a_sustituir->frame = 0;
+		pagina_a_sustituir->presencia = 0;
+		return pagina_a_ubicar->frame;
 	}
 
 	//CLOCK MODIFICADO
@@ -645,11 +676,19 @@ void reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 
 	pagina_a_ubicar->frame = pagina_a_sustituir->frame;
 	list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
-	// ver que mas tengo que hacer
-
+	pagina_a_sustituir->frame = 0;
+	pagina_a_sustituir->presencia = 0;
 	}
+	return pagina_a_ubicar->frame;
 }
 
+void guardar_en_TLB(t_pagina_completa * pagina,int marco){
+	t_tlb * pagina_tlb = malloc(sizeof(t_tlb));
+	pagina_tlb->frame = marco;
+	pagina_tlb->pagina = pagina->pagina;
+	pagina_tlb->pid = pagina->id_programa;
+	LRU(pagina_tlb);
+}
 
 void LRU(t_tlb * pagina_a_ubicar){
 	//validar antes de usuarlo que no este deshabilitado
@@ -686,6 +725,10 @@ void flush_programa_tlb(int pid){
 	}
 }
 
+void flush_tlb(){
+	list_clean(lista_paginas_tlb);
+}
+
 void test(){
 	t_programa_completo *programa1 = malloc(sizeof(t_programa_completo));
 	programa1->id_programa = 1;
@@ -701,11 +744,86 @@ void crear_listas(){
 	lista_de_marcos = list_create();
 	lista_paginas_tlb = list_create();
 	lista_tablas = list_create();
-	t_fila_tabla_pagina * pagina = malloc(sizeof(t_fila_tabla_pagina));//meto paginas vacias para que me funcione el index por lista
-	pagina->pid = 0;
+	t_fila_tabla_pagina * tabla_pagina = malloc(sizeof(t_fila_tabla_pagina));//meto paginas vacias para que me funcione el index por lista
 	for(i=0;i < CANT_TABLAS_MAX; i++){
-		list_add(lista_tablas,pagina);
+		list_add(lista_tablas,tabla_pagina);
 	}
+}
+
+int obtener_marco(){
+
+	bool hay_marco_libre(t_marco *un_marco){
+	return (un_marco->libre == 1);
+	}
+
+	t_marco * marco = list_find(lista_de_marcos,(void*)hay_marco_libre);
+	marco->libre = 0;
+	return marco->numero_marco;
+}
+
+int cant_pag_x_proc(int pid){
+	int i = 0;
+	int cantidad = 0;
+	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+	tabla = list_get(lista_tablas,pid);
+	while(tabla[i].frame != 0){
+		if(tabla[i].presencia){
+			cantidad++;
+		}
+		i++;
+	}
+	return cantidad;
+}
+
+int guardar_en_mp(t_pagina_completa *pagina){
+	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+	tabla = list_get(lista_tablas,pagina->id_programa);
+
+	bool hay_marco_libre(t_marco *un_marco){
+	return (un_marco->libre == 0);
+	}
+
+	int numero_marco;
+	int dir_mp;
+	int paginas_en_mp = cant_pag_x_proc(pagina->id_programa);
+
+	// Posibilidad 1: Tengo marcos libres y no llegue al limite de marcos por proceso
+	if(list_any_satisfy(lista_de_marcos,(void*)hay_marco_libre) && paginas_en_mp < configuracion->marco_x_proc){
+		numero_marco = obtener_marco();
+		tabla[pagina->pagina].frame = numero_marco;
+		tabla[pagina->pagina].presencia = 1;
+		list_add(listas_algoritmo[pagina->id_programa].lista_paginas_mp,&tabla[pagina->pagina]);
+		dir_mp = retornar_direccion_mp(numero_marco);
+		memcpy(dir_mp,pagina->valor,configuracion->marco_size);
+		return 1;
+	}
+
+	// Posibilidad 2: Tengo marcos libres y llegue al limite de marcos por proceso
+	//  y Posibilidad 3: No tengo marcos libres y llegue al limite de marcos por procesos
+	else if (list_any_satisfy(lista_de_marcos,(void*)hay_marco_libre) && paginas_en_mp == configuracion->marco_x_proc){
+		numero_marco = reemplazar_pagina(&tabla[pagina->id_programa]);
+		tabla[pagina->pagina].frame = numero_marco;
+		tabla[pagina->pagina].presencia = 1;
+		dir_mp = retornar_direccion_mp(numero_marco);
+		memcpy(dir_mp,pagina->valor,configuracion->marco_size);
+		return 1;
+	}
+	// Posibilidad 4a: No tengo marcos libres y no llegue al limite de marcos por proceso ( ninguna esta en mp)
+	// Posibilidad 4b: No tengo marcos libres y no llegue al limite de marcos por proceso ( x lo menos una esta en mp)
+	else if (!(list_any_satisfy(lista_de_marcos,(void*)hay_marco_libre)) && paginas_en_mp < configuracion->marco_x_proc){
+		if(paginas_en_mp == 0){
+			return 0;
+		}
+		else{
+			numero_marco = reemplazar_pagina(&tabla[pagina->id_programa]);
+			tabla[pagina->pagina].frame = numero_marco;
+			tabla[pagina->pagina].presencia = 1;
+			dir_mp = retornar_direccion_mp(numero_marco);
+			memcpy(dir_mp,pagina->valor,configuracion->marco_size);
+			return 1;
+		}
+	}
+	return 0; // solo lo pongo para sacar el warning
 }
 
 void crear_marcos(){
@@ -719,16 +837,30 @@ void crear_marcos(){
 		start = start + configuracion->marco_size;
 		list_add(lista_de_marcos,nuevo_marco); // numero_marco = index_de_lista + 1
 	}
+	/*para pruebas:
+	char * string2 =  malloc(100);
+	string2 = "vamos a aprobar matando a quien sea xd\0";
+	memcpy(memoria_principal + configuracion->marco_size,string2,strlen(string2));//lo guardo en lo que seria el marco 2
+	int direccion = retornar_direccion_mp(2);
+	char * string = malloc(100);
+	memcpy(string,direccion+5,60);//quiero leer offset 5 y tamaño 60
+	printf("%s\n",string);*/
 }
 
 int retornar_direccion_mp(int un_marco){
 	bool es_marco(t_marco * marco){
 		return (marco->numero_marco == un_marco);
 	}
-	//la elimino y la agrego al final
 	t_marco * marco_buscado = malloc(sizeof(t_marco));
-	marco_buscado = list_find(lista_paginas_tlb,(void*)es_marco);
-	int direccion_mp = marco_buscado->direccion_mp;
-	return direccion_mp;
+	marco_buscado = list_find(lista_de_marcos,(void*)es_marco);
+	return marco_buscado->direccion_mp;
+}
+
+void inicializar_pagina_cpu(t_pagina_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion){
+	pagina_cpu->id_programa = una_pagina->id_programa;
+	pagina_cpu->pagina = una_pagina->pagina;
+	pagina_cpu->offset = una_pagina->offset;
+	pagina_cpu->tamanio = una_pagina->tamanio;
+	pagina_cpu->socket_pedido = socket_conexion;
 }
 
