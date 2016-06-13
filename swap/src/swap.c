@@ -100,9 +100,127 @@ int main(void) {
 }
 
 
-//--------------------------------------------------------------------------------------------------------------------------------------------------//
-//--------------------------------------------------------------------------------------------------------------------------------------------------//
 
+
+/*********************	Función que atiende cada mensaje del UMC	*********************/
+
+void atender_UMC(t_paquete *paquete, int socket_conexion) {
+
+	int id_mensaje_recibido = paquete->header->id_mensaje;
+	int id_proceso_emisor = paquete->header->id_proceso_emisor;
+	int retorno_de_funcion;
+
+	switch (id_mensaje_recibido) {
+
+		case MENSAJE_HANDSHAKE:
+			//TODO: Tomar valor de pagina
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 0] handshake");
+
+			if(id_proceso_emisor == PROCESO_UMC)
+				enviar_header_al_UMC(socket_conexion, RESPUESTA_HANDSHAKE);
+			else
+				handshake_error(socket_conexion);
+
+			break;
+
+
+
+		case MENSAJE_LEER_PAGINA:
+
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1] leer_pagina");
+
+			t_pagina *pagina = malloc (sizeof (t_pagina));
+			t_buffer *t_buffers = malloc(sizeof(t_buffers));
+			deserializar_pagina(paquete->payload, pagina);
+
+			retorno_de_funcion = leer_bytes_swap(pagina, t_buffers->contenido_buffer);
+			t_buffers->longitud_buffer = pagina->tamanio;
+
+			if (retorno_de_funcion != -1)
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA, t_buffers);
+			else
+				enviar_header_al_UMC(socket_conexion, ERROR_LEER_PAGINA);
+
+			free (pagina);
+			free (t_buffers);
+
+			break;
+
+
+
+		case MENSAJE_ESCRIBIR_PAGINA:
+
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 2] escribir_pagina");
+			t_pagina_completa *pagina_completa = malloc (sizeof (t_pagina_completa));
+			deserializar_pagina_completa(paquete->payload , pagina_completa);
+
+			retorno_de_funcion = escribir_bytes_swap(pagina_completa);
+
+			if (retorno_de_funcion != -1)
+				enviar_header_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA);
+			else
+				enviar_header_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA);
+
+			free (pagina_completa);
+
+			break;
+
+
+
+		case MENSAJE_INICIAR_PROGRAMA:
+
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 3] iniciar_programa");
+			t_programa_completo *programa_completo = malloc (sizeof (t_programa_completo));
+			deserializar_programa_completo(paquete->payload , programa_completo);
+
+			retorno_de_funcion = inicializar_programa (programa_completo);
+
+			t_buffer *buffer_con_programa_completo = serializar_programa_completo(programa_completo);
+
+			if (retorno_de_funcion != -1)
+				//enviar_header_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA, buffer_con_programa_completo);
+			else
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA, buffer_con_programa_completo);
+
+			free (programa_completo);
+			free (buffer_con_programa_completo);
+
+			break;
+
+
+
+		case MENSAJE_FINALIZAR_PROGRAMA:
+
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 4] finalizar_programa");
+
+			t_programa *programa = malloc (sizeof (t_programa));
+			deserializar_programa(paquete->payload, programa);
+
+			retorno_de_funcion = finalizar_programa (programa);
+
+			if (retorno_de_funcion != -1)
+				enviar_header_al_UMC(socket_conexion, RESPUESTA_FINALIZAR_PROGRAMA);
+			else
+				enviar_header_al_UMC(socket_conexion, ERROR_FINALIZAR_PROGRAMA);
+
+			free (programa);
+
+			break;
+
+
+		default:
+			log_error(loggerManager,"[Comunicacion UMC] El código de mensaje: %i, no es un mensaje aceptado por el SWAP", id_mensaje_recibido);
+			break;
+	}
+}
+
+/****************************************************************************************/
+
+
+
+
+/********************* Funcionalidad necesaria para atender al UMC ***********************/
 
 /*Crea la estructura de control asociada al programa y reserva el espacio necesario en el swap, devuelve 0 si salio bien y -1 en caso de que de error al buscar bloque y -2 en caso de que el programa ya exista*/
 int inicializar_programa(t_programa_completo *inicio_programa_info){
@@ -202,149 +320,48 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info){
 	}
 }
 
-
-void atender_UMC(t_paquete *paquete, int socket_conexion) {
-
-	int id_mensaje_recibido = paquete->header->id_mensaje;
-	int id_proceso_emisor = paquete->header->id_proceso_emisor;
-	int retorno_de_funsion;
-
-	switch (id_mensaje_recibido) {
-		case MENSAJE_HANDSHAKE:
-			//TODO: Tomar valor de pagina
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 0] handshake");
-
-			if(id_proceso_emisor == PROCESO_UMC)
-				handshake_UMC(socket_conexion);
-			else
-				handshake_error(socket_conexion);
-
-			break;
-		case MENSAJE_LEER_PAGINA:
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1] leer_pagina");
-			t_pagina *pagina = malloc (sizeof (t_programa_completo));
-			t_buffer *t_buffers = malloc(sizeof(t_buffers));
-			deserializar_pagina(paquete->payload, pagina);
-
-			retorno_de_funsion = leer_bytes_swap(pagina, t_buffers->contenido_buffer);
-			t_buffers->longitud_buffer = pagina->tamanio;
-
-			if (retorno_de_funsion != -1)
-				swap_umc_inf(socket_conexion, RESPUESTA_LEER_PAGINA, t_buffers);
-			else
-				swap_umc(socket_conexion, ERROR_LEER_PAGINA);
-
-			free (pagina);
-			free (t_buffers);
-
-			break;
-		case MENSAJE_ESCRIBIR_PAGINA:
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 2] escribir_pagina");
-			t_pagina_completa *pagina_completo = malloc (sizeof (t_pagina_completa));
-			deserializar_pagina_completa(paquete->payload , pagina_completo);
-
-			retorno_de_funsion = escribir_bytes_swap(pagina_completo);
-
-			if (retorno_de_funsion != -1)
-				swap_umc(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA);
-			else
-				swap_umc(socket_conexion, ERROR_ESCRIBIR_PAGINA);
-
-			free (pagina_completo);
-
-			break;
-		case MENSAJE_INICIAR_PROGRAMA:
-
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 3] iniciar_programa");
-			t_programa_completo *programa_completo = malloc (sizeof (t_programa_completo));
-			deserializar_programa_completo(paquete->payload , programa_completo);
-
-			retorno_de_funsion = inicializar_programa (programa_completo);
-
-			if (retorno_de_funsion != -1)
-				swap_umc(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA);
-			else
-				swap_umc(socket_conexion, ERROR_INICIALIZAR_PROGRAMA);
-
-			free (programa_completo);
-
-			break;
-		case MENSAJE_FINALIZAR_PROGRAMA:
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 4] finalizar_programa");
-
-			t_programa *programa = malloc (sizeof (t_programa));
-			deserializar_programa(paquete->payload, programa);
-
-			retorno_de_funsion = finalizar_programa (programa);
-
-			if (retorno_de_funsion != -1)
-				swap_umc(socket_conexion, RESPUESTA_FINALIZAR_PROGRAMA);
-			else
-				swap_umc(socket_conexion, ERROR_FINALIZAR_PROGRAMA);
-
-			free (programa);
-
-			break;
-		default:
-			log_error(loggerManager,"[Comunicacion UMC] El código de mensaje: %i, no es un mensaje aceptado por el SWAP", id_mensaje_recibido);
-			break;
-	}
-}
+/***************************************************************************************/
 
 
-void swap_umc_inf(int socket_umc, int opcion, t_buffer *t_buffers) {
+
+
+/********************* Funciones de mensajeria con el UMC ***********************/
+
+void enviar_mensaje_con_buffer_al_UMC(int socket_umc, int id_mensaje, t_buffer *t_buffers) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_SWAP;
 	header->id_proceso_receptor = PROCESO_UMC;
 
-	header->id_mensaje = opcion;
+	header->id_mensaje = id_mensaje;
 	header->longitud_mensaje = t_buffers->longitud_buffer;
 
 	int cantidad_bytes_enviados = enviar_buffer (socket_umc, header, t_buffers);
 
 	if (cantidad_bytes_enviados < sizeof(t_header))
-		log_error(loggerManager,"[Comunicacion UMC] No se pudo enviar completamente");
+		log_error(loggerManager,"[Comunicacion UMC] [%i] Ocurrió un problema al enviar el mensaje", id_mensaje);
 	else
-		log_trace(loggerManager,"[Comunicacion UMC] Se realizo el envio del mensaje correctamente");
+		log_trace(loggerManager,"[Comunicacion UMC] [%i] Se realizo el envio del mensaje correctamente");
 
 	free(header);
 }
 
-void swap_umc(int socket_umc, int opcion) {
+void enviar_header_al_UMC(int socket_umc, int id_mensaje) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_SWAP;
 	header->id_proceso_receptor = PROCESO_UMC;
 
-	header->id_mensaje = opcion;
+	header->id_mensaje = id_mensaje;
 	header->longitud_mensaje = 0;
 
 	int cantidad_bytes_enviados = enviar_header(socket_umc, header);
 
 	if (cantidad_bytes_enviados < sizeof(t_header))
-		log_error(loggerManager,"[Comunicacion UMC] No se pudo enviar completamente");
+		log_error(loggerManager,"[Comunicacion UMC] [%i] Ocurrió un problema al enviar el mensaje");
 	else
-		log_trace(loggerManager,"[Comunicacion UMC] Se realizo el envio del mensaje correctamente");
+		log_trace(loggerManager,"[Comunicacion UMC] [%i] Se realizo el envio del mensaje correctamente");
 
 	free(header);
 }
-
-void handshake_UMC(int socket_umc) {
-		t_header *header = malloc(sizeof(t_header));
-		header->id_proceso_emisor = PROCESO_SWAP;
-		header->id_proceso_receptor = PROCESO_UMC;
-
-		header->id_mensaje = RESPUESTA_HANDSHAKE;
-		header->longitud_mensaje = 0;
-
-		int cantidad_bytes_enviados = enviar_header(socket_umc, header);
-
-		if (cantidad_bytes_enviados < sizeof(t_header))
-			log_error(loggerManager,"[Comunicacion UMC][Respuesta Handshake] No se pudo enviar completamente");
-		else
-			log_trace(loggerManager,"[Comunicacion UMC][Respuesta Handshake] Se realizo el envio del mensaje correctamente");
-
-		free(header);
-	}
 
 void handshake_error(int socket_remitente) {
 		t_header *header = malloc(sizeof(t_header));
@@ -364,3 +381,4 @@ void handshake_error(int socket_remitente) {
 		free(header);
 	}
 
+/*********************************************************************************************/
