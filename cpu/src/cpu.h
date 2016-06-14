@@ -19,6 +19,7 @@
 #include <parser/metadata_program.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
+#include "comunicaciones_cpu.h"
 #include "serializaciones_cpu.h"
 #include "semaforo_sockets_cpu.h"
 #include "primitivas_ansisop.h"
@@ -70,9 +71,9 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo(int socket_servidor);
 void recibo_PCB(void *buffer);
 void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum);
+void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 int calcula_pagina(t_puntero_instruccion *instruccion);
-//void leo_instruccion_desde_UMC(t_pcb *pcb);
-void leo_instruccion_desde_UMC();
+void leo_instruccion_desde_UMC(t_pcb *pcb);
 
 t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
 void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
