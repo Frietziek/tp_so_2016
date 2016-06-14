@@ -239,6 +239,9 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		// TODO Terminar funcion
 		printf("Finalizacion del programa exitoso");
 		break;
+	case RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR:
+		respuesta_leer_pagina_para_escribir(paquete->payload,RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR);
+		break;
 	case ERROR_INICIAR_PROGRAMA:
 		respuesta_iniciar_programa(paquete->payload,ERROR_INICIAR_PROGRAMA);
 		break;
@@ -248,6 +251,9 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 	case ERROR_ESCRIBIR_PAGINA:
 		break;
 	case ERROR_FINALIZAR_PROGRAMA:
+		break;
+	case ERROR_LEER_PAGINA_PARA_ESCRIBIR:
+		respuesta_leer_pagina_para_escribir(paquete->payload,ERROR_LEER_PAGINA_PARA_ESCRIBIR);
 		break;
 	default:
 		perror("Comando no reconocido\n");
@@ -529,37 +535,41 @@ void escribir_pagina(void *buffer, int socket_conexion){
 }
 
 void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
-	t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
-	deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
-
-	t_pagina_completa *pagina_buffer = malloc(sizeof(t_pagina_completa));
-	copiar_pagina_escritura_desde_buffer(pagina_recibida_de_swap->id_programa, pagina_recibida_de_swap->pagina,pagina_buffer);
-
 	t_header *header_cpu = malloc(sizeof(t_header));
 	header_cpu->id_proceso_emisor = PROCESO_UMC;
 	header_cpu->id_proceso_receptor = PROCESO_CPU;
-	header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
 	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-	//Primero guardo en memoria la pagina como esta en swap y luego la sobreescribo con lo que manda la cpu
-	if(guardar_en_mp(pagina_recibida_de_swap) == 0){// guardo la pagina en memoria
+	if(id_mensaje == RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR){
+		t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
+		deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
+
+		t_pagina_completa *pagina_buffer = malloc(sizeof(t_pagina_completa));
+		copiar_pagina_escritura_desde_buffer(pagina_recibida_de_swap->id_programa, pagina_recibida_de_swap->pagina,pagina_buffer);
+
+		//Primero guardo en memoria la pagina como esta en swap y luego la sobreescribo con lo que manda la cpu
+		if(guardar_en_mp(pagina_recibida_de_swap) == 0){// guardo la pagina en memoria
+			header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
+		}
+
+		t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+		tabla = list_get(lista_tablas,pagina_recibida_de_swap->id_programa);
+		tabla[pagina_recibida_de_swap->pagina].presencia = 1;
+		if(configuracion->entradas_tlb != 0){
+			guardar_en_TLB(pagina_recibida_de_swap,tabla[pagina_recibida_de_swap->pagina].frame);//pongo la pagina en la cache TLB
+		}
+		int direccion_mp = retornar_direccion_mp(tabla[pagina_buffer->pagina].frame);
+		memcpy(direccion_mp + pagina_buffer->offset,pagina_buffer->valor,pagina_buffer->tamanio);
+		tabla[pagina_recibida_de_swap->pagina].modificado = 1;
+
+		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
+	}
+	else if(id_mensaje == ERROR_LEER_PAGINA_PARA_ESCRIBIR){
 		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
 	}
-
-	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
-	tabla = list_get(lista_tablas,pagina_recibida_de_swap->id_programa);
-	tabla[pagina_recibida_de_swap->pagina].presencia = 1;
-	if(configuracion->entradas_tlb != 0){
-	guardar_en_TLB(pagina_recibida_de_swap,tabla[pagina_recibida_de_swap->pagina].frame);//pongo la pagina en la cache TLB
-	}
-	int direccion_mp = retornar_direccion_mp(tabla[pagina_buffer->pagina].frame);
-	memcpy(direccion_mp + pagina_buffer->offset,pagina_buffer->valor,pagina_buffer->tamanio);
-	tabla[pagina_recibida_de_swap->pagina].modificado = 1;
-
 	if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
-			perror("Error al finalizar programa");
+			perror("Error al enviar header");
 	}
-
 }
 
 
@@ -1012,16 +1022,50 @@ void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,t_pagina_com
 }
 
 void marcar_modificada(int pid,int pagina){
-	t_fila_tabla_pagina * fila_tabla_pagina = malloc(sizeof(t_fila_tabla_pagina));
-	t_fila_tabla_pagina * tabla =  list_get(lista_tablas, pid);
+	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+	tabla =  list_get(lista_tablas, pid);
 	tabla[pagina].modificado = 1;
+	free(tabla);
 }
 
 void poner_en_buffer(t_pagina_completa * pagina){
 	list_add(lista_buffer_escritura,pagina);
 }
 
-void mandar_a_swap(pagina_a_sustituir){
-	t_fila_tabla_pagina
+void mandar_a_swap(t_fila_tabla_pagina * pagina_a_swappear){
+	t_header *header_swap = malloc(sizeof(t_header));
+	header_swap->id_proceso_emisor = PROCESO_UMC;
+	header_swap->id_proceso_receptor = PROCESO_SWAP;
+	header_swap->id_mensaje = MENSAJE_ESCRIBIR_PAGINA;
+
+	t_pagina_completa * pag_completa = malloc(sizeof(t_pagina_completa));
+	armar_pagina_completa(pagina_a_swappear,pag_completa);
+
+	t_buffer *payload_swap = serializar_pagina_completa(pag_completa);
+
+	header_swap->longitud_mensaje = payload_swap->longitud_buffer;
+
+	if (enviar_buffer(socket_swap, header_swap, payload_swap)
+			< sizeof(t_header) + payload_swap->longitud_buffer) {
+		perror("Fallo al responder pedido CPU");
+	}
+
+	free(header_swap);
+	free(payload_swap);
+}
+
+void armar_pagina_completa(t_fila_tabla_pagina * pagina_a_swappear,t_pagina_completa * pagina_completa){
+	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+	tabla = list_get(lista_tablas,pagina_a_swappear->pid);
+	int dir_mp = retornar_direccion_mp(tabla[pagina_a_swappear->numero_pagina].frame);
+
+	pagina_completa->id_programa = pagina_a_swappear->pid;
+	pagina_completa->offset = 0;
+	pagina_completa->pagina = pagina_a_swappear->numero_pagina;
+	pagina_completa->socket_pedido = 0; //nadie lo pidio, lo pide la umc para reemplazar
+	pagina_completa->tamanio = configuracion->marco_size;
+
+	memcpy(pagina_completa->valor,dir_mp,configuracion->marco_size);
+	free(tabla);
 }
 
