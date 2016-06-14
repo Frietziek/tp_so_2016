@@ -42,9 +42,7 @@ int main(void) {
 
 	socket_nucleo = conecto_con_nucleo(configuracion);
 
-	// TODO Recibir PCB del Nucleo
 	// TODO Incrementar registro Program Counter en PCB
-	// TODO Hacer el parser del indice de codigo
 
 	socket_umc = conecto_con_umc(configuracion);
 
@@ -55,7 +53,6 @@ int main(void) {
 	//printf("Ejecutando '%s'\n", ASIGNACION);
 	//analizadorLinea(strdup(ASIGNACION), &functions, &kernel_functions);
 
-	// TODO Actualizar valores en UMC
 	// TODO Actualizar PC en PCB
 	// TODO Notificar al nucleo que termino el Quantum
 
@@ -84,6 +81,7 @@ int main(void) {
 	close(socket_umc);
 	return EXIT_SUCCESS;
 }
+
 t_pcb *crear_PCB(char *codigo_de_consola) {
 	t_metadata_program *metadata = malloc(sizeof(t_metadata_program));
 	metadata = metadata_desde_literal(codigo_de_consola);
@@ -217,7 +215,6 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case ERROR_HANDSHAKE:
 		log_error(logger_manager, "Error en Handshake con UMC.");
-		// TODO Terminar funcion
 		break;
 	case ERROR_LEER_PAGINA:
 		log_error(logger_manager, "Error en lectura de pagina de UMC.");
@@ -234,14 +231,10 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 }
 
 void handshake_cpu_umc(int socket_servidor) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_HANDSHAKE;
-	header->longitud_mensaje = PAYLOAD_VACIO;
 
-	enviar_header(socket_servidor, header);
-	free(header);
+	envio_header_a_proceso(socket_servidor, PROCESO_UMC, MENSAJE_HANDSHAKE,
+			"Fallo al enviar Handshake a la UMC.");
+
 }
 
 void respuesta_handshake_cpu_umc(void *buffer) {
@@ -272,6 +265,12 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		log_info(logger_manager, "Recibo PCB.");
 		recibo_PCB(paquete->payload);
 		break;
+	case ERROR_HANDSHAKE:
+		log_error(logger_manager, "Error en Handshake con el Nucleo.");
+		break;
+	case ERROR_PCB:
+		log_error(logger_manager, "Error al recibir PCB del Nucleo.");
+		break;
 	default:
 		log_warning(logger_manager, "Comando no reconocido de Nucleo.");
 		break;
@@ -279,14 +278,10 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 }
 
 void handshake_cpu_nucleo(int socket_servidor) {
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_HANDSHAKE;
-	header->longitud_mensaje = PAYLOAD_VACIO;
 
-	enviar_header(socket_nucleo, header);
-	free(header);
+	envio_header_a_proceso(socket_servidor, PROCESO_NUCLEO, MENSAJE_HANDSHAKE,
+			"Fallo al enviar Handshake al Nucleo.");
+
 }
 
 void recibo_PCB(void *buffer) {
@@ -314,6 +309,18 @@ void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum) {
 	}
 }
 
+void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
+	t_texto *p_texto = malloc(sizeof(t_texto));
+	p_texto->texto = mensaje_excepcion;
+	t_buffer *buffer = serializar_texto(p_texto);
+
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_excepcion,
+			"Fallo al enviar excepcion al Nucleo.", buffer);
+
+	free(p_texto);
+	free(buffer);
+}
+
 // TODO Verificar que funciona correctamente
 int calcula_pagina(t_puntero_instruccion *instruccion) {
 	int modulo = (int) (instruccion) % tamanio_pagina;
@@ -326,10 +333,6 @@ int calcula_pagina(t_puntero_instruccion *instruccion) {
 
 void leo_instruccion_desde_UMC(t_pcb *pcb) {
 	// TODO Pido lectura de pagina a la UMC para ejecutar Instruccion
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_LEER_PAGINA;
 
 	t_pagina *p_pagina = malloc(sizeof(t_pagina));
 	p_pagina->pagina = 0;
@@ -340,18 +343,13 @@ void leo_instruccion_desde_UMC(t_pcb *pcb) {
 	 p_pagina->offset = pcb->instrucciones_serializadas[pcb->pc]->start;
 	 p_pagina->tamanio = pcb->instrucciones_serializadas[pcb->pc]->offset;*/
 	p_pagina->socket_pedido = socket_umc;
-	t_buffer *payload = serializar_pagina(p_pagina);
+	t_buffer *buffer = serializar_pagina(p_pagina);
 
-	header->longitud_mensaje = payload->longitud_buffer;
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
+			"Fallo al enviar lectura de pagina a UMC.", buffer);
 
-	if (enviar_buffer(socket_umc, header, payload)
-			< sizeof(t_header) + payload->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar lectura de pagina a UMC.");
-	}
-
-	free(header);
 	free(p_pagina);
-	free(payload);
+	free(buffer);
 }
 
 t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {

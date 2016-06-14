@@ -10,113 +10,79 @@
 static const int CONTENIDO_VARIABLE = 20;
 static const int POSICION_MEMORIA = 0x10;
 
-t_puntero ansisop_definir_variable(t_nombre_variable identificador_variable) {
-	log_info(logger_manager, "Se define la variable %c.",
-			identificador_variable);
+t_puntero ansisop_definir_variable(t_nombre_variable variable) {
+	log_info(logger_manager, "Se define la variable %c.", variable);
 
 	return POSICION_MEMORIA;
 }
 
-t_puntero ansisop_obtener_posicion_variable(
-		t_nombre_variable identificador_variable) {
-	log_info(logger_manager, "Se obtiene la posicion de la variable %c.",
-			identificador_variable);
+t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
+	log_info(logger_manager, "La posicion de la variable es %c.", variable);
 
 	return POSICION_MEMORIA;
 }
 
 t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	log_info(logger_manager, "Dereferencia de: %d.", direccion_variable);
+
 	// TODO Rellenar con los valores reales
 	int pagina = 4;
 	int offset = 4;
-
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_LEER_PAGINA;
-
 	t_pagina *p_pagina = malloc(sizeof(t_pagina));
 	p_pagina->pagina = pagina;
 	p_pagina->offset = offset;
 	p_pagina->tamanio = sizeof(int);
 	p_pagina->socket_pedido = socket_umc;
-	t_buffer *payload = serializar_pagina(p_pagina);
+	t_buffer *buffer = serializar_pagina(p_pagina);
 
-	header->longitud_mensaje = payload->longitud_buffer;
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
+			"Fallo al enviar lectura de pagina a UMC.", buffer);
 
-	if (enviar_buffer(socket_umc, header, payload)
-			< sizeof(t_header) + payload->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar lectura de pagina a UMC.");
-	}
-
-	free(header);
 	free(p_pagina);
-	free(payload);
+	free(buffer);
 
 	sem_wait(&s_pagina);
 	log_info(logger_manager, "Su valor es: %i.", valor_pagina);
 	return CONTENIDO_VARIABLE;
 }
 
-void ansisop_asignar(t_puntero direccion_variable, t_valor_variable valor) {
-	log_info(logger_manager, "Asignando en: %d el valor: %i.",
-			direccion_variable, valor);
+void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
+	log_info(logger_manager, "Asignando en: %d el valor: %i.", direccion,
+			valor);
+
 	// TODO Rellenar con los valores reales
 	int pagina = 4;
 	int offset = 4;
-
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_UMC;
-	header->id_mensaje = MENSAJE_ESCRIBIR_PAGINA;
 
 	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
 	p_pagina->pagina = pagina;
 	p_pagina->offset = offset;
 	p_pagina->tamanio = sizeof(int);
-	p_pagina->valor = valor;
+	p_pagina->valor = (void*) valor;
 	p_pagina->socket_pedido = socket_umc;
+	t_buffer *buffer = serializar_pagina_completa(p_pagina);
 
-	t_buffer *payload = serializar_pagina_completa(p_pagina);
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_ESCRIBIR_PAGINA,
+			"Fallo al enviar escritura de pagina a UMC.", buffer);
 
-	header->longitud_mensaje = payload->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header, payload)
-			< sizeof(t_header) + payload->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar escritura de pagina a UMC.");
-	}
-
-	free(header);
 	free(p_pagina);
-	free(payload);
+	free(buffer);
 }
 
 t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) {
-	log_info(logger_manager, "Obtengo el valor de variable compartida: %s.",
+	log_info(logger_manager, "El valor de variable compartida es %s.",
 			variable);
-
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_OBTENER_VALOR_COMPARTIDA;
 
 	t_variable *p_compartida = malloc(sizeof(t_variable));
 	p_compartida->nombre = variable;
+	t_buffer *buffer = serializar_variable(p_compartida);
 
-	t_buffer * p_buffer = serializar_variable(p_compartida);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+	MENSAJE_LEER_COMPARTIDA, "Fallo al enviar lectura de compartida a Nucleo.",
+			buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager,
-				"Fallo al enviar lectura de compartida a Nucleo.");
-	}
-
-	free(header);
 	free(p_compartida);
-	free(p_buffer);
+	free(buffer);
 
 	// TODO Cambiar el return
 	return CONTENIDO_VARIABLE;
@@ -124,31 +90,20 @@ t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) 
 
 t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
 		t_valor_variable valor) {
-	log_info(logger_manager, "Asigno en variable compartida: %s el valor %d.",
+	log_info(logger_manager, "Asigno en variable compartida: %s el valor: %d.",
 			variable, valor);
-
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA;
 
 	t_variable_completa *p_compartida = malloc(sizeof(t_variable_completa));
 	p_compartida->nombre = variable;
 	p_compartida->valor = valor;
+	t_buffer *buffer = serializar_variable_completa(p_compartida);
 
-	t_buffer * p_buffer = serializar_variable_completa(p_compartida);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+	MENSAJE_ESCRIBIR_COMPARTIDA,
+			"Fallo al enviar escritura de compartida a Nucleo", buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager,
-				"Fallo al enviar escritura de compartida a Nucleo.");
-	}
-
-	free(header);
 	free(p_compartida);
-	free(p_buffer);
+	free(buffer);
 
 	return CONTENIDO_VARIABLE;
 }
@@ -175,126 +130,71 @@ void ansisop_retornar(t_valor_variable retorno) {
 void ansisop_imprimir(t_valor_variable valor_mostrar) {
 	log_info(logger_manager, "Imprimo el valor: %d.", valor_mostrar);
 
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_IMPRIMIR;
-
 	t_variable_valor *p_variable = malloc(sizeof(t_variable_valor));
 	p_variable->valor = valor_mostrar;
+	t_buffer *buffer = serializar_variable_valor(p_variable);
 
-	t_buffer * p_buffer = serializar_variable_valor(p_variable);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_IMPRIMIR,
+			"Fallo al enviar imprimir a Nucleo.", buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar imprimir a Nucleo.");
-	}
-
-	free(header);
 	free(p_variable);
-	free(p_buffer);
+	free(buffer);
 }
 
 void ansisop_imprimir_texto(char* texto) {
 	log_info(logger_manager, "Imprimo el texto: %s.", texto);
 
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_IMPRIMIR_TEXTO;
-
 	t_texto *p_texto = malloc(sizeof(t_texto));
 	p_texto->texto = texto;
+	t_buffer *buffer = serializar_texto(p_texto);
 
-	t_buffer * p_buffer = serializar_texto(p_texto);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+	MENSAJE_IMPRIMIR_TEXTO, "Fallo al enviar imprimir texto a Nucleo.", buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar imprimir texto a Nucleo.");
-	}
-
-	free(header);
 	free(p_texto);
-	free(p_buffer);
+	free(buffer);
 }
 
 void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
 	log_info(logger_manager, "I/O con dispositivo: %s  y tiempo: %d.",
 			dispositivo, tiempo);
 
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_ENTRADA_SALIDA;
-
 	t_entrada_salida *p_entrada_salida = malloc(sizeof(t_entrada_salida));
 	p_entrada_salida->nombre_dispositivo = dispositivo;
 	p_entrada_salida->tiempo = tiempo;
+	t_buffer *buffer = serializar_entrada_salida(p_entrada_salida);
 
-	t_buffer * p_buffer = serializar_entrada_salida(p_entrada_salida);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+	MENSAJE_ENTRADA_SALIDA, "Fallo al enviar I/O a Nucleo.", buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar I/O a Nucleo.");
-	}
-
-	free(header);
 	free(p_entrada_salida);
-	free(p_buffer);
+	free(buffer);
 }
 
 void ansisop_wait(t_nombre_semaforo semaforo) {
-	log_info(logger_manager, "Esperando al semaforo: %s.", semaforo);
-
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_WAIT;
+	log_info(logger_manager, "Espero al semaforo: %s.", semaforo);
 
 	t_semaforo *p_semaforo = malloc(sizeof(t_semaforo));
 	p_semaforo->nombre = semaforo;
+	t_buffer *buffer = serializar_semaforo(p_semaforo);
 
-	t_buffer * p_buffer = serializar_semaforo(p_semaforo);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_WAIT,
+			"Fallo al enviar wait al Nucleo.", buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar wait a Nucleo.");
-	}
-
-	free(header);
 	free(p_semaforo);
-	free(p_buffer);
+	free(buffer);
 }
 
 void ansisop_signal(t_nombre_semaforo semaforo) {
-	log_info(logger_manager, "Semaforo activado: %s.", semaforo);
-
-	t_header *header = malloc(sizeof(t_header));
-	header->id_proceso_emisor = PROCESO_CPU;
-	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = MENSAJE_SIGNAL;
+	log_info(logger_manager, "Activo al Semaforo: %s.", semaforo);
 
 	t_semaforo *p_semaforo = malloc(sizeof(t_semaforo));
 	p_semaforo->nombre = semaforo;
+	t_buffer *buffer = serializar_semaforo(p_semaforo);
 
-	t_buffer * p_buffer = serializar_semaforo(p_semaforo);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_SIGNAL,
+			"Fallo al enviar signal al Nucleo.", buffer);
 
-	header->longitud_mensaje = p_buffer->longitud_buffer;
-
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
-		log_error(logger_manager, "Fallo al enviar signal a Nucleo.");
-	}
-
-	free(header);
 	free(p_semaforo);
-	free(p_buffer);
+	free(buffer);
 }

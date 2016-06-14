@@ -8,10 +8,9 @@
 #ifndef SRC_PRIMITIVAS_ANSISOP_H_
 #define SRC_PRIMITIVAS_ANSISOP_H_
 
-#include <stdio.h>
 #include <parser/parser.h>
-#include <serializacion.h>
 #include <comunicaciones.h>
+#include "comunicaciones_cpu.h"
 #include "semaphore.h"
 #include "serializaciones_cpu.h"
 #include "semaforo_sockets_cpu.h"
@@ -21,8 +20,8 @@
 #define MENSAJE_ESCRIBIR_PAGINA 2
 
 // Funciones CPU - Nucleo
-#define MENSAJE_OBTENER_VALOR_COMPARTIDA 1
-#define MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA 2
+#define MENSAJE_LEER_COMPARTIDA 1
+#define MENSAJE_ESCRIBIR_COMPARTIDA 2
 #define MENSAJE_IMPRIMIR 3
 #define MENSAJE_IMPRIMIR_TEXTO 4
 #define MENSAJE_ENTRADA_SALIDA 5
