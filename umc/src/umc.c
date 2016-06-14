@@ -345,8 +345,10 @@ void respuesta_iniciar_programa(void *buffer,int id_mensaje) {
 void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion) {
 	t_pagina *pagina = malloc(sizeof(t_pagina));
 	deserializar_pagina(buffer, pagina);
-	int marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
-
+	int marco = 0;
+	if(configuracion->entradas_tlb != 0){
+	marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
+	}
 	//1° caso: esta en TLB
 	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 
@@ -378,7 +380,9 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		if (tabla[pagina->pagina].presencia){
 			int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
 			memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
+			if(configuracion->entradas_tlb != 0){
 			guardar_en_TLB(pagina_cpu,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
+			}
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 			free(tabla);
 			free(pagina_cpu);
@@ -437,8 +441,9 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 	if(guardar_en_mp(pagina) == 0){// guardo la pagina en memoria
 		id_mensaje = ERROR_LEER_PAGINA;
 	}
+	if(configuracion->entradas_tlb != 0){
 	guardar_en_TLB(pagina,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
-
+	}
 
 	int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
 
@@ -455,12 +460,15 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 void escribir_pagina(void *buffer, int socket_conexion){
 	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina);
-	int marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
-	t_header *header_nucleo = malloc(sizeof(t_header));
-	header_nucleo->id_proceso_emisor = PROCESO_UMC;
-	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-	header_nucleo->id_proceso_receptor = RESPUESTA_ESCRIBIR_PAGINA;
-	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
+	int marco = 0;
+	if(configuracion->entradas_tlb != 0){
+	marco = buscar_pagina_tlb(pagina->id_programa,pagina->pagina);
+	}
+	t_header *header_cpu = malloc(sizeof(t_header));
+	header_cpu->id_proceso_emisor = PROCESO_UMC;
+	header_cpu->id_proceso_receptor = PROCESO_CPU;
+	header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
+	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
 		//1° caso: esta en TLB
 		if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
@@ -469,12 +477,12 @@ void escribir_pagina(void *buffer, int socket_conexion){
 			memcpy(direccion_mp + pagina->offset,pagina->valor,pagina->tamanio);
 			marcar_modificada(pagina->id_programa,pagina->pagina);
 
-			if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
+			if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
 				perror("Error al finalizar programa");
 			}
 
 			free(pagina);
-			free(header_nucleo);
+			free(header_cpu);
 		//2° caso: esta en memoria
 		}else {
 
@@ -488,88 +496,77 @@ void escribir_pagina(void *buffer, int socket_conexion){
 				int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
 				memcpy(direccion_mp + pagina->offset,pagina->valor,pagina->tamanio);
 				marcar_modificada(pagina->id_programa,pagina->pagina);
+				if(configuracion->entradas_tlb != 0){
 				guardar_en_TLB(pagina_cpu,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
-				if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
+				}
+				if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
 					perror("Error al finalizar programa");
 				}
 
 				free(pagina);
-				free(header_nucleo);
+				free(header_cpu);
 				free(tabla);
 			}
 			//3° caso: esta en Swap
 				else{
-					// Pido la pagina a Swap
-					list_add(lista_buffer_escritura,pagina);//pongo en un buffer lo que se pide escribir
+					// Pido la pagina a Swap. La guardo en memoria y solo escribo en la memoria
+
+					list_add(lista_buffer_escritura,pagina);//pongo en un buffer lo que se pide escribir .
 
 					t_header *header_swap = malloc(sizeof(t_header));
 					header_swap->id_proceso_emisor = PROCESO_UMC;
 					header_swap->id_proceso_receptor = PROCESO_SWAP;
-					header_swap->id_mensaje = MENSAJE_LEER_PAGINA;
+					header_swap->id_mensaje = MENSAJE_LEER_PAGINA_PARA_ESCRIBIR;
 
-					t_pagina *pagina_swap = malloc(sizeof(t_pagina));
-					pagina_swap->pagina = pagina->pagina;
-					pagina_swap->offset = pagina->offset;
-					pagina_swap->tamanio = pagina->tamanio;
-					pagina_swap->socket_pedido = socket_conexion;
-
-					t_buffer *payload_swap = serializar_pagina(pagina_swap);
-
-					header_swap->longitud_mensaje = payload_swap->longitud_buffer;
-
-					if (enviar_buffer(socket_swap, header_swap, payload_swap)
-							< sizeof(t_header) + payload_swap->longitud_buffer) {
-						perror("Fallo enviar buffer Leer pagina de Swap\n");
+					if (enviar_header(socket_nucleo, header_swap) < sizeof(header_swap)) {
+							perror("Error al finalizar programa");
 					}
-					buffer = pagina->valor;
 
 					free(pagina);
-					free(header_swap);
-					free(pagina_swap);
-					free(payload_swap);
+					free(header_cpu);
 					}
 		}
 }
 
+void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
+	t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
+	deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
+
+	t_pagina_completa *pagina_buffer = malloc(sizeof(t_pagina_completa));
+	copiar_pagina_escritura_desde_buffer(pagina_recibida_de_swap->id_programa, pagina_recibida_de_swap->pagina,pagina_buffer);
+
+	t_header *header_cpu = malloc(sizeof(t_header));
+	header_cpu->id_proceso_emisor = PROCESO_UMC;
+	header_cpu->id_proceso_receptor = PROCESO_CPU;
+	header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
+	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
+
+	//Primero guardo en memoria la pagina como esta en swap y luego la sobreescribo con lo que manda la cpu
+	if(guardar_en_mp(pagina_recibida_de_swap) == 0){// guardo la pagina en memoria
+		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
+	}
+
+	t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
+	tabla = list_get(lista_tablas,pagina_recibida_de_swap->id_programa);
+	tabla[pagina_recibida_de_swap->pagina].presencia = 1;
+	if(configuracion->entradas_tlb != 0){
+	guardar_en_TLB(pagina_recibida_de_swap,tabla[pagina_recibida_de_swap->pagina].frame);//pongo la pagina en la cache TLB
+	}
+	int direccion_mp = retornar_direccion_mp(tabla[pagina_buffer->pagina].frame);
+	memcpy(direccion_mp + pagina_buffer->offset,pagina_buffer->valor,pagina_buffer->tamanio);
+	tabla[pagina_recibida_de_swap->pagina].modificado = 1;
+
+	if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
+			perror("Error al finalizar programa");
+	}
+
+}
+
+
 void respuesta_escribir_pagina(void *buffer, int id_mensaje){
 
 			printf("Respuesta escribir pagina\n");
-			char * buffer_guardado = malloc(sizeof(configuracion->marco_size));
 
-			t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
-			deserializar_pagina_completa(buffer, pagina);
-
-			t_pagina_completa *pagina_buffer = malloc(sizeof(t_pagina_completa));
-
-			t_header *header_nucleo = malloc(sizeof(t_header));
-			header_nucleo->id_proceso_emisor = PROCESO_UMC;
-			header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-			header_nucleo->id_proceso_receptor = RESPUESTA_ESCRIBIR_PAGINA;
-			header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
-
-			//Primero guardo en memoria la pagina como esta en swap y luego la sobreescribo con lo que manda la cpu
-			if(guardar_en_mp(pagina) == 0){// guardo la pagina en memoria
-				id_mensaje = ERROR_ESCRIBIR_PAGINA;
-			}
-
-			t_fila_tabla_pagina * tabla = malloc(sizeof(t_fila_tabla_pagina));
-			tabla = list_get(lista_tablas,pagina->id_programa);
-
-			guardar_en_TLB(pagina,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
-
-			copiar_pagina_escritura_desde_buffer(pagina->id_programa, pagina->pagina,pagina_buffer);
-
-			int direccion_mp = retornar_direccion_mp(tabla[pagina_buffer->pagina].frame);
-
-			memcpy(direccion_mp + pagina_buffer->offset,pagina_buffer->valor,pagina_buffer->tamanio);
-
-			if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
-					perror("Error al finalizar programa");
-			}
-
-			free(pagina);
-			free(header_nucleo);
-			free(tabla);
 }
 
 
@@ -733,9 +730,12 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 			}
 		}
 		pagina_a_ubicar->frame = pagina_a_sustituir->frame;
-		list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 		pagina_a_sustituir->frame = 0;
 		pagina_a_sustituir->presencia = 0;
+		if (pagina_a_sustituir->modificado ){
+			mandar_a_swap(pagina_a_sustituir);
+		}
+		list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 		return pagina_a_ubicar->frame;
 	}
 
@@ -802,9 +802,12 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 		}
 
 	pagina_a_ubicar->frame = pagina_a_sustituir->frame;
-	list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 	pagina_a_sustituir->frame = 0;
 	pagina_a_sustituir->presencia = 0;
+	if (pagina_a_sustituir->modificado ){
+		mandar_a_swap(pagina_a_sustituir);
+	}
+	list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 	}
 	return pagina_a_ubicar->frame;
 }
@@ -1016,5 +1019,9 @@ void marcar_modificada(int pid,int pagina){
 
 void poner_en_buffer(t_pagina_completa * pagina){
 	list_add(lista_buffer_escritura,pagina);
+}
+
+void mandar_a_swap(pagina_a_sustituir){
+	t_fila_tabla_pagina
 }
 
