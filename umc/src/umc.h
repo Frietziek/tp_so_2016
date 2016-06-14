@@ -26,7 +26,6 @@
 #define MENSAJE_LEER_PAGINA 1
 #define MENSAJE_ESCRIBIR_PAGINA 2
 #define MENSAJE_INICIAR_PROGRAMA 3
-#define MENSAJE_FINALIZAR_PROGRAMA 4
 #define MENSAJE_CAMBIO_PROCESO_ACTIVO 5
 #define MENSAJE_LEER_PAGINA_PARA_ESCRIBIR 6
 // Respuestas OK
@@ -46,6 +45,7 @@
 // Funciones Nucleo - UMC
 #define MENSAJE_INICIALIZAR_PROGRAMA 1
 #define MENSAJE_MATAR_PROGRAMA 2
+#define MENSAJE_FINALIZAR_PROGRAMA 4
 // Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
 #define RESPUESTA_MATAR_PROGRAMA 12
@@ -89,7 +89,7 @@ typedef struct{
 } t_marco;
 
 typedef struct {
-	t_list * lista_paginas_mp;
+	t_list * lista_paginas_mp; // lista de t_fila_tabla_pagina
 	//int pid;
 	int puntero;
 } t_lista_algoritmo;
@@ -136,7 +136,7 @@ void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,i
 
 void escribir_pagina(void *buffer, int socket_conexion);
 
-void finalizar_programa(void *buffer, int socket);
+void finalizar_programa(void *buffer);
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion);
 
@@ -190,6 +190,12 @@ void mandar_a_swap(t_fila_tabla_pagina * pagina_a_swappear);
 void armar_pagina_completa(t_fila_tabla_pagina * pagina_a_swappear,t_pagina_completa * pagina_completa);
 
 void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje);
+
+void respuesta_escribir_pagina(void *buffer,int id_mensaje);
+
+void liberar_marcos(int pid);
+
+void respuesta_finalizar_programa(void *buffer,int id_mensaje);
 
 void test();
 

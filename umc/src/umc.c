@@ -215,6 +215,9 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 		printf("Creo nuevo programa y mando al Swap\n");
 		iniciar_programa(paquete->payload);
 		break;
+	case MENSAJE_FINALIZAR_PROGRAMA:
+		finalizar_programa(paquete->payload);
+		break;
 	default:
 		perror("Comando no reconocido\n");
 		break;
@@ -230,14 +233,13 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		respuesta_leer_pagina(paquete->payload,RESPUESTA_LEER_PAGINA);
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
-		printf("Escritura de pagina exitosa\n");
+		respuesta_escribir_pagina(paquete->payload,RESPUESTA_ESCRIBIR_PAGINA);
 		break;
 	case RESPUESTA_INICIAR_PROGRAMA:
 		respuesta_iniciar_programa(paquete->payload,RESPUESTA_INICIAR_PROGRAMA);
 		break;
 	case RESPUESTA_FINALIZAR_PROGRAMA:
-		// TODO Terminar funcion
-		printf("Finalizacion del programa exitoso");
+		respuesta_finalizar_programa(paquete->payload,RESPUESTA_FINALIZAR_PROGRAMA);
 		break;
 	case RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR:
 		respuesta_leer_pagina_para_escribir(paquete->payload,RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR);
@@ -249,8 +251,10 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		respuesta_leer_pagina(paquete->payload,ERROR_LEER_PAGINA);
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
+		respuesta_escribir_pagina(paquete->payload,ERROR_ESCRIBIR_PAGINA);
 		break;
 	case ERROR_FINALIZAR_PROGRAMA:
+		respuesta_finalizar_programa(paquete->payload,ERROR_FINALIZAR_PROGRAMA);
 		break;
 	case ERROR_LEER_PAGINA_PARA_ESCRIBIR:
 		respuesta_leer_pagina_para_escribir(paquete->payload,ERROR_LEER_PAGINA_PARA_ESCRIBIR);
@@ -265,6 +269,21 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
  // TODO Quien se encarga de guardar el espacio de la variable?
  // Como se en que pagina debo escribir?
  }*/
+void liberar_marcos(int pid){
+	int i,un_marco;
+	t_fila_tabla_pagina * tabla =  list_get(lista_tablas,pid);
+	bool es_marco(t_marco * marco){
+		return (marco->numero_marco == un_marco);
+	}
+	while((tabla + i) != NULL){
+		if (tabla[i].presencia){
+			un_marco = tabla[i].frame;
+			t_marco * marco = list_find(lista_de_marcos,(void*)es_marco);
+			marco->libre = 1;
+			i++;
+		}
+	}
+}
 
 void handshake_umc_swap(int socket_servidor, t_config_umc *configuracion) {
 	handshake_proceso(socket_servidor, configuracion, PROCESO_SWAP,
@@ -296,7 +315,7 @@ void iniciar_programa(void* buffer) {
 		list_add(listas_algoritmo[programa->id_programa].lista_paginas_mp,(tabla_paginas + i));
 	}
 
-	list_add_in_index(lista_tablas,programa->id_programa,tabla_paginas); // lista de tablas. El index va a coincidir con el pid
+	list_replace(lista_tablas,programa->id_programa,tabla_paginas); // lista de tablas. El index va a coincidir con el pid
 	// ejemplo: t_fila_tabla_pagina * tabla =  list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
 
 
@@ -573,10 +592,26 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 }
 
 
-void respuesta_escribir_pagina(void *buffer, int id_mensaje){
+void respuesta_escribir_pagina(void *buffer,int id_mensaje){
+	t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
+	deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
+	if(id_mensaje == RESPUESTA_ESCRIBIR_PAGINA ){
+	printf("ESCRITURA SATISFACTORIA EN SWAP - PID:%d - PAGINA:%d \n",pagina_recibida_de_swap->id_programa,pagina_recibida_de_swap->pagina);
+	}
+	else{
+		printf("ERROR DE ESCRITURA EN SWAP - PID:%d - PAGINA:%d \n",pagina_recibida_de_swap->id_programa,pagina_recibida_de_swap->pagina);
+		t_header * header_cpu = malloc(sizeof(t_header));
+		header_cpu->id_proceso_emisor = PROCESO_UMC;
+		header_cpu->id_proceso_receptor = PROCESO_CPU;
+		header_cpu->id_proceso_receptor = ERROR_ESCRIBIR_PAGINA;
+		t_buffer * payload_cpu = serializar_pagina_completa(pagina_recibida_de_swap);
+		header_cpu->longitud_mensaje = payload_cpu->longitud_buffer;
 
-			printf("Respuesta escribir pagina\n");
-
+		if (enviar_buffer(pagina_recibida_de_swap->socket_pedido, header_cpu, payload_cpu)
+				< sizeof(t_header) + payload_cpu->longitud_buffer) {
+			perror("Fallo enviar buffer Leer pagina de Swap\n");
+		}
+	}
 }
 
 
@@ -602,12 +637,20 @@ void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,i
 }
 
 
-void finalizar_programa(void *buffer, int socket) {
+void finalizar_programa(void *buffer) {
 
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
-
-	// TODO Marcar en la tabla de paginas, las que quedaron libres
+	t_fila_tabla_pagina * tabla =  list_get(lista_tablas,programa->id_programa);
+	tabla[0].pid = 0; //ver si hay alguna forma mejor
+	//saco de tlb paginas asociadas al proceso
+	flush_programa_tlb(programa->id_programa);
+	//libero los marcos usados por ese proceso
+	liberar_marcos(programa->id_programa);
+	//saco de memoria - pongo toda la pagina con \0 , hace falta?
+	//elimino la lista usada para los algoritmos
+	list_destroy(listas_algoritmo[programa->id_programa].lista_paginas_mp);
+	//pedir a swap limpiarlo
 
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -633,16 +676,15 @@ void finalizar_programa(void *buffer, int socket) {
 
 }
 
-void respuesta_finalizar_programa(void *buffer) {
+void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 
 	t_programa_completo *programa = malloc(sizeof(t_programa_completo));
 	deserializar_programa_completo(buffer, programa);
 
 	t_header *header_nucleo = malloc(sizeof(t_header));
-	header_nucleo->id_proceso_emisor = PROCESO_SWAP;
+	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-	// TODO Definir los mensajes entre el nucleo y umc y actualizar esta linea
-	header_nucleo->id_proceso_receptor = RESPUESTA_FINALIZAR_PROGRAMA;
+	header_nucleo->id_mensaje = id_mensaje;
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
 
 	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
@@ -651,7 +693,6 @@ void respuesta_finalizar_programa(void *buffer) {
 
 	free(programa);
 	free(header_nucleo);
-
 }
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
@@ -719,7 +760,6 @@ int buscar_pagina_tlb(int id_programa,int pagina){
 }
 
 int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
-	//TODO revisar si esta modificada para sobreescribir swap
 	t_fila_tabla_pagina * pagina_a_sustituir = NULL;
 	int pid = pagina_a_ubicar->pid;
 
@@ -745,7 +785,7 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 		if (pagina_a_sustituir->modificado ){
 			mandar_a_swap(pagina_a_sustituir);
 		}
-		list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
+		list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 		return pagina_a_ubicar->frame;
 	}
 
@@ -817,7 +857,7 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	if (pagina_a_sustituir->modificado ){
 		mandar_a_swap(pagina_a_sustituir);
 	}
-	list_add_in_index(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
+	list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 	}
 	return pagina_a_ubicar->frame;
 }
@@ -921,6 +961,7 @@ int cant_pag_x_proc(int pid){
 		}
 		i++;
 	}
+	free(tabla);
 	return cantidad;
 }
 
@@ -972,6 +1013,7 @@ int guardar_en_mp(t_pagina_completa *pagina){
 			return 1;
 		}
 	}
+	free(tabla);
 	return 0; // solo lo pongo para sacar el warning
 }
 
@@ -1000,8 +1042,7 @@ int retornar_direccion_mp(int un_marco){
 	bool es_marco(t_marco * marco){
 		return (marco->numero_marco == un_marco);
 	}
-	t_marco * marco_buscado = malloc(sizeof(t_marco));
-	marco_buscado = list_find(lista_de_marcos,(void*)es_marco);
+	t_marco * marco_buscado = list_find(lista_de_marcos,(void*)es_marco);
 	return marco_buscado->direccion_mp;
 }
 
