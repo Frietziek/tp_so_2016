@@ -35,13 +35,16 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	p_pagina->socket_pedido = socket_umc;
 	t_buffer *buffer = serializar_pagina(p_pagina);
 
+	pagina_es_codigo = 0;
+
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
 			"Fallo al enviar lectura de pagina a UMC.", buffer);
 
 	free(p_pagina);
 	free(buffer);
 
-	sem_wait(&s_pagina);
+	sem_wait(&s_variable_stack);
+
 	log_info(logger_manager, "Su valor es: %i.", valor_pagina);
 	return CONTENIDO_VARIABLE;
 }
@@ -105,7 +108,7 @@ t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
 	free(p_compartida);
 	free(buffer);
 
-	return CONTENIDO_VARIABLE;
+	return valor;
 }
 
 void ansisop_ir_a_label(t_nombre_etiqueta etiqueta) {

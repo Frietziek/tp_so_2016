@@ -52,10 +52,14 @@ typedef struct {
 } t_pcb_quantum;
 
 // Semaforos para continuar proceso y finalizar
-sem_t s_pagina;
-sem_t s_cpu_finaliza;
+sem_t s_codigo; // Para cuando pido lectura de codigo
+sem_t s_instruccion_finalizada; // Para esperar a recibir respuesta del UMC o Nucleo
+sem_t s_variable_stack; // Para cuando pido lectura de variable
+sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
+sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
 void *valor_pagina;
 int size_pagina;
+int pagina_es_codigo; // 1 para codigo, 0 para valor int
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;

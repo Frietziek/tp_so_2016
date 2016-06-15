@@ -70,6 +70,7 @@ void respuesta_leer_pagina(void *buffer);
 void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo(int socket_servidor);
 void recibo_PCB(void *buffer);
+void enviar_PCB();
 void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 int calcula_pagina(t_puntero_instruccion *instruccion);
