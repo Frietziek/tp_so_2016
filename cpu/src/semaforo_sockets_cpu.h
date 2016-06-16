@@ -44,6 +44,8 @@ typedef struct {
 	t_intructions **instrucciones_serializadas;
 	int stack_size_actual;
 	t_indice_stack **indice_stack;
+	int cant_argumentos;
+	int cant_variables;
 } t_pcb;
 
 typedef struct {
@@ -60,6 +62,8 @@ sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
 void *valor_pagina;
 int size_pagina;
 int pagina_es_codigo; // 1 para codigo, 0 para valor int
+int wait_nucleo; // 1 para avisar que se mando wait al nucleo
+int matar_proceso; // 1 para avisar que mato al proceso
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;

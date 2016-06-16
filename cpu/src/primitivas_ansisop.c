@@ -7,11 +7,12 @@
 
 #include "primitivas_ansisop.h"
 
-static const int CONTENIDO_VARIABLE = 20;
 static const int POSICION_MEMORIA = 0x10;
 
 t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 	log_info(logger_manager, "Se define la variable %c.", variable);
+
+	sem_post(&s_instruccion_finalizada);
 
 	return POSICION_MEMORIA;
 }
@@ -19,11 +20,14 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 	log_info(logger_manager, "La posicion de la variable es %c.", variable);
 
+	sem_post(&s_instruccion_finalizada);
+
 	return POSICION_MEMORIA;
 }
 
 t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
-	log_info(logger_manager, "Dereferencia de: %d.", direccion_variable);
+	int contenido_variable;
+	log_info(logger_manager, "Dereferencia de: %d ", direccion_variable);
 
 	// TODO Rellenar con los valores reales
 	int pagina = 4;
@@ -45,8 +49,12 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 
 	sem_wait(&s_variable_stack);
 
+	memcpy(contenido_variable, valor_pagina, size_pagina);
 	log_info(logger_manager, "Su valor es: %i.", valor_pagina);
-	return CONTENIDO_VARIABLE;
+
+	sem_post(&s_instruccion_finalizada);
+
+	return contenido_variable;
 }
 
 void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
@@ -68,12 +76,15 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_ESCRIBIR_PAGINA,
 			"Fallo al enviar escritura de pagina a UMC.", buffer);
 
+	sem_post(&s_instruccion_finalizada);
+
 	free(p_pagina);
 	free(buffer);
 }
 
 t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) {
-	log_info(logger_manager, "El valor de variable compartida es %s.",
+	int contenido_variable;
+	log_info(logger_manager, "El nombre de variable compartida es %s ",
 			variable);
 
 	t_variable *p_compartida = malloc(sizeof(t_variable));
@@ -87,8 +98,14 @@ t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) 
 	free(p_compartida);
 	free(buffer);
 
-	// TODO Cambiar el return
-	return CONTENIDO_VARIABLE;
+	sem_wait(&s_variable_compartida);
+
+	memcpy(contenido_variable, valor_pagina, size_pagina);
+	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
+
+	sem_post(&s_instruccion_finalizada);
+
+	return contenido_variable;
 }
 
 t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
@@ -105,6 +122,8 @@ t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
 	MENSAJE_ESCRIBIR_COMPARTIDA,
 			"Fallo al enviar escritura de compartida a Nucleo", buffer);
 
+	sem_post(&s_instruccion_finalizada);
+
 	free(p_compartida);
 	free(buffer);
 
@@ -114,6 +133,9 @@ t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
 void ansisop_ir_a_label(t_nombre_etiqueta etiqueta) {
 	// TODO Terminar funcion
 	log_info(logger_manager, "Voy a la etiqueta: %s.", etiqueta);
+
+	sem_post(&s_instruccion_finalizada);
+
 }
 
 t_puntero_instruccion ansisop_llamar_funcion(t_nombre_etiqueta etiqueta,
@@ -122,12 +144,18 @@ t_puntero_instruccion ansisop_llamar_funcion(t_nombre_etiqueta etiqueta,
 	log_info(logger_manager,
 			"Llamo a funcion de etiqueta: %s en retorno: %c y posicion de instruccion %c.",
 			etiqueta, donde_retornar, linea_en_ejecucion);
+
+	sem_post(&s_instruccion_finalizada);
+
 	return POSICION_MEMORIA;
 }
 
 void ansisop_retornar(t_valor_variable retorno) {
 	// TODO Terminar funcion
 	log_info(logger_manager, "Retorno el valor de la variable %d.", retorno);
+
+	sem_post(&s_instruccion_finalizada);
+
 }
 
 void ansisop_imprimir(t_valor_variable valor_mostrar) {
@@ -139,6 +167,8 @@ void ansisop_imprimir(t_valor_variable valor_mostrar) {
 
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_IMPRIMIR,
 			"Fallo al enviar imprimir a Nucleo.", buffer);
+
+	sem_post(&s_instruccion_finalizada);
 
 	free(p_variable);
 	free(buffer);
@@ -153,6 +183,8 @@ void ansisop_imprimir_texto(char* texto) {
 
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
 	MENSAJE_IMPRIMIR_TEXTO, "Fallo al enviar imprimir texto a Nucleo.", buffer);
+
+	sem_post(&s_instruccion_finalizada);
 
 	free(p_texto);
 	free(buffer);
@@ -170,6 +202,8 @@ void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
 	MENSAJE_ENTRADA_SALIDA, "Fallo al enviar I/O a Nucleo.", buffer);
 
+	sem_post(&s_instruccion_finalizada);
+
 	free(p_entrada_salida);
 	free(buffer);
 }
@@ -184,6 +218,10 @@ void ansisop_wait(t_nombre_semaforo semaforo) {
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_WAIT,
 			"Fallo al enviar wait al Nucleo.", buffer);
 
+	wait_nucleo = 1;
+
+	sem_post(&s_instruccion_finalizada);
+
 	free(p_semaforo);
 	free(buffer);
 }
@@ -197,6 +235,8 @@ void ansisop_signal(t_nombre_semaforo semaforo) {
 
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_SIGNAL,
 			"Fallo al enviar signal al Nucleo.", buffer);
+
+	sem_post(&s_instruccion_finalizada);
 
 	free(p_semaforo);
 	free(buffer);
