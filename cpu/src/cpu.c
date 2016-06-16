@@ -51,11 +51,12 @@ int main(void) {
 	//printf("Ejecutando '%s'\n", ASIGNACION);
 	//analizadorLinea(strdup(ASIGNACION), &functions, &kernel_functions);
 
-	//char *codigo =
-	//		"function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,  A,  g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\n\t\n    f = 8\t  \n";
-	//char *codigo = "function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
-	char *codigo =
-			"begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
+	//char *codigo = "function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,  A,  g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\n\t\n    f = 8\t  \n";
+	char *codigo = "function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
+	//char *codigo = "begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend";
+	//char *codigo = "begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
+	//char *codigo = "begin\nend";
+
 	t_pcb *pcb = crear_PCB(codigo);
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	pcb_quantum->pcb = pcb;
@@ -63,7 +64,7 @@ int main(void) {
 
 	//t_buffer *pcb_q = serializar_pcb_quantum(pcb_quantum);
 
-	ejecuto_instrucciones(pcb_quantum);
+	ejecuto_instrucciones();
 
 	sem_wait(&s_cpu_finaliza);
 	log_trace(logger_manager, "Cerrando CPU.");
@@ -353,6 +354,9 @@ void enviar_PCB(int id_mensaje) {
 }
 
 void ejecuto_instrucciones() {
+
+	// TODO Fijarse que pasa cuando recibe un end
+
 	while (pcb_quantum->quantum != FIN_QUANTUM && !wait_nucleo && !matar_proceso) {
 
 		leo_instruccion_desde_UMC(pcb_quantum->pcb);
