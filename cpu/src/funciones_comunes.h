@@ -1,5 +1,5 @@
 /*
- * semaforo_sockets_cpu.h
+ * funciones_comunes.h
  *
  *  Created on: 28/5/2016
  *      Author: utnso
@@ -36,16 +36,13 @@ typedef struct {
 	int pc;
 	int cant_paginas_codigo_stack;
 	int estado;
-	int stack_size_maximo;
 	int stack_position;
 	//t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
 	char* etiquetas;
 	t_size instrucciones_size;
 	t_intructions **instrucciones_serializadas;
-	int stack_size_actual;
+	int stack_size;
 	t_indice_stack **indice_stack;
-	int cant_argumentos;
-	int cant_variables;
 } t_pcb;
 
 typedef struct {
@@ -59,11 +56,12 @@ sem_t s_instruccion_finalizada; // Para esperar a recibir respuesta del UMC o Nu
 sem_t s_variable_stack; // Para cuando pido lectura de variable
 sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
 sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
-void *valor_pagina;
-int size_pagina;
+void *valor_pagina; // Contenido de pagina de UMC
+int size_pagina; // Tamanio de pagina de UMC
 int pagina_es_codigo; // 1 para codigo, 0 para valor int
 int wait_nucleo; // 1 para avisar que se mando wait al nucleo
 int matar_proceso; // 1 para avisar que mato al proceso
+int contexto_actual; // Se usa para el indice de stack
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;
@@ -77,5 +75,7 @@ t_log *logger_manager;
 
 // PCB - Quantum
 t_pcb_quantum *pcb_quantum;
+
+int calcula_pagina(t_puntero_instruccion *instruccion);
 
 #endif /* SEMAFORO_SOCKETS_CPU_H_ */

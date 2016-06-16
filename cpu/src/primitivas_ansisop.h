@@ -13,7 +13,7 @@
 #include "comunicaciones_cpu.h"
 #include "semaphore.h"
 #include "serializaciones_cpu.h"
-#include "semaforo_sockets_cpu.h"
+#include "funciones_comunes.h"
 
 // Funciones CPU - UMC
 #define MENSAJE_LEER_PAGINA 1
@@ -66,6 +66,8 @@
 // Respuestas Error
 #define ERROR_PCB 21
 #define ERROR_MATAR 22
+
+#define VACIO 0
 
 t_puntero ansisop_definir_variable(t_nombre_variable identificador_variable);
 t_puntero ansisop_obtener_posicion_variable(

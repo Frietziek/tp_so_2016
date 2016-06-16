@@ -12,6 +12,20 @@ static const int POSICION_MEMORIA = 0x10;
 t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 	log_info(logger_manager, "Se define la variable %c.", variable);
 
+	if (pcb_quantum->pcb->stack_size == VACIO) {
+		pcb_quantum->pcb->indice_stack = realloc(pcb_quantum->pcb->indice_stack,
+				sizeof(t_indice_stack));
+		contexto_actual = 0;
+	}
+
+	// TODO Ver como funciona esto
+
+	pcb_quantum->pcb->indice_stack[contexto_actual]->variables = realloc(
+			pcb_quantum->pcb->indice_stack[contexto_actual]->variables,
+			sizeof(t_variables_stack));
+	pcb_quantum->pcb->indice_stack[contexto_actual]->variables[sizeof(pcb_quantum->pcb->indice_stack[contexto_actual]->variables)]->id =
+			variable;
+
 	sem_post(&s_instruccion_finalizada);
 
 	return POSICION_MEMORIA;
@@ -20,21 +34,32 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 	log_info(logger_manager, "La posicion de la variable es %c.", variable);
 
+	int posicion_memoria = -1;
+	int pos_variable;
+	for (pos_variable = 0;
+			pos_variable
+					< sizeof(pcb_quantum->pcb->indice_stack[contexto_actual]->variables);
+			++pos_variable) {
+		if (pcb_quantum->pcb->indice_stack[contexto_actual]->variables[pos_variable]->id
+				== variable) {
+			posicion_memoria =
+					pcb_quantum->pcb->indice_stack[contexto_actual]->variables[pos_variable]->posicion_memoria->pagina
+							* tamanio_pagina
+							+ pcb_quantum->pcb->indice_stack[contexto_actual]->variables[pos_variable]->posicion_memoria->offset;
+		}
+	}
 	sem_post(&s_instruccion_finalizada);
 
-	return POSICION_MEMORIA;
+	return posicion_memoria;
 }
 
 t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	int contenido_variable;
 	log_info(logger_manager, "Dereferencia de: %d ", direccion_variable);
 
-	// TODO Rellenar con los valores reales
-	int pagina = 4;
-	int offset = 4;
 	t_pagina *p_pagina = malloc(sizeof(t_pagina));
-	p_pagina->pagina = pagina;
-	p_pagina->offset = offset;
+	p_pagina->pagina = calcula_pagina(direccion_variable);
+	p_pagina->offset = (int) (direccion_variable) % tamanio_pagina;
 	p_pagina->tamanio = sizeof(int);
 	p_pagina->socket_pedido = socket_umc;
 	t_buffer *buffer = serializar_pagina(p_pagina);
@@ -61,13 +86,9 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 	log_info(logger_manager, "Asignando en: %d el valor: %i.", direccion,
 			valor);
 
-	// TODO Rellenar con los valores reales
-	int pagina = 4;
-	int offset = 4;
-
 	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
-	p_pagina->pagina = pagina;
-	p_pagina->offset = offset;
+	p_pagina->pagina = calcula_pagina(direccion);
+	p_pagina->offset = (int) (direccion) % tamanio_pagina;
 	p_pagina->tamanio = sizeof(int);
 	p_pagina->valor = (void*) valor;
 	p_pagina->socket_pedido = socket_umc;
