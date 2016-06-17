@@ -8,7 +8,7 @@
 #ifndef FUNCIONES_SWAP_H_
 #define FUNCIONES_SWAP_H_
 
-int inicializar_programa(t_programa_completo *inicio_programa_info);
+int inicializar_programa(t_programa_nuevo *inicio_programa_info);
 int finalizar_programa(t_programa *fin_programa_info);
 int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer);
 int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info);

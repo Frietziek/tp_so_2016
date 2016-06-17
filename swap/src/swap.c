@@ -170,21 +170,21 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 		case MENSAJE_INICIAR_PROGRAMA:
 
 			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 3] iniciar_programa");
-			t_programa_completo *programa_completo = malloc (sizeof (t_programa_completo));
-			deserializar_programa_completo(paquete->payload , programa_completo);
+			t_programa_nuevo *programa_nuevo = malloc (sizeof (t_programa_nuevo));
+			deserializar_programa_completo(paquete->payload , programa_nuevo);
 
-			retorno_de_funcion = inicializar_programa (programa_completo);
+			retorno_de_funcion = inicializar_programa (programa_nuevo);
 
-			t_buffer *buffer_con_programa_completo = serializar_programa_completo(programa_completo);
+			t_buffer *buffer_con_programa_nuevo = serializar_programa_nuevo(programa_nuevo);
 
 			if (retorno_de_funcion != -1)
 				//enviar_header_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA);
-				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA, buffer_con_programa_completo);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA, buffer_con_programa_nuevo);
 			else
-				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA, buffer_con_programa_completo);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA, buffer_con_programa_nuevo);
 
-			free (programa_completo);
-			free (buffer_con_programa_completo);
+			free (programa_nuevo);
+			free (buffer_con_programa_nuevo);
 
 			break;
 
@@ -223,7 +223,7 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 /********************* Funcionalidad necesaria para atender al UMC ***********************/
 
 /*Crea la estructura de control asociada al programa y reserva el espacio necesario en el swap, devuelve 0 si salio bien y -1 en caso de que de error al buscar bloque y -2 en caso de que el programa ya exista*/
-int inicializar_programa(t_programa_completo *inicio_programa_info){
+int inicializar_programa(t_programa_nuevo *inicio_programa_info){
 
 	t_program_info *program_info = buscar_programa(inicio_programa_info->id_programa, lista_programas);
 
