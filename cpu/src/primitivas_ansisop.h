@@ -81,6 +81,8 @@ void ansisop_ir_a_label(t_nombre_etiqueta etiqueta);
 t_puntero_instruccion ansisop_llamar_funcion(t_nombre_etiqueta etiqueta,
 		t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion);
 void ansisop_retornar(t_valor_variable retorno);
+void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta, t_puntero donde_retornar);
+void ansisop_finalizar();
 void ansisop_imprimir(t_valor_variable valor_mostrar);
 void ansisop_imprimir_texto(char* texto);
 void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo);

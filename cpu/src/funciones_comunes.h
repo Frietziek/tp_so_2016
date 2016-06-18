@@ -20,15 +20,17 @@ typedef struct {
 } t_posicion_memoria;
 
 typedef struct {
-	int id;
+	char id;
 	t_posicion_memoria *posicion_memoria;
 } t_variables_stack;
 
 typedef struct {
 	int posicion_retorno;
 	t_posicion_memoria *posicion_variable_retorno;
-	t_variables_stack **variables;
-	t_posicion_memoria **argumentos;
+	int cantidad_variables;
+	t_variables_stack *variables;
+	int cantidad_argumentos;
+	t_posicion_memoria *argumentos;
 } t_indice_stack;
 
 typedef struct {
@@ -37,12 +39,13 @@ typedef struct {
 	int cant_paginas_codigo_stack;
 	int estado;
 	int stack_position;
-	//t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
+	int stack_pointer;
+	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
 	char* etiquetas;
 	t_size instrucciones_size;
 	t_intructions **instrucciones_serializadas;
 	int stack_size;
-	t_indice_stack **indice_stack;
+	t_indice_stack *indice_stack;
 } t_pcb;
 
 typedef struct {
@@ -63,6 +66,9 @@ int wait_nucleo; // 1 para avisar que se mando wait al nucleo
 int matar_proceso; // 1 para avisar que mato al proceso
 int contexto_actual; // Se usa para el indice de stack
 
+// Codigo de prueba;
+char *codigo;
+
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;
 int socket_umc;
@@ -76,6 +82,7 @@ t_log *logger_manager;
 // PCB - Quantum
 t_pcb_quantum *pcb_quantum;
 
-int calcula_pagina(t_puntero_instruccion *instruccion);
+int calcula_pagina(t_puntero_instruccion instruccion);
+int calcula_offset(t_puntero instruccion);
 
 #endif /* SEMAFORO_SOCKETS_CPU_H_ */
