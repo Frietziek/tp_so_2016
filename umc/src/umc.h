@@ -26,8 +26,10 @@
 #define MENSAJE_LEER_PAGINA 1
 #define MENSAJE_ESCRIBIR_PAGINA 2
 #define MENSAJE_INICIAR_PROGRAMA 3
+#define MENSAJE_FINALIZAR_PROGRAMA 4
 #define MENSAJE_CAMBIO_PROCESO_ACTIVO 5
 #define MENSAJE_LEER_PAGINA_PARA_ESCRIBIR 6
+#define MENSAJE_ESCRIBIR_PAGINA_NUEVA 7
 // Respuestas OK
 #define RESPUESTA_LEER_PAGINA 11
 #define RESPUESTA_ESCRIBIR_PAGINA 12
@@ -35,6 +37,7 @@
 #define RESPUESTA_FINALIZAR_PROGRAMA 14
 #define RESPUESTA_CAMBIO_PROCESO_ACTIVO 15
 #define RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR 16
+#define RESPUESTA_ESCRIBIR_PAGINA_NUEVA 17
 // Respuestas Error
 #define ERROR_LEER_PAGINA 21
 #define ERROR_ESCRIBIR_PAGINA 22
@@ -42,6 +45,7 @@
 #define ERROR_FINALIZAR_PROGRAMA 24
 #define ERROR_CAMBIO_PROCESO_ACTIVO 25
 #define ERROR_LEER_PAGINA_PARA_ESCRIBIR 26
+#define ERROR_ESCRIBIR_PAGINA_NUEVA 27
 // Funciones Nucleo - UMC
 #define MENSAJE_INICIALIZAR_PROGRAMA 1
 #define MENSAJE_MATAR_PROGRAMA 2
@@ -49,6 +53,9 @@
 // Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
 #define RESPUESTA_MATAR_PROGRAMA 12
+// Respuestas ERROR
+#define ERROR_INICIALIZAR_PROGRAMA 21
+#define ERROR_MATAR_PROGRAMA 22
 
 // Variables utilizadas
 #define CANT_TABLAS_MAX 100 // numero suficientemente alto usado para reserver memoria, ver en todo caso otra mejor manera
@@ -94,12 +101,17 @@ typedef struct {
 	int puntero;
 } t_lista_algoritmo;
 
-typedef struct {
+typedef struct { //no lo estoy usando
 	char * buffer;
 	int tamanio_buffer;
+	int id_programa;
+	int cant_paginas;
+}t_buffer_nuevo_programa;
+
+typedef struct {
+	int cant_paginas;
 	int pid;
-	int pagina;
-}t_buffer_escritura;
+} t_tabla_cantidad_entradas;
 
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
@@ -163,6 +175,8 @@ int retornar_direccion_mp(int marco);
 
 void inicializar_pagina_cpu(t_pagina_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion);
 
+void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,t_pagina_completa * una_pagina, int socket_conexion);
+
 void flush_tlb();
 
 void flush_programa_tlb(int pid);
@@ -181,13 +195,11 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar);
 
 void marcar_modificada(int pid,int pagina);
 
-void poner_en_buffer(t_pagina_completa * pagina);
-
 void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa);
 
-void mandar_a_swap(t_fila_tabla_pagina * pagina_a_swappear);
+void copiar_programa_nuevo_desde_buffer(int pid, t_programa_completo * buffer_nuevo_programa);
 
-void armar_pagina_completa(t_fila_tabla_pagina * pagina_a_swappear,t_pagina_completa * pagina_completa);
+void mandar_a_swap(int pid,int pagina,int id_mensaje);
 
 void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje);
 
@@ -198,5 +210,17 @@ void liberar_marcos(int pid);
 void respuesta_finalizar_programa(void *buffer,int id_mensaje);
 
 void test();
+
+void guardar_cant_entradas(int pid,int cant_pag);
+
+void marcar_todas_modificadas();
+
+void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje);
+
+void dump_tabla(int pid);
+
+void dump_contenido(int pid);
+
+void eliminar_programa_nuevo_en_buffer(int pid);
 
 #endif /* SRC_UMC_H_ */

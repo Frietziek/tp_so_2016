@@ -20,6 +20,12 @@ typedef struct {
 
 typedef struct {
 	int id_programa;
+	int nro_pagina_inicial;
+	char * contenido;
+} t_programa_para_escritura;
+
+typedef struct {
+	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;
@@ -39,6 +45,11 @@ typedef struct {
 	int socket_pedido;
 } t_pagina_completa;
 
+typedef struct {
+	int id_programa;
+	int paginas_requeridas;
+} t_programa_nuevo;
+
 t_buffer *serializar_programa(t_programa *programa);
 void deserializar_programa(void *buffer, t_programa *programa);
 
@@ -53,5 +64,11 @@ void deserializar_pagina_completa(void *buffer, t_pagina_completa *pagina);
 
 t_buffer *serializar_pagina_tamanio(t_pagina_tamanio *pagina_tamanio);
 void deserializar_pagina_tamanio(void *buffer, t_pagina_tamanio *pagina_tamanio);
+
+t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa);
+void deserializar_programa_nuevo(void *buffer, t_programa_nuevo *programa);
+
+t_buffer *serializar_programa_para_escritura(t_programa_para_escritura *programa);
+void deserializar_programa_para_escritura(void *buffer, t_programa_para_escritura *programa);
 
 #endif /* SERIALIZACION_UMC_H_ */
