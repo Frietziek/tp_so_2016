@@ -23,23 +23,7 @@
 #include "serializaciones_cpu.h"
 #include "funciones_comunes.h"
 #include "primitivas_ansisop.h"
-
-// Funciones globales de comunicacion
-#define MENSAJE_HANDSHAKE 0
-#define RESPUESTA_HANDSHAKE 10
-#define ERROR_HANDSHAKE 20
-
-// Funciones CPU - UMC
-#define MENSAJE_LEER_PAGINA 1
-#define MENSAJE_ESCRIBIR_PAGINA 2
-// Respuestas OK
-#define RESPUESTA_LEER_PAGINA 11
-#define RESPUESTA_ESCRIBIR_PAGINA 12
-// Respuestas Error
-#define ERROR_LEER_PAGINA 21
-#define ERROR_ESCRIBIR_PAGINA 22
-
-#define FIN_QUANTUM 0
+#include "mensajes_cpu.h"
 
 typedef struct {
 	char *ip_nucleo;
@@ -48,13 +32,13 @@ typedef struct {
 	int puerto_umc;
 } t_config_cpu;
 
-#define NEW 0
 int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
 
 t_pcb *crear_PCB(char *codigo_de_consola);
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 void inicio_seniales_semaforos();
+void cierro_cpu(t_config_cpu* configuracion);
 void inicio_variables_cpu();
 int conecto_con_nucleo(t_config_cpu* configuracion);
 int conecto_con_umc(t_config_cpu* configuracion);
@@ -71,6 +55,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo(int socket_servidor);
 void recibo_PCB(void *buffer);
 void enviar_PCB(int id_mensaje);
+void cambio_proceso_activo();
 void ejecuto_instrucciones();
 t_intructions *deserializo_instruccion(int pc);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);

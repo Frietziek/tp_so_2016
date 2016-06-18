@@ -50,6 +50,9 @@ typedef struct {
 	void *valor;
 	int socket_pedido;
 } t_pagina_completa;
+typedef struct {
+	int id_programa;
+} t_programa;
 
 // Funciones CPU - Nucleo
 t_buffer *serializar_variable(t_variable *variable);
@@ -65,6 +68,8 @@ void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida)
 t_buffer *serializar_semaforo(t_semaforo *semaforo);
 void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida);
 // Funciones CPU - UMC
+t_buffer *serializar_programa(t_programa *programa);
+void deserializar_programa(void *buffer, t_programa *programa);
 t_buffer *serializar_pagina(t_pagina *pagina);
 void deserializar_pagina(void *buffer, t_pagina *pagina);
 t_buffer *serializar_pagina_completa(t_pagina_completa *pagina);

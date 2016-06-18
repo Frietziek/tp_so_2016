@@ -26,10 +26,6 @@ AnSISOP_funciones functions = { .AnSISOP_definirVariable =
 AnSISOP_kernel kernel_functions = { .AnSISOP_wait = ansisop_wait,
 		.AnSISOP_signal = ansisop_signal };
 
-// Test para probar primitivas
-//static const char* DEFINICION_VARIABLES = "variables a, b, c";
-//static const char* ASIGNACION = "a = b + 12";
-
 int main(void) {
 
 	logger_manager = log_create("cpu.log", "CPU", true, LOG_LEVEL_TRACE); // Creo archivo de log
@@ -65,21 +61,16 @@ int main(void) {
 	pcb_quantum->pcb = pcb;
 	pcb_quantum->quantum = pcb_quantum->pcb->instrucciones_size - 1;
 
-	t_buffer *pcb_q = serializar_pcb_quantum(pcb_quantum);
+	t_buffer *pcb_buffer = serializar_pcb_quantum(pcb_quantum);
 
 	t_pcb_quantum *pcb2 = malloc(sizeof(t_pcb_quantum));
-	deserializar_pcb_quantum(pcb_q, pcb2);
+	deserializar_pcb_quantum(pcb_buffer, pcb2);
 	ejecuto_instrucciones();
 
 	sem_wait(&s_cpu_finaliza);
-	log_trace(logger_manager, "Cerrando CPU.");
 
-	log_destroy(logger_manager);
-	sem_destroy(&s_codigo);
-	sem_destroy(&s_cpu_finaliza);
-	free(pcb_quantum);
-	free(configuracion);
-	close(socket_umc);
+	cierro_cpu(configuracion);
+
 	return EXIT_SUCCESS;
 }
 
@@ -157,6 +148,7 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para la finalizacion de CPU
 	sem_init(&s_codigo, 0, 0); // Semaforo para pedido de lectura de codigo en UMC
 	sem_init(&s_instruccion_finalizada, 0, 0); // Semaforo para indicar inst fin con resp de UMC / Nucleo
+	sem_init(&s_cambio_proceso, 0, 0); // Semaforo para la confirmacion de cambio de Proceso de UMC
 	sem_init(&s_variable_stack, 0, 0); // Semaforo para pedido de lectura de variable en UMC
 	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
 	// Reservo memoria para Qunatum - PCB
@@ -165,6 +157,23 @@ void inicio_seniales_semaforos() {
 	wait_nucleo = 0;
 	// Inicio variable para que no mate al proceso
 	matar_proceso = 0;
+	// Inicio variable de Excepcion de UMC
+	excepcion_umc = 0;
+}
+
+void cierro_cpu(t_config_cpu* configuracion) {
+	log_trace(logger_manager, "Cerrando CPU.");
+	log_destroy(logger_manager);
+	sem_destroy(&s_cpu_finaliza);
+	sem_destroy(&s_codigo);
+	sem_destroy(&s_instruccion_finalizada);
+	sem_destroy(&s_cambio_proceso);
+	sem_destroy(&s_variable_stack);
+	sem_destroy(&s_variable_compartida);
+	free(pcb_quantum);
+	free(configuracion);
+	close(socket_umc);
+	close(socket_nucleo);
 }
 
 int conecto_con_nucleo(t_config_cpu* configuracion) {
@@ -216,6 +225,10 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
 		log_info(logger_manager, "Se escribio una pagina en UMC.");
+		break;
+	case RESPUESTA_CAMBIO_PROCESO_ACTIVO:
+		log_info(logger_manager, "La UMC confirmo cambio de proceso.");
+		sem_post(&s_cambio_proceso);
 		break;
 	case ERROR_HANDSHAKE:
 		log_error(logger_manager, "Error en Handshake con UMC.");
@@ -271,7 +284,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	case RESPUESTA_HANDSHAKE:
 		log_info(logger_manager, "Handshake recibido de Nucleo.");
 		break;
-	case MENSAJE_PCB:
+	case MENSAJE_PCB_NUCLEO:
 		log_info(logger_manager, "Recibo PCB de Nucleo.");
 		recibo_PCB(paquete->payload);
 		break;
@@ -349,6 +362,8 @@ void handshake_cpu_nucleo(int socket_servidor) {
 
 void recibo_PCB(void *buffer) {
 	deserializar_pcb_quantum(buffer, pcb_quantum);
+	cambio_proceso_activo();
+	sem_wait(&s_cambio_proceso);
 	ejecuto_instrucciones();
 }
 
@@ -358,12 +373,25 @@ void enviar_PCB(int id_mensaje) {
 			"Fallo al enviar PCB a Nucleo", buffer);
 }
 
+void cambio_proceso_activo() {
+	t_programa *p_programa = malloc(sizeof(t_programa));
+	p_programa->id_programa = pcb_quantum->pcb->pid;
+	t_buffer *buffer = serializar_programa(p_programa);
+
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
+	MENSAJE_CAMBIO_PROCESO_ACTIVO,
+			"Fallo al enviar cambio de proceso activo a UMC.", buffer);
+
+	free(p_programa);
+	free(buffer);
+}
+
 void ejecuto_instrucciones() {
 
 	fin_proceso = 0;
 
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
-			&& !matar_proceso) {
+			&& !matar_proceso && !excepcion_umc) {
 
 		/*leo_instruccion_desde_UMC(pcb_quantum->pcb);
 		 // Espero hasta que llega la pagina
@@ -400,6 +428,9 @@ void ejecuto_instrucciones() {
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;
 		matar_proceso = 0;
+	} else if (excepcion_umc) {
+		id_mensaje = MENSAJE_EXCEPCION_UMC;
+		excepcion_umc = 0;
 	} else {
 		id_mensaje = MENSAJE_QUANTUM;
 	}

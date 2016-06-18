@@ -57,6 +57,7 @@ typedef struct {
 // Semaforos para continuar proceso y finalizar
 sem_t s_codigo; // Para cuando pido lectura de codigo
 sem_t s_instruccion_finalizada; // Para esperar a recibir respuesta del UMC o Nucleo
+sem_t s_cambio_proceso; // Para esperar la confirmacion de cambio de UMC
 sem_t s_variable_stack; // Para cuando pido lectura de variable
 sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
 sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
@@ -66,6 +67,7 @@ int pagina_es_codigo; // 1 para codigo, 0 para valor int
 int wait_nucleo; // 1 para avisar que se mando wait al nucleo
 int matar_proceso; // 1 para avisar que mato al proceso
 int fin_proceso; // 1 para avisar que termino el proceso
+int excepcion_umc; // 1 para avisar que hubo un problema con la UMC
 
 // Codigo de prueba;
 char *codigo;

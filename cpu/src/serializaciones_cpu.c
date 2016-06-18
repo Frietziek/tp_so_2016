@@ -111,6 +111,22 @@ void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida) {
 			&posicion_buffer);
 }
 // Funciones CPU - UMC
+t_buffer *serializar_programa(t_programa *programa) {
+	int cantidad_a_reservar = sizeof(programa->id_programa);
+	void *buffer = malloc(cantidad_a_reservar);
+	int posicion_buffer = 0;
+	copiar_int_en_buffer(buffer, programa->id_programa, &posicion_buffer);
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+	estructura_buffer->contenido_buffer = buffer;
+	estructura_buffer->longitud_buffer = posicion_buffer;
+	return (estructura_buffer);
+}
+
+void deserializar_programa(void *buffer, t_programa *programa) {
+	int posicion_buffer = 0;
+	escribir_atributo_desde_int_de_buffer(buffer, &(programa->id_programa),
+			&posicion_buffer);
+}
 t_buffer *serializar_pagina(t_pagina *pagina) {
 	int cantidad_a_reservar = sizeof(pagina->id_programa)
 			+ sizeof(pagina->pagina) + sizeof(pagina->offset)
