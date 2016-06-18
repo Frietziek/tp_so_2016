@@ -124,10 +124,10 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 			break;
 
 
-
+		case MENSAJE_LEER_PAGINA_PARA_ESCRIBIR:
 		case MENSAJE_LEER_PAGINA:
 
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1] leer_pagina");
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1-6] leer_pagina");
 
 			t_pagina *pagina = malloc (sizeof (t_pagina));
 			t_buffer *t_buffers = malloc(sizeof(t_buffers));
@@ -136,10 +136,16 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 			retorno_de_funcion = leer_bytes_swap(pagina, t_buffers->contenido_buffer);
 			t_buffers->longitud_buffer = pagina->tamanio;
 
-			if (retorno_de_funcion != -1)
+			//Diferentes retornos de mensajes dependiendo de la situación. PD: Si quedó horrible pero el tiempo está en nuestra contra :P
+			if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA)
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA, t_buffers);
-			else
+			else if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA_PARA_ESCRIBIR)
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR, t_buffers);
+
+			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA)
 				enviar_header_al_UMC(socket_conexion, ERROR_LEER_PAGINA);
+			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA_PARA_ESCRIBIR)
+				enviar_header_al_UMC(socket_conexion, ERROR_LEER_PAGINA_PARA_ESCRIBIR);
 
 			free (pagina);
 			free (t_buffers);
@@ -147,19 +153,25 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 			break;
 
 
-
+		case MENSAJE_ESCRIBIR_PAGINA_NUEVA:
 		case MENSAJE_ESCRIBIR_PAGINA:
 
-			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 2] escribir_pagina");
+			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 2-7] escribir_pagina");
 			t_pagina_completa *pagina_completa = malloc (sizeof (t_pagina_completa));
 			deserializar_pagina_completa(paquete->payload , pagina_completa);
 
 			retorno_de_funcion = escribir_bytes_swap(pagina_completa);
 
-			if (retorno_de_funcion != -1)
+			//Diferentes retornos de mensajes dependiendo de la situación. PD: Si quedó horrible pero el tiempo está en nuestra contra :P
+			if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA)
 				enviar_header_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA);
-			else
+			else if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA_NUEVA)
+				enviar_header_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA_NUEVA);
+
+			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA)
 				enviar_header_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA);
+			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA_NUEVA)
+				enviar_header_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA_NUEVA);
 
 			free (pagina_completa);
 
