@@ -9,7 +9,7 @@
 #define COMUNICACIONES_CPU_H_
 
 #include <serializacion.h>
-#include "semaforo_sockets_cpu.h"
+#include "funciones_comunes.h"
 
 // Envio buffer y header a Procesos
 void envio_header_a_proceso(int socket_proceso, int proceso_receptor,

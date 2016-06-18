@@ -13,7 +13,7 @@
 #include "comunicaciones_cpu.h"
 #include "semaphore.h"
 #include "serializaciones_cpu.h"
-#include "semaforo_sockets_cpu.h"
+#include "funciones_comunes.h"
 
 // Funciones CPU - UMC
 #define MENSAJE_LEER_PAGINA 1
@@ -30,8 +30,8 @@
 #define MENSAJE_QUANTUM 8
 #define MENSAJE_PROGRAMA_FINALIZADO 9
 // Respuestas OK
-#define RESPUESTA_OBTENER_VALOR_COMPARTIDA 11
-#define RESPUESTA_ASIGNAR_VARIABLE_COMPARTIDA 12
+#define RESPUESTA_LEER_COMPARTIDA 11
+#define RESPUESTA_ESCRIBIR_COMPARTIDA 12
 #define RESPUESTA_IMPRIMIR 13
 #define RESPUESTA_IMPRIMIR_TEXTO 14
 #define RESPUESTA_ENTRADA_SALIDA 15
@@ -48,8 +48,8 @@
 #define RESPUESTA_QUANTUM 18
 #define RESPUESTA_PROGRAMA_FINALIZADO 19
 // Respuestas Error
-#define ERROR_OBTENER_VALOR_COMPARTIDA 21
-#define ERROR_ASIGNAR_VARIABLE_COMPARTIDA 22
+#define ERROR_LEER_COMPARTIDA 21
+#define ERROR_ESCRIBIR_COMPARTIDA 22
 #define ERROR_IMPRIMIR 23
 #define ERROR_IMPRIMIR_TEXTO 24
 #define ERROR_ENTRADA_SALIDA 25
@@ -67,6 +67,8 @@
 #define ERROR_PCB 21
 #define ERROR_MATAR 22
 
+#define VACIO 0
+
 t_puntero ansisop_definir_variable(t_nombre_variable identificador_variable);
 t_puntero ansisop_obtener_posicion_variable(
 		t_nombre_variable indentificador_variable);
@@ -79,6 +81,8 @@ void ansisop_ir_a_label(t_nombre_etiqueta etiqueta);
 t_puntero_instruccion ansisop_llamar_funcion(t_nombre_etiqueta etiqueta,
 		t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion);
 void ansisop_retornar(t_valor_variable retorno);
+void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta, t_puntero donde_retornar);
+void ansisop_finalizar();
 void ansisop_imprimir(t_valor_variable valor_mostrar);
 void ansisop_imprimir_texto(char* texto);
 void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo);

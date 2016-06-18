@@ -18,7 +18,9 @@ AnSISOP_funciones functions = { .AnSISOP_definirVariable =
 		.AnSISOP_obtenerValorCompartida = ansisop_obtener_valor_compartida,
 		.AnSISOP_asignarValorCompartida = ansisop_asignar_valor_compartida,
 		.AnSISOP_irAlLabel = ansisop_ir_a_label, .AnSISOP_retornar =
-				ansisop_retornar, .AnSISOP_imprimir = ansisop_imprimir,
+				ansisop_retornar, .AnSISOP_llamarConRetorno =
+				ansisop_llamar_con_retorno, .AnSISOP_finalizar =
+				ansisop_finalizar, .AnSISOP_imprimir = ansisop_imprimir,
 		.AnSISOP_imprimirTexto = ansisop_imprimir_texto,
 		.AnSISOP_entradaSalida = ansisop_entrada_salida };
 AnSISOP_kernel kernel_functions = { .AnSISOP_wait = ansisop_wait,
@@ -42,8 +44,6 @@ int main(void) {
 
 	socket_nucleo = conecto_con_nucleo(configuracion);
 
-	// TODO Incrementar registro Program Counter en PCB
-
 	socket_umc = conecto_con_umc(configuracion);
 
 	// Test para probar primitivas
@@ -53,28 +53,27 @@ int main(void) {
 	//printf("Ejecutando '%s'\n", ASIGNACION);
 	//analizadorLinea(strdup(ASIGNACION), &functions, &kernel_functions);
 
-	// TODO Actualizar PC en PCB
-	// TODO Notificar al nucleo que termino el Quantum
+	//codigo ="function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,A,g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\nf = 8\t  \n    g <- doble !Global\t\n    io impresora 20\n\t:Siguiente\t\n    imprimir A\n    textPrint    Hola Mundo!\n    \n    sumar1 &g\t\t\n    print \t\tg    \n    \n    sinParam\n    \nend\nfunction sinParam\n\ttextPrint Bye\nend\n\n#Devolver el doble del\n#primer parametro\nfunction doble\nvariables f\n    f = $0 + $0\n    return f\nend\n\nfunction sumar1\n\t*$0 = 1 + *$0\nend";
+	codigo =
+			"function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
+	//codigo = "begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend";
+	//codigo = "begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
+	//codigo = "begin\nend";
 
-	//char *codigo =
-	//		"function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,  A,  g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\n\t\n    f = 8\t  \n";
-	//char *codigo = "function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
-	char *codigo =
-			"begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
-	//t_pcb *pcb = crear_PCB(codigo);
-	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
-	//pcb_quantum->pcb = pcb;
-	pcb_quantum->quantum = 1;
+	t_pcb *pcb = crear_PCB(codigo);
+	pcb_quantum = malloc(sizeof(t_pcb_quantum));
+	pcb_quantum->pcb = pcb;
+	pcb_quantum->quantum = pcb_quantum->pcb->instrucciones_size;
 
 	//t_buffer *pcb_q = serializar_pcb_quantum(pcb_quantum);
 
-	ejecuto_instrucciones(pcb_quantum);
+	ejecuto_instrucciones();
 
 	sem_wait(&s_cpu_finaliza);
 	log_trace(logger_manager, "Cerrando CPU.");
 
 	log_destroy(logger_manager);
-	sem_destroy(&s_pagina);
+	sem_destroy(&s_codigo);
 	sem_destroy(&s_cpu_finaliza);
 	free(pcb_quantum);
 	free(configuracion);
@@ -83,40 +82,40 @@ int main(void) {
 }
 
 t_pcb *crear_PCB(char *codigo_de_consola) {
+
 	t_metadata_program *metadata = malloc(sizeof(t_metadata_program));
 	metadata = metadata_desde_literal(codigo_de_consola);
-	t_pcb *pcb = malloc(sizeof(t_pcb));
-	pcb->instrucciones_size = metadata->instrucciones_size;
-	/*pcb->instrucciones_serializadas = malloc(
-	 sizeof(t_intructions) * pcb->instrucciones_size);*/
-	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;
 
-	pcb->estado = NEW;
+	t_pcb *pcb = malloc(sizeof(t_pcb));
+	pcb->pid = 1;
+	pcb->pc = metadata->instruccion_inicio;
 	pcb->cant_paginas_codigo_stack = obtener_cantidad_paginas_codigo_stack(
 			codigo_de_consola);
-	pcb->pc = 0;
-	pcb->etiquetas = "hola";
-	//pcb->etiquetas_size = metadata->etiquetas_size;
-	pcb->stack_size_actual = 1;
-	pcb->indice_stack = malloc(sizeof(t_indice_stack));
-	pcb->indice_stack[0]->posicion_retorno = 2;
-	pcb->indice_stack[0]->posicion_variable_retorno = malloc(
-			sizeof(t_posicion_memoria));
-	pcb->indice_stack[0]->posicion_variable_retorno->offset = 4;
-	pcb->indice_stack[0]->posicion_variable_retorno->pagina = 4;
-	pcb->indice_stack[0]->posicion_variable_retorno->size = 4;
-	pcb->indice_stack[0]->argumentos = malloc(sizeof(t_posicion_memoria) * 1);
-	pcb->indice_stack[0]->argumentos[0]->offset = 4;
-	pcb->indice_stack[0]->argumentos[0]->pagina = 4;
-	pcb->indice_stack[0]->argumentos[0]->size = 4;
-	pcb->indice_stack[0]->variables = malloc(sizeof(t_variables_stack) * 1);
-	pcb->indice_stack[0]->variables[0]->id = 1;
-	pcb->indice_stack[0]->variables[0]->posicion_memoria->offset = 2;
-	pcb->indice_stack[0]->variables[0]->posicion_memoria->pagina = 2;
-	pcb->indice_stack[0]->variables[0]->posicion_memoria->size = 2;
-	pcb->stack_size_maximo = 10;
+	pcb->estado = NEW;
 	pcb->stack_position = strlen(codigo_de_consola);
-	pcb->pid = 1;
+	pcb->stack_pointer = pcb->stack_position;
+	pcb->etiquetas_size = metadata->etiquetas_size;
+	pcb->etiquetas = metadata->etiquetas;
+	pcb->instrucciones_size = metadata->instrucciones_size;
+	pcb->instrucciones_serializadas = malloc(
+			sizeof(t_intructions) * pcb->instrucciones_size);
+	int instruccion;
+	for (instruccion = 0; instruccion < pcb->instrucciones_size;
+			++instruccion) {
+
+		pcb->instrucciones_serializadas[instruccion] = malloc(
+				sizeof(t_intructions));
+
+		t_intructions *puntero_instruccion =
+				&(metadata->instrucciones_serializado[instruccion]);
+
+		pcb->instrucciones_serializadas[instruccion]->start =
+				puntero_instruccion->start;
+		pcb->instrucciones_serializadas[instruccion]->offset =
+				puntero_instruccion->offset;
+
+	}
+	pcb->stack_size = 0;
 
 	return pcb;
 }
@@ -156,10 +155,17 @@ void inicio_seniales_semaforos() {
 	// Funcion para atender seniales
 	signal(SIGUSR1, atender_seniales);
 	// Inicio semaforos
-	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para el funcionamiento de CPU
-	sem_init(&s_pagina, 0, 0); // Semaforo para pedido de lectura de UMC
+	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para la finalizacion de CPU
+	sem_init(&s_codigo, 0, 0); // Semaforo para pedido de lectura de codigo en UMC
+	sem_init(&s_instruccion_finalizada, 0, 0); // Semaforo para indicar inst fin con resp de UMC / Nucleo
+	sem_init(&s_variable_stack, 0, 0); // Semaforo para pedido de lectura de variable en UMC
+	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
+	// Inicio variable para instruccion wait de ansisop
+	wait_nucleo = 0;
+	// Inicio variable para que no mate al proceso
+	matar_proceso = 0;
 }
 
 int conecto_con_nucleo(t_config_cpu* configuracion) {
@@ -199,7 +205,6 @@ void atender_seniales(int signum) {
 }
 
 // Funciones CPU - UMC
-
 void atender_umc(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
 	case RESPUESTA_HANDSHAKE:
@@ -218,11 +223,13 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case ERROR_LEER_PAGINA:
 		log_error(logger_manager, "Error en lectura de pagina de UMC.");
-		// TODO Terminar funcion
+		envio_excepcion_nucleo(ERROR_LEER_PAGINA,
+				"Error en lectura de pagina de UMC.");
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
 		log_error(logger_manager, "Error en escritura de pagina en UMC.");
-		// TODO Termianr funcion
+		envio_excepcion_nucleo(ERROR_ESCRIBIR_PAGINA,
+				"Error en escritura de pagina en UMC.");
 		break;
 	default:
 		log_warning(logger_manager, "Comando no reconocido de UMC.");
@@ -252,7 +259,11 @@ void respuesta_leer_pagina(void *buffer) {
 	valor_pagina = malloc(pagina->tamanio);
 	size_pagina = pagina->tamanio;
 	memcpy(valor_pagina, pagina->valor, pagina->tamanio);
-	sem_post(&s_pagina);
+	if (pagina_es_codigo) {
+		sem_post(&s_codigo);
+	} else {
+		sem_post(&s_variable_stack);
+	}
 }
 
 // Funciones CPU - Nucleo
@@ -262,14 +273,69 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		log_info(logger_manager, "Handshake recibido de Nucleo.");
 		break;
 	case MENSAJE_PCB:
-		log_info(logger_manager, "Recibo PCB.");
+		log_info(logger_manager, "Recibo PCB de Nucleo.");
 		recibo_PCB(paquete->payload);
+		break;
+	case MENSAJE_MATAR:
+		log_info(logger_manager, "Recibo matar de Nucleo.");
+		matar_proceso = 1;
+		break;
+	case RESPUESTA_LEER_COMPARTIDA:
+		log_info(logger_manager, "Recibo variable compartida de Nucleo.");
+		sem_post(&s_variable_compartida);
+		break;
+	case RESPUESTA_ESCRIBIR_COMPARTIDA:
+		log_info(logger_manager, "Se escribio variable compartida en Nucleo.");
+		break;
+	case RESPUESTA_IMPRIMIR:
+		log_info(logger_manager, "Se imprimio variable en Nucleo.");
+		break;
+	case RESPUESTA_IMPRIMIR_TEXTO:
+		log_info(logger_manager, "Se imprimio texto en Nucleo.");
+		break;
+	case RESPUESTA_ENTRADA_SALIDA:
+		log_info(logger_manager, "Recibi respuesta de IO de Nucleo.");
+		break;
+	case RESPUESTA_WAIT:
+		log_info(logger_manager, "Recibi wait y envio PCB a Nucleo.");
+		enviar_PCB(RESPUESTA_PCB);
+		break;
+	case RESPUESTA_SEGUI_RAFAGA:
+		log_info(logger_manager, "Continuo con mi rafaga actual.");
+		sem_post(&s_instruccion_finalizada);
+		break;
+	case RESPUESTA_SIGNAL:
+		log_info(logger_manager, "Recibi respuesta de signal de Nucleo.");
+		break;
+	case RESPUESTA_QUANTUM:
+		log_info(logger_manager, "Recibi respuesta de quantum de Nucleo.");
 		break;
 	case ERROR_HANDSHAKE:
 		log_error(logger_manager, "Error en Handshake con el Nucleo.");
 		break;
-	case ERROR_PCB:
-		log_error(logger_manager, "Error al recibir PCB del Nucleo.");
+	case ERROR_LEER_COMPARTIDA:
+		log_error(logger_manager, "Error al leer var compartida de Nucleo.");
+		break;
+	case ERROR_ESCRIBIR_COMPARTIDA:
+		log_error(logger_manager, "Error al escribir var comp de Nucleo.");
+		break;
+	case ERROR_IMPRIMIR:
+		log_error(logger_manager, "Error al imprimir variable en Nucleo.");
+		break;
+	case ERROR_IMPRIMIR_TEXTO:
+		log_error(logger_manager, "Error al imprimir texto en Nucleo.");
+		break;
+	case ERROR_ENTRADA_SALIDA:
+		log_error(logger_manager, "Error al recibir IO de Nucleo.");
+		break;
+	case ERROR_WAIT:
+		log_error(logger_manager, "Error al recibir Wait de Nucleo.");
+		break;
+	case ERROR_SIGNAL:
+		log_error(logger_manager, "Error al recibir Signal de Nucleo.");
+		break;
+	case ERROR_QUANTUM:
+		log_error(logger_manager, "Error al recibir quantum de Nucleo.");
 		break;
 	default:
 		log_warning(logger_manager, "Comando no reconocido de Nucleo.");
@@ -278,35 +344,72 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 }
 
 void handshake_cpu_nucleo(int socket_servidor) {
-
 	envio_header_a_proceso(socket_servidor, PROCESO_NUCLEO, MENSAJE_HANDSHAKE,
 			"Fallo al enviar Handshake al Nucleo.");
-
 }
 
 void recibo_PCB(void *buffer) {
 	deserializar_pcb_quantum(buffer, pcb_quantum);
-	ejecuto_instrucciones(pcb_quantum);
+	ejecuto_instrucciones();
 }
 
-void ejecuto_instrucciones(t_pcb_quantum *pcb_quantum) {
-	// TODO Fijarse que pasa cuando hace wait
-	while (pcb_quantum->quantum != FIN_QUANTUM) {
+void enviar_PCB(int id_mensaje) {
+	void *buffer = serializar_pcb_quantum(pcb_quantum);
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
+			"Fallo al enviar PCB a Nucleo", buffer);
+}
 
-		leo_instruccion_desde_UMC(pcb_quantum->pcb);
-		// Espero hasta que llega la pagina
-		sem_wait(&s_pagina);
+void ejecuto_instrucciones() {
 
-		char instruccion_a_ejecutar[size_pagina + 1];
-		memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina);
-		instruccion_a_ejecutar[size_pagina] = '\0';
+	int fin_proceso = 0;
+
+	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
+			&& !matar_proceso) {
+
+		/*leo_instruccion_desde_UMC(pcb_quantum->pcb);
+		 // Espero hasta que llega la pagina
+		 sem_wait(&s_codigo);
+
+		 char instruccion_a_ejecutar[size_pagina + 1];
+		 memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina);
+		 instruccion_a_ejecutar[size_pagina] = '\0';*/
+		char *instruccion_a_ejecutar =
+				malloc(
+						pcb_quantum->pcb->instrucciones_serializadas[pcb_quantum->pcb->pc]->offset
+								- 1);
+		memcpy(instruccion_a_ejecutar,
+				codigo
+						+ pcb_quantum->pcb->instrucciones_serializadas[pcb_quantum->pcb->pc]->start,
+				pcb_quantum->pcb->instrucciones_serializadas[pcb_quantum->pcb->pc]->offset
+						- 1);
+		instruccion_a_ejecutar[pcb_quantum->pcb->instrucciones_serializadas[pcb_quantum->pcb->pc]->offset
+				- 1] = '\0';
 		log_info(logger_manager, "Instruccion a ejecutar: %s",
 				instruccion_a_ejecutar);
 		analizadorLinea(strdup(instruccion_a_ejecutar), &functions,
 				&kernel_functions);
 
+		sem_wait(&s_instruccion_finalizada);
+
+		log_info(logger_manager, "Instruccion terminada.");
+
+		++pcb_quantum->pcb->pc;
 		--pcb_quantum->quantum;
 	}
+
+	int id_mensaje;
+
+	if (wait_nucleo) {
+		id_mensaje = MENSAJE_WAIT;
+		wait_nucleo = 0;
+	} else if (matar_proceso) {
+		id_mensaje = RESPUESTA_MATAR;
+		matar_proceso = 0;
+	} else {
+		id_mensaje = MENSAJE_QUANTUM;
+	}
+
+	enviar_PCB(id_mensaje);
 }
 
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
@@ -321,29 +424,17 @@ void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
 	free(buffer);
 }
 
-// TODO Verificar que funciona correctamente
-int calcula_pagina(t_puntero_instruccion *instruccion) {
-	int modulo = (int) (instruccion) % tamanio_pagina;
-	int division = (int) (instruccion) / tamanio_pagina;
-	if (modulo != 0) {
-		++division;
-	}
-	return division;
-}
-
 void leo_instruccion_desde_UMC(t_pcb *pcb) {
-	// TODO Pido lectura de pagina a la UMC para ejecutar Instruccion
 
 	t_pagina *p_pagina = malloc(sizeof(t_pagina));
-	p_pagina->pagina = 0;
-	p_pagina->offset = 10;
-	p_pagina->tamanio = 14;
-	/*p_pagina->pagina = calcula_pagina(
-	 pcb->instrucciones_serializadas[pcb->pc]->start);
-	 p_pagina->offset = pcb->instrucciones_serializadas[pcb->pc]->start;
-	 p_pagina->tamanio = pcb->instrucciones_serializadas[pcb->pc]->offset;*/
+	p_pagina->pagina = calcula_pagina(
+			pcb->instrucciones_serializadas[pcb->pc]->start);
+	p_pagina->offset = pcb->instrucciones_serializadas[pcb->pc]->start;
+	p_pagina->tamanio = pcb->instrucciones_serializadas[pcb->pc]->offset;
 	p_pagina->socket_pedido = socket_umc;
 	t_buffer *buffer = serializar_pagina(p_pagina);
+
+	pagina_es_codigo = 1;
 
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
 			"Fallo al enviar lectura de pagina a UMC.", buffer);
@@ -354,39 +445,37 @@ void leo_instruccion_desde_UMC(t_pcb *pcb) {
 
 t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 
-	// TODO Fijarse como armar la funcion para que reserve el espacio para los argumentos y variables
-
 	int cantidad_a_reservar = sizeof(pcb_quantum->quantum)
 			+ sizeof(pcb_quantum->pcb->pid) + sizeof(pcb_quantum->pcb->pc)
 			+ sizeof(pcb_quantum->pcb->cant_paginas_codigo_stack)
 			+ sizeof(pcb_quantum->pcb->estado)
-			+ sizeof(pcb_quantum->pcb->stack_size_maximo)
-			+ sizeof(pcb_quantum->pcb->stack_position) + sizeof(int)
+			+ sizeof(pcb_quantum->pcb->stack_position)
+			+ sizeof(pcb_quantum->pcb->stack_pointer)
+			+ sizeof(pcb_quantum->pcb->etiquetas_size) + sizeof(int)
 			+ strlen(pcb_quantum->pcb->etiquetas)
 			+ sizeof(pcb_quantum->pcb->instrucciones_size)
-			+ sizeof(pcb_quantum->pcb->instrucciones_serializadas)
-					* pcb_quantum->pcb->instrucciones_size
-			+ sizeof(pcb_quantum->pcb->stack_size_actual)
-			+ sizeof(pcb_quantum->pcb->indice_stack)
-					* pcb_quantum->pcb->stack_size_actual; // Cantidad variables + Cantidad argumentos
+			+ pcb_quantum->pcb->instrucciones_size * sizeof(t_intructions)
+			+ sizeof(pcb_quantum->pcb->stack_size)
+			+ pcb_quantum->pcb->stack_size * sizeof(t_indice_stack);
+
 	void *buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
 
 	copiar_int_en_buffer(buffer, pcb_quantum->quantum, &posicion_buffer);
-
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->pid, &posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->pc, &posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->cant_paginas_codigo_stack,
 			&posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->estado, &posicion_buffer);
-	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size_maximo,
-			&posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_position,
+			&posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_pointer,
+			&posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb_quantum->pcb->etiquetas_size,
 			&posicion_buffer);
 	copiar_string_en_buffer(buffer, pcb_quantum->pcb->etiquetas,
 			&posicion_buffer);
-
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->instrucciones_size,
 			&posicion_buffer);
 	int i_instrucciones;
@@ -400,67 +489,74 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 				pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->start,
 				&posicion_buffer);
 	}
-
-	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size_actual,
+	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size,
 			&posicion_buffer);
 	int i_stack;
-	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size_actual;
-			++i_stack) {
-		copiar_int_en_buffer(buffer,
-				pcb_quantum->pcb->indice_stack[i_stack]->posicion_retorno,
+	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+		t_indice_stack *indice_stack = pcb_quantum->pcb->indice_stack;
+		indice_stack += i_stack;
+
+		copiar_int_en_buffer(buffer, indice_stack->posicion_retorno,
 				&posicion_buffer);
 		copiar_int_en_buffer(buffer,
-				pcb_quantum->pcb->indice_stack[i_stack]->posicion_variable_retorno->offset,
+				indice_stack->posicion_variable_retorno->offset,
 				&posicion_buffer);
 		copiar_int_en_buffer(buffer,
-				pcb_quantum->pcb->indice_stack[i_stack]->posicion_variable_retorno->pagina,
+				indice_stack->posicion_variable_retorno->pagina,
 				&posicion_buffer);
 		copiar_int_en_buffer(buffer,
-				pcb_quantum->pcb->indice_stack[i_stack]->posicion_variable_retorno->size,
+				indice_stack->posicion_variable_retorno->size,
 				&posicion_buffer);
 
-		int cant_argumentos =
-				sizeof(pcb_quantum->pcb->indice_stack[i_stack]->argumentos);
+		buffer = realloc(buffer, sizeof(int));
 
-		copiar_int_en_buffer(buffer, cant_argumentos, &posicion_buffer);
+		copiar_int_en_buffer(buffer, indice_stack->cantidad_argumentos,
+				&posicion_buffer);
 		int i_argumentos;
-		for (i_argumentos = 0; i_argumentos < cant_argumentos; ++i_argumentos) {
+		for (i_argumentos = 0; i_argumentos < indice_stack->cantidad_argumentos;
+				++i_argumentos) {
 
-			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->argumentos[i_argumentos]->offset,
+			t_posicion_memoria *indice_argumento = indice_stack->argumentos;
+			indice_argumento += i_argumentos;
+
+			buffer = realloc(buffer, sizeof(t_posicion_memoria));
+
+			copiar_int_en_buffer(buffer, indice_argumento->offset,
 					&posicion_buffer);
-			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->argumentos[i_argumentos]->pagina,
+			copiar_int_en_buffer(buffer, indice_argumento->pagina,
 					&posicion_buffer);
-			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->argumentos[i_argumentos]->size,
+			copiar_int_en_buffer(buffer, indice_argumento->size,
 					&posicion_buffer);
 
 		}
 
-		int cant_variables =
-				sizeof(pcb_quantum->pcb->indice_stack[i_stack]->variables);
-		copiar_int_en_buffer(buffer, cant_variables, &posicion_buffer);
-		int i_variables;
-		for (i_variables = 0; i_variables < cant_variables; ++i_variables) {
+		buffer = realloc(buffer, sizeof(int));
 
-			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->id,
+		copiar_int_en_buffer(buffer, indice_stack->cantidad_variables,
+				&posicion_buffer);
+		int i_variables;
+		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+				++i_variables) {
+
+			t_variables_stack *indice_variables = indice_stack->variables;
+			indice_variables += i_variables;
+
+			buffer = realloc(buffer, sizeof(t_variables_stack));
+
+			copiar_char_en_buffer(buffer, indice_variables->id,
 					&posicion_buffer);
 			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->posicion_memoria->offset,
+					indice_variables->posicion_memoria->offset,
 					&posicion_buffer);
 			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->posicion_memoria->pagina,
+					indice_variables->posicion_memoria->pagina,
 					&posicion_buffer);
 			copiar_int_en_buffer(buffer,
-					pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->posicion_memoria->size,
-					&posicion_buffer);
+					indice_variables->posicion_memoria->size, &posicion_buffer);
 
 		}
 
 	}
-
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 	estructura_buffer->contenido_buffer = buffer;
 	estructura_buffer->longitud_buffer = posicion_buffer;
@@ -483,13 +579,15 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 	escribir_atributo_desde_int_de_buffer(buffer, &(pcb_quantum->pcb->estado),
 			&posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,
-			&(pcb_quantum->pcb->stack_size_maximo), &posicion_buffer);
-	escribir_atributo_desde_int_de_buffer(buffer,
 			&(pcb_quantum->pcb->stack_position), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(pcb_quantum->pcb->stack_pointer), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(pcb_quantum->pcb->etiquetas_size), &posicion_buffer);
 	escribir_atributo_desde_string_de_buffer(buffer,
 			&(pcb_quantum->pcb->etiquetas), &posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,
-			&(pcb_quantum->pcb->instrucciones_size), &posicion_buffer);
+			(int*) &(pcb_quantum->pcb->instrucciones_size), &posicion_buffer);
 	int i_instrucciones;
 	pcb_quantum->pcb->instrucciones_serializadas = malloc(
 			sizeof(t_intructions) * pcb_quantum->pcb->instrucciones_size);
@@ -497,78 +595,82 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 			i_instrucciones < pcb_quantum->pcb->instrucciones_size;
 			++i_instrucciones) {
 		escribir_atributo_desde_int_de_buffer(buffer,
-				&(pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->offset),
+				(int*) &(pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->offset),
 				&posicion_buffer);
 		escribir_atributo_desde_int_de_buffer(buffer,
-				&(pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->start),
+				(int*) &(pcb_quantum->pcb->instrucciones_serializadas[i_instrucciones]->start),
 				&posicion_buffer);
 	}
 
 	escribir_atributo_desde_int_de_buffer(buffer,
-			&(pcb_quantum->pcb->stack_size_actual), &posicion_buffer);
+			&(pcb_quantum->pcb->stack_size), &posicion_buffer);
 	int i_stack;
 	pcb_quantum->pcb->indice_stack = malloc(
-			sizeof(t_indice_stack) * pcb_quantum->pcb->stack_size_actual);
-	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size_actual;
-			++i_stack) {
+			sizeof(t_indice_stack) * pcb_quantum->pcb->stack_size);
+	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+		t_indice_stack *indice_stack = pcb_quantum->pcb->indice_stack;
+		indice_stack += i_stack;
 		escribir_atributo_desde_int_de_buffer(buffer,
-				&(pcb_quantum->pcb->indice_stack[i_stack]->posicion_retorno),
+				&(indice_stack->posicion_retorno), &posicion_buffer);
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(indice_stack->posicion_variable_retorno->offset),
 				&posicion_buffer);
 		escribir_atributo_desde_int_de_buffer(buffer,
-				&(pcb_quantum->pcb->indice_stack[i_stack]->posicion_variable_retorno->offset),
+				&(indice_stack->posicion_variable_retorno->pagina),
 				&posicion_buffer);
 		escribir_atributo_desde_int_de_buffer(buffer,
-				&(pcb_quantum->pcb->indice_stack[i_stack]->posicion_variable_retorno->pagina),
-				&posicion_buffer);
-		escribir_atributo_desde_int_de_buffer(buffer,
-				&(pcb_quantum->pcb->indice_stack[i_stack]->posicion_variable_retorno->size),
+				&(indice_stack->posicion_variable_retorno->size),
 				&posicion_buffer);
 
-		int cant_argumentos;
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(indice_stack->cantidad_argumentos), &posicion_buffer);
+		if (indice_stack->cantidad_argumentos > 0) {
 
-		escribir_atributo_desde_int_de_buffer(buffer, &cant_argumentos,
-				&posicion_buffer);
-		if (cant_argumentos > 0) {
-
-			pcb_quantum->pcb->indice_stack[i_stack]->argumentos = malloc(
-					sizeof(t_posicion_memoria) * cant_argumentos);
+			indice_stack->argumentos = malloc(
+					sizeof(t_posicion_memoria)
+							* indice_stack->cantidad_argumentos);
 
 			int i_argumentos;
-			for (i_argumentos = 0; i_argumentos < cant_argumentos;
+			for (i_argumentos = 0;
+					i_argumentos < indice_stack->cantidad_argumentos;
 					++i_argumentos) {
 
+				t_posicion_memoria *indice_argumentos = indice_stack->argumentos;
+				indice_argumentos += i_argumentos;
+
 				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->argumentos[i_argumentos]->offset),
-						&posicion_buffer);
+						&(indice_argumentos->offset), &posicion_buffer);
 				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->argumentos[i_argumentos]->pagina),
-						&posicion_buffer);
+						&(indice_argumentos->pagina), &posicion_buffer);
 				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->argumentos[i_argumentos]->size),
-						&posicion_buffer);
+						&(indice_argumentos->size), &posicion_buffer);
 
 			}
 		}
-		int cant_variables;
-		escribir_atributo_desde_int_de_buffer(buffer, &cant_variables,
-				&posicion_buffer);
-		if (cant_variables > 0) {
-			pcb_quantum->pcb->indice_stack[i_stack]->variables = malloc(
-					sizeof(t_variables_stack) * cant_variables);
+		escribir_atributo_desde_int_de_buffer(buffer,
+				&(indice_stack->cantidad_variables), &posicion_buffer);
+		if (indice_stack->cantidad_variables > 0) {
+			indice_stack->variables = malloc(
+					sizeof(t_variables_stack)
+							* indice_stack->cantidad_variables);
 			int i_variables;
-			for (i_variables = 0; i_variables < cant_variables; ++i_variables) {
+			for (i_variables = 0;
+					i_variables < indice_stack->cantidad_variables;
+					++i_variables) {
 
+				t_variables_stack *indice_variables = indice_stack->variables;
+				indice_variables += i_variables;
+
+				escribir_atributo_desde_char_de_buffer(buffer,
+						&(indice_variables->id), &posicion_buffer);
 				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->id),
+						&(indice_variables->posicion_memoria->offset),
 						&posicion_buffer);
 				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->posicion_memoria->offset),
+						&(indice_variables->posicion_memoria->pagina),
 						&posicion_buffer);
 				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->posicion_memoria->pagina),
-						&posicion_buffer);
-				escribir_atributo_desde_int_de_buffer(buffer,
-						&(pcb_quantum->pcb->indice_stack[i_stack]->variables[i_variables]->posicion_memoria->size),
+						&(indice_variables->posicion_memoria->size),
 						&posicion_buffer);
 
 			}
@@ -577,5 +679,4 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 
 }
 
-// TODO Hacer funcion quantum, mandar PCB actualizado al Nucleo
 // {}[]

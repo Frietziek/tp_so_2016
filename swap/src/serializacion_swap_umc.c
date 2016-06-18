@@ -8,7 +8,7 @@
 #include "serializacion_swap_umc.h"
 
 
-t_buffer *serializar_programa_completo(t_programa_completo *programa) {
+/*t_buffer *serializar_programa_completo(t_programa_completo *programa) {
 
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 
@@ -41,6 +41,32 @@ void deserializar_programa_completo(void *buffer, t_programa_completo *programa)
 			&(programa->paginas_requeridas), &posicion_buffer);
 	escribir_atributo_desde_string_de_buffer(buffer, &(programa->codigo),
 			&posicion_buffer);
+
+}*/
+
+t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa) {
+
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+
+	int cantidad_a_reservar = sizeof(programa->id_programa) + sizeof(programa->paginas_requeridas);
+
+	estructura_buffer->longitud_buffer = cantidad_a_reservar;
+
+	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
+
+	int posicion_buffer = 0;
+
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer, programa->id_programa, &posicion_buffer);
+	copiar_int_en_buffer(estructura_buffer->contenido_buffer, programa->paginas_requeridas, &posicion_buffer);
+	return (estructura_buffer);
+}
+
+void deserializar_programa_completo(void *buffer, t_programa_nuevo *programa) {
+
+	int posicion_buffer = 0;
+
+	escribir_atributo_desde_int_de_buffer(buffer, &(programa->id_programa), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(programa->paginas_requeridas), &posicion_buffer);
 
 }
 
