@@ -7,38 +7,14 @@
 
 #include "primitivas_ansisop.h"
 
-static const int POSICION_MEMORIA = 0x10;
-
 t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 	log_info(logger_manager, "Se define la variable %c.", variable);
 
-	t_pcb *pcb = pcb_quantum->pcb;
+	t_indice_stack* indice_stack = posiciono_indice_stack();
 
-	if (pcb_quantum->pcb->stack_size == VACIO) {
-		pcb_quantum->pcb->indice_stack = malloc(sizeof(t_indice_stack));
-		contexto_actual = 0;
-		pcb_quantum->pcb->indice_stack->cantidad_argumentos = 0;
-		pcb_quantum->pcb->indice_stack->cantidad_variables = 0;
-		pcb_quantum->pcb->indice_stack->argumentos = malloc(
-				sizeof(t_posicion_memoria));
-		pcb_quantum->pcb->indice_stack->posicion_variable_retorno = malloc(
-				sizeof(t_posicion_memoria));
-		pcb_quantum->pcb->indice_stack->posicion_retorno = 0;
-		++pcb_quantum->pcb->stack_size;
-	}
-	int cantidad_variables = pcb_quantum->pcb->indice_stack->cantidad_variables;
-	if (cantidad_variables == 0) {
-		pcb_quantum->pcb->indice_stack->variables = malloc(
-				sizeof(t_variables_stack));
-	} else {
-		pcb_quantum->pcb->indice_stack->variables =
-				(t_variables_stack*) realloc(
-						pcb_quantum->pcb->indice_stack->variables,
-						sizeof(t_variables_stack) * (cantidad_variables + 1));
-	}
-	t_variables_stack *indice_variables =
-			pcb_quantum->pcb->indice_stack->variables;
-	indice_variables += cantidad_variables;
+	t_variables_stack* indice_variables = posiciono_indice_variables(
+			indice_stack);
+
 	indice_variables->id = variable;
 	indice_variables->posicion_memoria = malloc(sizeof(t_posicion_memoria));
 	indice_variables->posicion_memoria->pagina = calcula_pagina(
@@ -47,9 +23,7 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 			pcb_quantum->pcb->stack_pointer);
 	indice_variables->posicion_memoria->size = sizeof(int);
 
-	++pcb_quantum->pcb->indice_stack->cantidad_variables;
-
-	// TODO Ver como funciona esto
+	++indice_stack->cantidad_variables;
 
 	log_info(logger_manager, "En la posicion %i.",
 			pcb_quantum->pcb->stack_pointer);
@@ -64,12 +38,12 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 	log_info(logger_manager, "La posicion de la variable %c.", variable);
 
+	t_indice_stack* indice_stack = posiciono_indice_stack();
+
 	int posicion_memoria = -1;
 	int pos_variable;
-	t_variables_stack *puntero_variable =
-			pcb_quantum->pcb->indice_stack->variables;
-	for (pos_variable = 0;
-			pos_variable < pcb_quantum->pcb->indice_stack->cantidad_variables;
+	t_variables_stack *puntero_variable = indice_stack->variables;
+	for (pos_variable = 0; pos_variable < indice_stack->cantidad_variables;
 			++pos_variable) {
 		puntero_variable += pos_variable;
 		if (puntero_variable->id == variable) {
@@ -186,49 +160,81 @@ t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
 }
 
 void ansisop_ir_a_label(t_nombre_etiqueta etiqueta) {
-	// TODO Terminar funcion
 	log_info(logger_manager, "Voy a la etiqueta: %s.", etiqueta);
 
-	sem_post(&s_instruccion_finalizada);
+	int puntero_etiqueta;
+	puntero_etiqueta = metadata_buscar_etiqueta(etiqueta,
+			pcb_quantum->pcb->etiquetas, pcb_quantum->pcb->etiquetas_size);
 
-}
+	pcb_quantum->pcb->pc = puntero_etiqueta - 1;
 
-t_puntero_instruccion ansisop_llamar_funcion(t_nombre_etiqueta etiqueta,
-		t_puntero donde_retornar, t_puntero_instruccion linea_en_ejecucion) {
-	// TODO Terminar funcion
-	log_info(logger_manager,
-			"Llamo a funcion de etiqueta: %s en retorno: %c y posicion de instruccion %c.",
-			etiqueta, donde_retornar, linea_en_ejecucion);
+	log_info(logger_manager, "Actualio el PC a: %d", puntero_etiqueta);
 
 	sem_post(&s_instruccion_finalizada);
 
-	return POSICION_MEMORIA;
-}
-
-void ansisop_retornar(t_valor_variable retorno) {
-	// TODO Terminar funcion
-	log_info(logger_manager, "Retorno el valor de la variable %d.", retorno);
-
-	sem_post(&s_instruccion_finalizada);
 }
 
 void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 		t_puntero donde_retornar) {
-	// TODO Terminar funcion
-	log_info(logger_manager,
-			"Llamar con retorno en etiqueta: %s y puntero: %d.", etiqueta,
+	log_info(logger_manager, "Llamar a etiqueta: %s con retorno en: %d.",
+			etiqueta, donde_retornar);
+
+	int puntero_etiqueta;
+	puntero_etiqueta = metadata_buscar_etiqueta(etiqueta,
+			pcb_quantum->pcb->etiquetas, pcb_quantum->pcb->etiquetas_size);
+
+	pcb_quantum->pcb->indice_stack = (t_indice_stack*) realloc(
+			pcb_quantum->pcb->indice_stack,
+			sizeof(t_indice_stack) * (pcb_quantum->pcb->stack_size + 1));
+
+	++pcb_quantum->pcb->contexto_actual;
+
+	t_indice_stack *indice_stack = posiciono_indice_stack();
+
+	indice_stack->cantidad_argumentos = 0;
+	indice_stack->cantidad_variables = 0;
+	indice_stack->argumentos = malloc(sizeof(t_posicion_memoria));
+	indice_stack->posicion_variable_retorno = malloc(
+			sizeof(t_posicion_memoria));
+	indice_stack->posicion_variable_retorno->pagina = calcula_pagina(
 			donde_retornar);
+	indice_stack->posicion_variable_retorno->offset = calcula_offset(
+			donde_retornar);
+	indice_stack->posicion_variable_retorno->size = sizeof(int);
+	indice_stack->posicion_retorno = pcb_quantum->pcb->pc;
 
-	int puntero;
-	puntero = metadata_buscar_etiqueta(etiqueta, pcb_quantum->pcb->etiquetas, pcb_quantum->pcb->etiquetas_size);
+	pcb_quantum->pcb->pc = puntero_etiqueta - 1;
 
-	log_info(logger_manager, "Puntero de etiqueta: %d", puntero);
+	log_info(logger_manager, "Actualio el PC a: %d", puntero_etiqueta);
+
+	++pcb_quantum->pcb->stack_size;
 
 	sem_post(&s_instruccion_finalizada);
 }
 
-void ansisop_finalizar() {
-	log_info(logger_manager, "Fin de la funcion.");
+void ansisop_retornar(t_valor_variable retorno) {
+	log_info(logger_manager, "Retorno el valor de la variable %d.", retorno);
+
+	t_indice_stack* indice_stack = posiciono_indice_stack();
+
+	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
+	p_pagina->pagina = indice_stack->posicion_variable_retorno->pagina;
+	p_pagina->offset = indice_stack->posicion_variable_retorno->offset;
+	p_pagina->tamanio = indice_stack->posicion_variable_retorno->size;
+	p_pagina->valor = malloc(sizeof(int));
+	memcpy(p_pagina->valor, &retorno, p_pagina->tamanio);
+	p_pagina->socket_pedido = socket_umc;
+	t_buffer *buffer = serializar_pagina_completa(p_pagina);
+
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
+	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",
+			buffer);
+
+	log_info(logger_manager, "Actualio el PC a: %d",
+			indice_stack->posicion_retorno);
+
+	pcb_quantum->pcb->pc = indice_stack->posicion_retorno;
+	--pcb_quantum->pcb->contexto_actual;
 
 	sem_post(&s_instruccion_finalizada);
 }
@@ -315,4 +321,32 @@ void ansisop_signal(t_nombre_semaforo semaforo) {
 
 	free(p_semaforo);
 	free(buffer);
+}
+
+void ansisop_finalizar() {
+	log_info(logger_manager, "Fin del programa.");
+
+	fin_proceso = 1;
+
+	sem_post(&s_instruccion_finalizada);
+}
+
+t_indice_stack* posiciono_indice_stack() {
+	t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
+	indice_stack += pcb_quantum->pcb->contexto_actual;
+	return indice_stack;
+}
+
+t_variables_stack* posiciono_indice_variables(t_indice_stack* indice_stack) {
+	if (indice_stack->cantidad_variables == VACIO) {
+		indice_stack->variables = malloc(sizeof(t_variables_stack));
+	} else {
+		indice_stack->variables = (t_variables_stack*) realloc(
+				indice_stack->variables,
+				sizeof(t_variables_stack)
+						* (indice_stack->cantidad_variables + 1));
+	}
+	t_variables_stack* indice_variables = indice_stack->variables;
+	indice_variables += indice_stack->cantidad_variables;
+	return indice_variables;
 }

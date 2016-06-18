@@ -38,12 +38,13 @@ typedef struct {
 	int pc;
 	int cant_paginas_codigo_stack;
 	int estado;
+	int contexto_actual;
 	int stack_position;
 	int stack_pointer;
 	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
 	char* etiquetas;
 	t_size instrucciones_size;
-	t_intructions **instrucciones_serializadas;
+	t_intructions *instrucciones_serializadas;
 	int stack_size;
 	t_indice_stack *indice_stack;
 } t_pcb;
@@ -64,7 +65,7 @@ int size_pagina; // Tamanio de pagina de UMC
 int pagina_es_codigo; // 1 para codigo, 0 para valor int
 int wait_nucleo; // 1 para avisar que se mando wait al nucleo
 int matar_proceso; // 1 para avisar que mato al proceso
-int contexto_actual; // Se usa para el indice de stack
+int fin_proceso; // 1 para avisar que termino el proceso
 
 // Codigo de prueba;
 char *codigo;

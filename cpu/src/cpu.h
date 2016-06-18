@@ -72,6 +72,7 @@ void handshake_cpu_nucleo(int socket_servidor);
 void recibo_PCB(void *buffer);
 void enviar_PCB(int id_mensaje);
 void ejecuto_instrucciones();
+t_intructions *deserializo_instruccion(int pc);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 void leo_instruccion_desde_UMC(t_pcb *pcb);
 
