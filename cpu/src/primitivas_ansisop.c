@@ -15,6 +15,8 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 	t_variables_stack* indice_variables = posiciono_indice_variables(
 			indice_stack);
 
+	pcb_quantum->pcb->stack_pointer += sizeof(int);
+
 	indice_variables->id = variable;
 	indice_variables->posicion_memoria = malloc(sizeof(t_posicion_memoria));
 	indice_variables->posicion_memoria->pagina = calcula_pagina(
@@ -29,8 +31,6 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 			pcb_quantum->pcb->stack_pointer);
 
 	sem_post(&s_instruccion_finalizada);
-
-	pcb_quantum->pcb->stack_pointer += sizeof(int);
 
 	return pcb_quantum->pcb->stack_pointer;
 }
@@ -169,7 +169,7 @@ void ansisop_ir_a_label(t_nombre_etiqueta etiqueta) {
 
 	pcb_quantum->pcb->pc = puntero_etiqueta - 1;
 
-	log_info(logger_manager, "Actualio el PC a: %d", puntero_etiqueta);
+	log_info(logger_manager, "Actualizo el PC a: %d", puntero_etiqueta);
 
 	sem_post(&s_instruccion_finalizada);
 
@@ -214,7 +214,7 @@ void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 }
 
 void ansisop_retornar(t_valor_variable retorno) {
-	log_info(logger_manager, "Retorno el valor de la variable %d.", retorno);
+	log_info(logger_manager, "Retorno la variable con valor: %i.", retorno);
 
 	t_indice_stack* indice_stack = posiciono_indice_stack();
 
@@ -231,7 +231,11 @@ void ansisop_retornar(t_valor_variable retorno) {
 	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",
 			buffer);
 
-	log_info(logger_manager, "Actualio el PC a: %d",
+	log_info(logger_manager, "Asignando en: %d el valor: %i.",
+			indice_stack->posicion_variable_retorno->pagina * tamanio_pagina
+					+ indice_stack->posicion_variable_retorno->offset, retorno);
+
+	log_info(logger_manager, "Actualizo el PC a: %d",
 			indice_stack->posicion_retorno);
 
 	pcb_quantum->pcb->pc = indice_stack->posicion_retorno;
