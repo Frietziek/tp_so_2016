@@ -413,6 +413,8 @@ void ejecuto_instrucciones() {
 
 		sem_wait(&s_instruccion_finalizada);
 
+		sem_init(&s_instruccion_finalizada, 0, 0);
+
 		log_info(logger_manager, "Instruccion terminada.");
 
 		++pcb_quantum->pcb->pc;

@@ -112,9 +112,10 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 }
 
 t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) {
-	int contenido_variable;
 	log_info(logger_manager, "El nombre de variable compartida es %s ",
 			variable);
+
+	int contenido_variable;
 
 	t_variable *p_compartida = malloc(sizeof(t_variable));
 	p_compartida->nombre = variable;
