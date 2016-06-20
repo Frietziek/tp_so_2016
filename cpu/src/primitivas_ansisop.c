@@ -77,8 +77,8 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	free(p_pagina);
 	free(buffer);
 
-	// TODO Descomentar para probar con procesos
-	//sem_wait(&s_variable_stack);
+	// TODO Comentar / Descomentar para probar con procesos
+	sem_wait(&s_variable_stack);
 
 	memcpy(contenido_variable, valor_pagina, size_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);

@@ -9,6 +9,7 @@
 #define SERIALIZACIONES_CPU_H_
 
 #include <serializacion.h>
+#include <parser/metadata_program.h>
 
 // Estructuras CPU - Nucleo
 typedef struct {
@@ -31,6 +32,42 @@ typedef struct {
 typedef struct {
 	char *nombre;
 } t_semaforo;
+typedef struct {
+	int pagina;
+	int offset;
+	int size;
+} t_posicion_memoria;
+typedef struct {
+	char id;
+	t_posicion_memoria *posicion_memoria;
+} t_variables_stack;
+typedef struct {
+	int posicion_retorno;
+	t_posicion_memoria *posicion_variable_retorno;
+	int cantidad_variables;
+	t_variables_stack *variables;
+	int cantidad_argumentos;
+	t_posicion_memoria *argumentos;
+} t_indice_stack;
+typedef struct {
+	int pid;
+	int pc;
+	int cant_paginas_codigo_stack;
+	int estado;
+	int contexto_actual;
+	int stack_position;
+	int stack_pointer;
+	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
+	char* etiquetas;
+	t_size instrucciones_size;
+	t_intructions *instrucciones_serializadas;
+	int stack_size;
+	t_indice_stack *indice_stack;
+} t_pcb;
+typedef struct {
+	int quantum;
+	t_pcb *pcb;
+} t_pcb_quantum;
 // Estructuras CPU - UMC
 typedef struct {
 	int id_programa;
@@ -67,6 +104,8 @@ t_buffer *serializar_entrada_salida(t_entrada_salida *entrada_salida);
 void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida);
 t_buffer *serializar_semaforo(t_semaforo *semaforo);
 void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida);
+t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
+void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
 // Funciones CPU - UMC
 t_buffer *serializar_programa(t_programa *programa);
 void deserializar_programa(void *buffer, t_programa *programa);

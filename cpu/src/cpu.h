@@ -16,7 +16,6 @@
 #include <signal.h> // Signal sigusr1
 #include <commons/log.h> // Libreria de Logs
 #include <commons/collections/list.h> // Libreria para listas
-#include <parser/metadata_program.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
 #include "comunicaciones_cpu.h"
@@ -60,8 +59,5 @@ void ejecuto_instrucciones();
 t_intructions *deserializo_instruccion(int pc);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 void leo_instruccion_desde_UMC(t_pcb *pcb);
-
-t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
-void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
 
 #endif /* CPU_H_ */

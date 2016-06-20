@@ -11,48 +11,7 @@
 #include <semaphore.h>
 #include <commons/log.h> // Libreria de Logs
 #include <commons/collections/list.h> // Libreria para listas
-#include <parser/metadata_program.h>
-
-typedef struct {
-	int pagina;
-	int offset;
-	int size;
-} t_posicion_memoria;
-
-typedef struct {
-	char id;
-	t_posicion_memoria *posicion_memoria;
-} t_variables_stack;
-
-typedef struct {
-	int posicion_retorno;
-	t_posicion_memoria *posicion_variable_retorno;
-	int cantidad_variables;
-	t_variables_stack *variables;
-	int cantidad_argumentos;
-	t_posicion_memoria *argumentos;
-} t_indice_stack;
-
-typedef struct {
-	int pid;
-	int pc;
-	int cant_paginas_codigo_stack;
-	int estado;
-	int contexto_actual;
-	int stack_position;
-	int stack_pointer;
-	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
-	char* etiquetas;
-	t_size instrucciones_size;
-	t_intructions *instrucciones_serializadas;
-	int stack_size;
-	t_indice_stack *indice_stack;
-} t_pcb;
-
-typedef struct {
-	int quantum;
-	t_pcb *pcb;
-} t_pcb_quantum;
+#include "serializaciones_cpu.h"
 
 // Semaforos para continuar proceso y finalizar
 sem_t s_codigo; // Para cuando pido lectura de codigo
@@ -60,6 +19,7 @@ sem_t s_instruccion_finalizada; // Para esperar a recibir respuesta del UMC o Nu
 sem_t s_cambio_proceso; // Para esperar la confirmacion de cambio de UMC
 sem_t s_variable_stack; // Para cuando pido lectura de variable
 sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
+sem_t s_matar_cpu; // Para cuando llega SIGUSR1
 sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
 void *valor_pagina; // Contenido de pagina de UMC
 int size_pagina; // Tamanio de pagina de UMC
@@ -68,6 +28,7 @@ int wait_nucleo; // 1 para avisar que se mando wait al nucleo
 int matar_proceso; // 1 para avisar que mato al proceso
 int fin_proceso; // 1 para avisar que termino el proceso
 int excepcion_umc; // 1 para avisar que hubo un problema con la UMC
+int matar_cpu; // 1 para avisar que llego SIGUSR1
 
 // Codigo de prueba;
 char *codigo;

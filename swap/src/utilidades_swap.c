@@ -4,6 +4,7 @@
 #include <commons/config.h>
 #include <commons/string.h>
 #include <commons/bitarray.h>
+#include <commons/log.h>
 #include <commons/collections/list.h>
 #include "tipos_swap.h"
 #include "utilidades_swap.h"
@@ -78,6 +79,19 @@ void inicializar_bitmap(t_bitarray *bitmap){
 	}
 }
 
+//Devuelve 1 si hay espacio, 0 en caso de que no
+int hay_espacio_total_disponible(int cantidad_paginas_requeridas, t_bitarray *paginas_bitmap){
+	int index;
+	int cantidad_frames_totales = bitarray_get_max_bit(paginas_bitmap);
+	int cantidad_frames_libres = 0;
+
+	for(index = 0 ; index < cantidad_frames_totales ; index ++){
+		if (!bitarray_test_bit(paginas_bitmap, index))
+			cantidad_frames_libres ++;
+	}
+
+	return (cantidad_frames_libres >= cantidad_paginas_requeridas);
+}
 
 /* Busca un bloque libre del tamano solicitado en el swap, y retorna el numero de pagina inicial o -1 en caso de no encontrar el suficiente espacio continuo     */
 int encontrar_ubicacion_libre(int paginas_requeridas, t_bitarray *paginas_bitmap){
@@ -135,6 +149,16 @@ t_program_info *buscar_programa(int id_programa, t_list *lista_programas){
 	return list_find(lista_programas, (void *) busqueda_programa_logica);
 }
 
+//Busca y retorna la estructura de control del programa cuyo número de pagina inicial es el solicitado
+t_program_info *buscar_programa_por_pagina_inicial(int numero_pagina_inicial, t_list *lista_programas){
+
+	bool busqueda_programa_logica(t_program_info *program_info){
+		return (numero_pagina_inicial == program_info->pagina_inicial_swap);
+	}
+
+	return list_find(lista_programas, (void *) busqueda_programa_logica);
+}
+
 //Elimina la estructura de control del programa
 void eliminar_programa(int PID, t_list *lista_programas){
 
@@ -149,3 +173,76 @@ void eliminar_programa(int PID, t_list *lista_programas){
 	list_remove_and_destroy_by_condition(lista_programas, (void *) eliminar_programa_logica, (void *) program_info_destroy);
 }
 
+//Realiza una system call que hace una espera en la ejecución de x milisegundos
+void simular_espera(int milisegundos){
+	usleep(milisegundos * 1000); //Multiplico por 1000 para obtener el equivalente en microsegundos
+}
+
+//Lee un programa entero (todas sus páginas), retorna 0 en caso de exito, y -1 en caso de error
+int leer_programa_entero(t_program_info * el_programa, FILE *archivo_swap, void *buffer, t_config_swap *config_swap, t_log *loggerManager){
+
+		int posicion_lectura = el_programa->pagina_inicial_swap * config_swap->tamano_pagina;
+		int tamano_lectura = el_programa->cantidad_paginas * config_swap->tamano_pagina;
+
+		fseek(archivo_swap, posicion_lectura, SEEK_SET);
+
+		int cantidad_leida = fread(buffer,tamano_lectura, 1, archivo_swap);
+
+		if (cantidad_leida == 1){//Bloques leidos
+			log_trace(loggerManager,"[Compactacion] Se leyeron correctamente %i bloque de %i bytes", cantidad_leida, tamano_lectura);
+			return 0;
+		}
+		else {
+			log_error(loggerManager,"[Compactacion] Ocurrio un problema, se leyeron %i bloques de %i bytes", cantidad_leida, tamano_lectura);
+			return -1;
+		}
+}
+
+//Escribe un programa entero (todas sus páginas), retorna 0 en caso de exito, y -1 en caso de error
+int escribir_programa_entero(t_program_info * el_programa, FILE *archivo_swap, void *buffer_programa, t_config_swap *config_swap, t_log *loggerManager){
+
+	int posicion_escritura = el_programa->pagina_inicial_swap * config_swap->tamano_pagina ;
+	int tamano_escritura = el_programa->cantidad_paginas * config_swap->tamano_pagina;
+
+	fseek(archivo_swap, posicion_escritura, SEEK_SET);
+
+	int cantidad_escrita = fwrite(buffer_programa ,1, tamano_escritura ,archivo_swap);
+
+	if (cantidad_escrita == tamano_escritura){
+		log_trace(loggerManager,"[Compactación] Se escribieron correctamente %i bytes", cantidad_escrita);
+		return 0;
+	}
+	else {
+		log_error(loggerManager,"[Compactación] Ocurrio un problema, se escribieron %i de %i bytes", cantidad_escrita, tamano_escritura);
+		return -1;
+	}
+}
+
+//Reescribe un programa con un corrimiento hacia la izquierda, afectando al archivo swap y a todas las estructuras de control asociadas. Retorna -1 en caso de error, 0 en caso de exito
+int reescribir_programa(t_program_info * el_programa, int corrimiento_hacia_izquierda, FILE *archivo_swap, t_bitarray *paginas_bitmap, t_config_swap *config_swap, t_log *loggerManager){
+
+	//Lectura del programa en un buffer auxiliar
+	void *buffer_programa = malloc(el_programa->cantidad_paginas * config_swap->tamano_pagina); //TODO: Prestar atención a que esta linea esté bien al testear
+	int status_lectura = leer_programa_entero(el_programa, archivo_swap, buffer_programa, config_swap, loggerManager);
+
+	if(status_lectura != 0) //Error
+		return -1;
+
+	//Se libera el espacio reservado en el bitmap
+	liberar_lugar_del_programa(el_programa->pagina_inicial_swap, el_programa->cantidad_paginas, paginas_bitmap);
+
+	//Se actualiza el_programa con la nueva posición inicial TODO: Verificar que tenga impacto en la lista per se, debería porque es un puntero
+	el_programa->pagina_inicial_swap -= corrimiento_hacia_izquierda;
+
+
+	//Se escribe el programa en la nueva ubicacion
+	int status_escritura = escribir_programa_entero(el_programa, archivo_swap, buffer_programa, config_swap, loggerManager);
+
+	if(status_escritura != 0) //Error
+		return -1;
+
+	//Se reserva el nuevo espacio en el bitmap
+	reservar_lugar_para_el_programa(el_programa->pagina_inicial_swap, el_programa->cantidad_paginas, paginas_bitmap);
+
+	return 0;
+}
