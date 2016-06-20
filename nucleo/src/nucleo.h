@@ -10,22 +10,8 @@
 
 #include <commons/collections/dictionary.h>
 #include <commons/collections/queue.h>
+#include <commons/log.h>
 #include <parser/metadata_program.h>
-
-// Valores de la configuracion
-
-/* EJEMPLO
- DEF_PUERTO_PROG=5000
- DEF_PUERTO_CPU=5001
- DEF_QUANTUM=3
- DEF_QUANTUM_SLEEP=500
- DEF_IO=[Disco, Impresora, Scanner]
- DEF_IO_SLEEP=[1000, 2000, 1000]
- DEF_SEM_IDS=[SEM1, SEM2, SEM3]
- DEF_SEM_INIT= [0,0,5]
- DEF_SHARED_VARS= ["!Global", "!UnaVar", "!tiempo3"]
- DEF_STACK_SIZE=2
- * */
 
 #define NEW 0
 #define READY 1
@@ -35,6 +21,49 @@
 
 #define NO_ASIGNADO -10
 #define VALOR_INICIAL_VARIABLE_COMPARTIDA 0
+
+t_log *logger_manager;
+
+typedef struct {
+	int pagina;
+	int offset;
+	int size;
+} t_posicion_memoria;
+
+typedef struct {
+	char id;
+	t_posicion_memoria *posicion_memoria;
+} t_variables_stack;
+
+typedef struct {
+	int posicion_retorno;
+	t_posicion_memoria *posicion_variable_retorno;
+	int cantidad_variables;
+	t_variables_stack *variables;
+	int cantidad_argumentos;
+	t_posicion_memoria *argumentos;
+} t_indice_stack;
+
+typedef struct {
+	int pid;
+	int pc;
+	int cant_paginas_codigo_stack;
+	int estado;
+	int contexto_actual;
+	int stack_position;
+	int stack_pointer;
+	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
+	char* etiquetas;
+	t_size instrucciones_size;
+	t_intructions *instrucciones_serializadas;
+	int stack_size;
+	t_indice_stack *indice_stack;
+} t_pcb;
+
+typedef struct {
+	int quantum;
+	t_pcb *pcb;
+} t_pcb_quantum;
 
 typedef struct {
 	int puerto_prog;
@@ -52,39 +81,6 @@ typedef struct {
 } t_config_nucleo;
 
 typedef struct {
-	int pagina;
-	int offset;
-	int size;
-} t_posicion_memoria;
-
-typedef struct {
-	int id;
-	t_posicion_memoria *posicion_memoria;
-} t_variables_stack;
-
-typedef struct {
-	int posicion_retorno;
-	t_posicion_memoria *posicion_variable_retorno;
-	t_list *variables;	//t_variables_stack
-	t_list *argumentos; //t_posicion_memoria
-} t_indice_stack;
-
-typedef struct {
-	int pid;
-	int pc;
-	int cant_paginas_codigo_stack;
-	int estado;
-	int stack_size_maximo;
-	int stack_position;
-	//t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
-	char* etiquetas;
-	t_size instrucciones_size;
-	t_intructions **instrucciones_serializadas;
-	int stack_size_actual;
-	t_indice_stack **indice_stack;
-} t_pcb;
-
-typedef struct {
 	int retardo;
 	t_queue *solicitudes; //t_solicitud_entrada_salida_cpu
 } t_solicitudes_entrada_salida;
@@ -98,7 +94,6 @@ typedef struct {
 	int valor;
 	t_queue *solicitudes;      //contiene (int) socket de cpu
 } t_atributos_semaforo;
-
 
 typedef struct {
 	t_pcb *pcb;
@@ -137,7 +132,7 @@ int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
 
 t_pcb *crear_PCB(char *codigo_de_consola);
 
-void terminar_ejecucion(t_pcb *pcb);
+void matar_ejecucion(t_pcb *pcb);
 
 int buscar_socket_cpu_por_pcb(t_pcb *pcb_a_finalizar);
 
@@ -145,7 +140,9 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep);
 
 void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init);
 
-void handshake(int socket, int proceso_receptor, int id_mensaje);
+void enviar_header_completado(int socket, int proceso_receptor, int id_mensaje);
+void envio_buffer_a_proceso(int socket_proceso, int proceso_receptor,
+		int id_mensaje, char* mensaje_fallo_envio, t_buffer *buffer);
 
 // Funciones del nucleo que hay que desarrollar
 int obtener_variable_compartida(char *nombre_variable_compartida);
@@ -154,10 +151,15 @@ int devuelve_socket_consola(int socket_cpu);
 void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
 		int tiempo);
 void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu);
-void asignar_pcb(int socket_cpu);
+void asignar_pcb_a_cpu(int socket_cpu);
 int wait_semaforo(char *semaforo_nombre);
 int signal_semaforo(char *semaforo_nombre);
-
+t_pcb *buscar_pcb_por_pid(int pid);
 void sacar_socket_cpu_de_tabla(int socket_cpu);
-
+int buscar_socket_consola_por_pid(int pid);
+void eliminar_proceso_de_tabla_procesos_con_pid(int pid);
+void atiendo_quantum(void *buffer, int socket_conexion);
+void atiendo_programa_finalizado(void *buffer, int socket_cpu);
+void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb, int socket_cpu);
+void finalizar_proceso_en_tabla_pag_con_socket_cpu(t_pcb * pcb, int socket_cpu);
 #endif /* NUCLEO_H_ *///

@@ -11,7 +11,6 @@
 #include <semaphore.h>
 
 sem_t mutex_pid_count;
-sem_t mutex_cola_new;
 sem_t mutex_cola_ready;
 sem_t mutex_cola_exec;
 sem_t mutex_cola_block;

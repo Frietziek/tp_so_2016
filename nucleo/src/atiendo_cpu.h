@@ -100,8 +100,6 @@ void atiendo_wait(void *buffer, int socket_conexion,
 		t_config_nucleo *configuracion);
 void atiendo_signal(void *buffer, int socket_conexion,
 		t_config_nucleo *configuracion);
-void atiendo_quantum(void *buffer, int socket_conexion);
-void atiendo_programa_finalizado(void *buffer, int socket_conexion);
 
 // Funciones de Serializacion
 t_buffer *serializar_variable(t_variable *variable);

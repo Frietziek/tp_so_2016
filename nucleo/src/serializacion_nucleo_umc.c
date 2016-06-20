@@ -62,7 +62,7 @@ t_buffer *serializar_pagina_tamanio(t_pagina_tamanio *pagina_tamanio) {
 	return (estructura_buffer);
 }
 
-t_buffer *serializar_finalizar(t_finalizar *finalizar) {
+t_buffer *serializar_pid(t_pid *finalizar) {
 
 	int cantidad_a_reservar = sizeof(finalizar->pid);
 
@@ -79,7 +79,7 @@ t_buffer *serializar_finalizar(t_finalizar *finalizar) {
 	return (estructura_buffer);
 }
 
-void deserializar_finalizar(void *buffer, t_finalizar *finalizar) {
+void deserializar_pid(void *buffer, t_pid *finalizar) {
 	int posicion_buffer = 0;
 
 	escribir_atributo_desde_int_de_buffer(buffer, &(finalizar->pid),

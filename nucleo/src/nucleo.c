@@ -8,10 +8,8 @@
  ============================================================================
  */
 
-//TODO serializar pcb
-//TODO terminar MENSAJES DE UMC
-//TODO probar circuito entero el jueves
 //TODO logica de colas entrada cpu
+//TODO semaforo que le diga a la cpu que hay un proceso en ready
 #include <stdio.h>
 #include <stdlib.h>
 #include <serializacion.h>
@@ -26,11 +24,8 @@
 #include "semaforos_nucleo.h"
 #include "atiendo_cpu.h"
 
-//TODO acomodar este mounstruo
-
 ////////////////////VARIABLES GLOBALES///////////////////////////
-
-t_queue *cola_new;
+//se llenan con t_pid
 t_queue *cola_ready;
 t_queue *cola_block;
 t_queue *cola_exec;
@@ -42,19 +37,19 @@ int pid_count;
 t_fila_tabla_procesos *tabla_procesos[];
 t_config_nucleo *configuracion;
 t_dictionary *variables_compartidas;
-//TODO inicializar variables no compartidas
+
 t_dictionary *solitudes_semaforo;
 
 ////////////////////FUNCION PRINCIPAL///////////////////////////
 
 int main(void) {
 
-	puts("Hola soy el nucleo"); /* prints proceso */
+	logger_manager = log_create("nucleo.log", "NUCLEO", true, LOG_LEVEL_TRACE); // Creo archivo de log
+	log_trace(logger_manager, "Proceso Nucleo creado.");
 	pid_count = 0;
 	configuracion = malloc(sizeof(t_config_nucleo));
 	cargar_configuracion_nucleo("src/config.nucleo.ini", configuracion);
 
-	cola_new = queue_create();
 	cola_ready = queue_create();
 	cola_block = queue_create();
 	cola_exec = queue_create();
@@ -67,37 +62,36 @@ int main(void) {
 	sem_init(&mutex_variables_compartidas, 0, 1);
 	sem_init(&mutex_diccionario_entrada_salida, 0, 1);
 	sem_init(&mutex_solicitudes_semaforo, 0, 1);
-//TODO sem init  tabla io
-
+	log_trace(logger_manager, "Inicializando colas entrada salida");
 	inicializar_colas_entrada_salida(configuracion->io_id,
 			configuracion->io_sleep);
-
+	log_trace(logger_manager, "Inicializando variables compartidas");
 	inicializar_variables_compartidas(configuracion->shared_vars);
-
+	log_trace(logger_manager, "Inicializando semaforos");
 	inicializar_solicitudes_semaforo(configuracion->sem_id,
 			configuracion->sem_init);
 
 	// INICIO PIDO LONGITUD PAGINA  AL UMC Y LO ATIENDO
-
+	log_trace(logger_manager, " PIDO LONGITUD PAGINA  AL UMC");
 	socket_umc = conectar_servidor(configuracion->ip_umc,
 			configuracion->puerto_umc, &atender_umc);
 	pedir_pagina_tamanio(socket_umc);
 
-	// FIN PIDO LONGITUD PAGINA  AL UMC Y LO ATIENDO
+	log_info(logger_manager, "Se cargo el tamanio de la pagina: %i",
+			tamanio_pagina);
 
-	//INICIO ATIENDO CONSOLA
-
+	log_trace(logger_manager, "Inicializando servidor consola");
 	t_configuracion_servidor *configuracion_servidor_consola = malloc(
 			sizeof(t_configuracion_servidor));
 	configuracion_servidor_consola->puerto = configuracion->puerto_prog;
 	configuracion_servidor_consola->funcion = &atender_consola;
 
 	crear_servidor(configuracion_servidor_consola);
-
+	log_trace(logger_manager, "Servidor consola creado");
 	//FIN ATIENDO CONSOLA
 
 	//INICIO ATIENDO CPU
-
+	log_trace(logger_manager, "Inicializando servidor cpu");
 	t_configuracion_servidor *configuracion_servidor_cpu = malloc(
 			sizeof(t_configuracion_servidor));
 	configuracion_servidor_cpu->puerto = configuracion->puerto_cpu;
@@ -105,18 +99,12 @@ int main(void) {
 	configuracion_servidor_cpu->parametros_funcion = configuracion;
 
 	crear_servidor(configuracion_servidor_cpu);
-
+	log_trace(logger_manager, "Servidor cpu creado");
 	//FIN ATIENDO CPU
-
-//	TODO while(true){
-//	if(hay programas por ejecutar y hay cpu conectada){
-//		planifico los programas de la consola con round robin
-//	};
-//
-//	};
 
 	getchar();
 
+	log_trace(logger_manager, "Cerrando Nucleo");
 	//Libero antes de cerrar
 	free(configuracion);
 	free(configuracion_servidor_cpu);
@@ -130,7 +118,7 @@ int main(void) {
 	sem_destroy(&mutex_cola_block);
 	sem_destroy(&mutex_cola_ready);
 	sem_destroy(&mutex_cola_exec);
-
+	log_trace(logger_manager, "Se cerro nucleo");
 	return EXIT_SUCCESS;
 }
 
@@ -144,7 +132,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 	printf("longitud payload: %d\n\n", paquete->header->longitud_mensaje);
 
 	switch (paquete->header->id_mensaje) {
-	case RECIBIR_TAMANIO_PAGINA:
+	case REPUESTA_HANDSHAKE_UMC:
 		;
 		t_pagina_tamanio *pagina = malloc(sizeof(t_pagina_tamanio));
 		deserializar_pagina_tamanio(paquete->payload, pagina);
@@ -152,21 +140,64 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		printf("Se cargo el tamanio de la pagina: %i\n", tamanio_pagina);
 		free(pagina);
 		break;
-	case RESPUESTA_INICIALIZAR_PROGRAMA:
-		//TODO
-		//deserializo el pid del proceso iniciado y lo agrego a la cola de ready
+	case RESPUESTA_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a poner en cola ready
+		;
+		t_pid *pid_a_ready = malloc(sizeof(t_pid));
+		deserializar_pid(paquete->payload, pid_a_ready);
+		log_info(logger_manager,
+				"Recibi confirmacion de proceso creado en memoria con pid: %d",
+				pid_a_ready->pid);
+		t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid_a_ready->pid);
+		sem_wait(&mutex_tabla_procesos);
+		pcb_a_ready->estado = READY;
+		sem_post(&mutex_tabla_procesos);
+		sem_wait(&mutex_cola_ready);
+		queue_push(cola_ready, pid_a_ready);
+		sem_post(&mutex_cola_ready);
+		log_info(logger_manager, "Agregue pid: %d a cola ready",
+				pid_a_ready->pid);
+		free(pid_a_ready);
 		break;
-	case RESPUESTA_MATAR_PROGRAMA:
-		//TODO
-		//avisar a la consola que se cerro umc y liberar t0do lo del proceso
+	case RESPUESTA_MATAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
+
+		;
+		t_pid *pid_a_matar = malloc(sizeof(t_pid));
+		deserializar_pid(paquete->payload, pid_a_matar);
+		log_info(logger_manager, "Elimino el pcb creado con pid: %d",
+				pid_a_matar->pid);
+		int socket_cons = buscar_socket_consola_por_pid(pid_a_matar->pid);
+		eliminar_proceso_de_tabla_procesos_con_pid(pid_a_matar->pid);
+		enviar_header_completado(socket_cons, PROCESO_CONSOLA,
+		MENSAJE_MATAR_OK);
+		free(pid_a_matar);
 		break;
-	case ERROR_INICIALIZAR_PROGRAMA:
-		//TODO
-		//avisar a la consola y liberar t0do lo del proceso
+	case ERROR_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
+
+		;
+		t_pid *pid_a_eliminar = malloc(sizeof(t_pid));
+		deserializar_pid(paquete->payload, pid_a_eliminar);
+		log_info(logger_manager, "Elimino el pcb creado con pid: %d",
+				pid_a_eliminar->pid);
+		int socket_consola = buscar_socket_consola_por_pid(pid_a_eliminar->pid);
+		eliminar_proceso_de_tabla_procesos_con_pid(pid_a_eliminar->pid);
+		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
+		MENSAJE_ERROR_AL_INICIAR);
+		free(pid_a_eliminar);
 		break;
 	case ERROR_MATAR_PROGRAMA:
-		//TODO
-		//avisar a la consola que no se pudo cerrar umc y liberar t0do lo del proceso
+		;
+		t_pid *pid_ = malloc(sizeof(t_pid));
+		deserializar_pid(paquete->payload, pid_);
+		log_info(logger_manager, "Elimino el pcb creado con pid: %d",
+				pid_->pid);
+		int socket_conso = buscar_socket_consola_por_pid(pid_->pid);
+		eliminar_proceso_de_tabla_procesos_con_pid(pid_->pid);
+		enviar_header_completado(socket_conso, PROCESO_CONSOLA,
+		MENSAJE_ERROR_AL_MATAR);
+		free(pid_);
+		break;
+	default:
+		printf("Mensaje no reconocido\n");
 		break;
 	}
 }
@@ -181,11 +212,11 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 			paquete_buffer->header->longitud_mensaje);
 
 	switch (paquete_buffer->header->id_mensaje) {
-	case CODIGO:
+	case INICIAR:
 		;
 		//inicio para ver lo que contiene el payload,
 		t_texto *codigo_de_consola = malloc(sizeof(t_texto));
-		//TODO ver si esta bien
+
 		deserializar_codigo(paquete_buffer->payload, codigo_de_consola);
 		printf("el codigo es:\n %s\n\n", codigo_de_consola->texto);
 
@@ -199,11 +230,14 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 				codigo_de_consola->texto);
 		free(codigo_de_consola);
 		break;
-	case FINALIZAR:
+	case MATAR:
 		printf("Terminando la ejecucion");
 		t_pcb *pcb_obtenido = buscar_pcb_por_socket_consola(socket_consola);
-		terminar_ejecucion(pcb_obtenido);
+		matar_ejecucion(pcb_obtenido);
 		printf("Termino la ejecucion");
+		break;
+	default:
+		printf("Mensaje no reconocido\n");
 		break;
 	}
 
@@ -211,7 +245,27 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 
 ////////////////////FUNCIONES AUXILIARES///////////////////////////
 
-//TODO probar
+void eliminar_proceso_de_tabla_procesos_con_pid(int pid) {
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->pcb->pid == pid) {
+			//TODO buscar mejor manera que esta, que no sea eliminar y tener que realocar para redimensionar
+			//elimino fila de tabla de procesos (libero pcb y pongo en no asignados a los sockets)
+			tabla_procesos[i]->socket_consola = NO_ASIGNADO;
+			tabla_procesos[i]->socket_cpu = NO_ASIGNADO;
+			tabla_procesos[i]->pcb->estado = EXIT;
+			free(tabla_procesos[i]->pcb);
+			sem_post(&mutex_tabla_procesos);
+		} else {
+			++i;
+		}
+	}
+	sem_post(&mutex_tabla_procesos);
+
+}
+
 t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
 
 	sem_wait(&mutex_tabla_procesos);
@@ -225,12 +279,32 @@ t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
 			++i;
 		}
 	}
+	log_error(logger_manager,
+			"No se pudo encontrar el pcb con socket consola: %d",
+			socket_consola);
 	sem_post(&mutex_tabla_procesos);
 	return NULL;
 
 }
 
-//TODO probar
+t_pcb *buscar_pcb_por_pid(int pid) {
+
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->pcb->pid == pid) {
+			sem_post(&mutex_tabla_procesos);
+			return tabla_procesos[i]->pcb;
+		} else {
+			++i;
+		}
+	}
+	log_error(logger_manager, "No se pudo encontrar el pcb con pid: %d", pid);
+	sem_post(&mutex_tabla_procesos);
+	return NULL;
+}
+
 int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 	sem_wait(&mutex_tabla_procesos);
 	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
@@ -243,12 +317,49 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 			++i;
 		}
 	}
-
+	log_error(logger_manager,
+			"No se pudo encontrar el socket consola con socket cpu: %d",
+			socket_cpu);
 	sem_post(&mutex_tabla_procesos);
 	return NO_ASIGNADO;
 }
 
-//TODO probar
+void cambiar_estado_proceso_por_pid(int pid, int estado) {
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->pcb->pid == pid) {
+
+			sem_post(&mutex_tabla_procesos);
+
+		} else {
+			++i;
+		}
+	}
+	log_error(logger_manager, "No se pudo cambiar el estado al pid: %d", pid);
+	sem_post(&mutex_tabla_procesos);
+}
+
+int buscar_socket_consola_por_pid(int pid) {
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->pcb->pid == pid) {
+			sem_post(&mutex_tabla_procesos);
+			return tabla_procesos[i]->socket_consola;
+		} else {
+			++i;
+		}
+	}
+	log_error(logger_manager,
+			"No se pudo encontrar el el socket consola del proceso con pid: %d",
+			pid);
+	sem_post(&mutex_tabla_procesos);
+	return NO_ASIGNADO;
+}
+
 t_pcb *buscar_pcb_por_socket_cpu(int socket_cpu) {
 
 	sem_wait(&mutex_tabla_procesos);
@@ -262,8 +373,15 @@ t_pcb *buscar_pcb_por_socket_cpu(int socket_cpu) {
 			++i;
 		}
 	}
+	log_error(logger_manager,
+			"No se pudo el encontrar el pcb asociado al socket cpu: %d",
+			socket_cpu);
 	sem_post(&mutex_tabla_procesos);
 	return NULL;
+}
+
+void enviar_error_al_iniciar_a_consola(int socket_consola) {
+
 }
 
 void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
@@ -307,7 +425,6 @@ void agregar_pcb_a_tabla_procesos(t_pcb *pcb, int socket_consola) {
 	sem_post(&mutex_tabla_procesos);
 }
 
-//TODO ver si debe ser un char con strlen o el tamanio es sin el \0
 int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola) {
 	int modulo = (strlen(codigo_de_consola) + configuracion->stack_size)
 			% tamanio_pagina;
@@ -320,58 +437,57 @@ int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola) {
 }
 
 t_pcb *crear_PCB(char *codigo_de_consola) {
+
 	t_metadata_program *metadata = malloc(sizeof(t_metadata_program));
 	metadata = metadata_desde_literal(codigo_de_consola);
+
 	t_pcb *pcb = malloc(sizeof(t_pcb));
-	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;//TODO * vs ** OJO
-	pcb->instrucciones_size = metadata->instrucciones_size;
-	pcb->estado = NEW;
-	pcb->cant_paginas_codigo_stack = obtener_cantidad_paginas_codigo_stack(
-			codigo_de_consola);
-	pcb->pc = 0;
-	pcb->etiquetas = metadata->etiquetas;
-	//pcb->etiquetas_size = metadata->etiquetas_size;
-	pcb->stack_size_maximo = configuracion->stack_size;
-	pcb->stack_position = strlen(codigo_de_consola);
 	sem_wait(&mutex_pid_count);
 	pcb->pid = pid_count;
 	++pid_count;
 	sem_post(&mutex_pid_count);
-//	t_indice_stack *indice_stack = malloc(sizeof(t_indice_stack));
-//	indice_stack->variables = list_create();
-//	indice_stack->argumentos = list_create();
-//	pcb->indice_stack[0] = indice_stack;
+	pcb->pc = metadata->instruccion_inicio;
+	pcb->cant_paginas_codigo_stack = obtener_cantidad_paginas_codigo_stack(
+			codigo_de_consola);
+	pcb->estado = NEW;
+	pcb->contexto_actual = 0;
+	pcb->stack_position = strlen(codigo_de_consola);
+	pcb->stack_pointer = pcb->stack_position;
+	pcb->etiquetas_size = metadata->etiquetas_size;
+	pcb->etiquetas = metadata->etiquetas;
+	pcb->instrucciones_size = metadata->instrucciones_size;
+	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;
+	pcb->indice_stack = malloc(sizeof(t_indice_stack));
+	pcb->indice_stack->cantidad_argumentos = 0;
+	pcb->indice_stack->cantidad_variables = 0;
+	pcb->indice_stack->posicion_variable_retorno = malloc(
+			sizeof(t_posicion_memoria));
+	pcb->indice_stack->posicion_variable_retorno->pagina = 0;
+	pcb->indice_stack->posicion_variable_retorno->offset = 0;
+	pcb->indice_stack->posicion_variable_retorno->size = 0;
+	pcb->indice_stack->posicion_retorno = 0;
+	pcb->stack_size = 1;
 
 	return pcb;
 }
 
-void terminar_ejecucion(t_pcb *pcb_a_finalizar) {
+void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 
 	if (pcb_a_finalizar->estado != EXIT) {
 
 		// ENVIO TERMINAR AL CPU
 
-		t_finalizar *finalizar = malloc(sizeof(t_finalizar));
+		t_pid *finalizar = malloc(sizeof(t_pid));
 
 		finalizar->pid = pcb_a_finalizar->pid;
 
-		t_buffer *buffer_finalizar = serializar_finalizar(finalizar);
+		t_buffer *buffer_finalizar = serializar_pid(finalizar);
 
 		if (pcb_a_finalizar->estado == EXEC) {
 
-			t_header *header_finalizar_cpu = malloc(sizeof(t_header));
-			header_finalizar_cpu->id_proceso_emisor = PROCESO_NUCLEO;
-			header_finalizar_cpu->id_proceso_receptor = PROCESO_CPU;
-			header_finalizar_cpu->id_mensaje = FINALIZAR;
-			header_finalizar_cpu->longitud_mensaje = 0;
-
 			int socket_cpu = buscar_socket_cpu_por_pcb(pcb_a_finalizar);
 
-			if (enviar_header(socket_cpu, header_finalizar_cpu)
-					< sizeof(t_header)) {
-				perror("Fallo enviar finalizar a cpu");
-			}
-			free(header_finalizar_cpu);
+			enviar_header_completado(socket_cpu, PROCESO_CPU, MENSAJE_MATAR);
 		}
 
 		// ENVIO TERMINAR AL UMC
@@ -459,8 +575,7 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	}
 }
 
-//TODO poner en comunicaciones asi lo usan todos
-void handshake(int socket, int proceso_receptor, int id_mensaje) {
+void enviar_header_completado(int socket, int proceso_receptor, int id_mensaje) {
 	t_header *header = malloc(sizeof(t_header));
 	header->id_proceso_emisor = PROCESO_NUCLEO;
 	header->id_proceso_receptor = proceso_receptor;
@@ -468,7 +583,7 @@ void handshake(int socket, int proceso_receptor, int id_mensaje) {
 	header->longitud_mensaje = 0;
 
 	if (enviar_header(socket, header) < sizeof(t_header)) {
-		perror("Fallo al enviar handshake");
+		perror("Fallo al enviar enviar_header_completado");
 	}
 
 	free(header);
@@ -564,7 +679,7 @@ void pedir_pagina_tamanio(int socket_umc) {
 	t_header* header_pido_tam_pag = malloc(sizeof(t_header));
 	header_pido_tam_pag->id_proceso_emisor = 1;
 	header_pido_tam_pag->id_proceso_receptor = 3;
-	header_pido_tam_pag->id_mensaje = HANDSHAKE_UMC;
+	header_pido_tam_pag->id_mensaje = MENSAJE_HANDSHAKE_UMC;
 	header_pido_tam_pag->longitud_mensaje = 0;
 	enviar_header(socket_umc, header_pido_tam_pag);
 	free(header_pido_tam_pag);
@@ -667,6 +782,7 @@ void sacar_socket_cpu_de_tabla(int socket_cpu) {
 		if (tabla_procesos[i]->socket_cpu == socket_cpu) {
 			tabla_procesos[i]->socket_cpu = NO_ASIGNADO;
 			sem_post(&mutex_tabla_procesos);
+			return;
 		} else {
 			++i;
 		}
@@ -675,8 +791,32 @@ void sacar_socket_cpu_de_tabla(int socket_cpu) {
 
 }
 
-//TODO hacer para leo
-void asignar_pcb(int socket_cpu) {
+void envio_buffer_a_proceso(int socket_proceso, int proceso_receptor,
+		int id_mensaje, char* mensaje_fallo_envio, t_buffer *buffer) {
+	t_header *header = malloc(sizeof(t_header));
+	header->id_proceso_emisor = PROCESO_CPU;
+	header->id_proceso_receptor = proceso_receptor;
+	header->id_mensaje = id_mensaje;
+	header->longitud_mensaje = buffer->longitud_buffer;
+
+	if (enviar_buffer(socket_proceso, header, buffer)
+			< sizeof(t_header) + buffer->longitud_buffer) {
+		log_error(logger_manager, mensaje_fallo_envio);
+	}
+
+	free(header);
+}
+
+void asignar_pcb_a_cpu(int socket_cpu) {
+	t_pcb_quantum *pcb_quantum_a_cpu = malloc(sizeof(t_pcb_quantum));
+	sem_wait(&mutex_cola_ready);
+	pcb_quantum_a_cpu->pcb = queue_pop(cola_ready);
+	sem_post(&mutex_cola_ready);
+	pcb_quantum_a_cpu->quantum = configuracion->quantum;
+	t_buffer *pcb_quantum_buffer = serializar_pcb_quantum(pcb_quantum_a_cpu);
+	envio_buffer_a_proceso(socket_cpu, PROCESO_CPU, MENSAJE_PCB_NUCLEO,
+			"error al enviar pcb quantum a cpu", pcb_quantum_buffer);
+	free(pcb_quantum_buffer);
 }
 
 int wait_semaforo(char *semaforo_nombre) {
@@ -699,3 +839,80 @@ int signal_semaforo(char *semaforo_nombre) {
 	return valor_semaforo;
 }
 
+void atiendo_quantum(void *buffer, int socket_conexion) {
+// Recibo PCB
+	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
+	deserializar_pcb_quantum(buffer, pcb_quantum);
+	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(pcb_quantum->pcb,
+			socket_conexion);
+	sem_wait(&mutex_cola_ready);
+	t_pid *pid_a_ready = malloc(sizeof(t_pid));
+	pid_a_ready->pid = pcb_quantum->pcb->pid;
+	queue_push(cola_ready, pid_a_ready);
+	sem_post(&mutex_cola_ready);
+	log_info(logger_manager, "Agregue pid: %d a cola ready",
+			pcb_quantum->pcb->pid);
+	asignar_pcb_a_cpu(socket_conexion);
+	free(pid_a_ready);
+}
+
+void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
+// Recibo PCB
+	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
+	deserializar_pcb_quantum(buffer, pcb_quantum);
+	finalizar_proceso_en_tabla_pag_con_socket_cpu(pcb_quantum->pcb, socket_cpu);
+
+// ENVIO TERMINAR AL UMC
+
+	t_pid *finalizar = malloc(sizeof(t_pid));
+
+	finalizar->pid = pcb_quantum->pcb->pid;
+
+	t_buffer *buffer_finalizar = serializar_pid(finalizar);
+
+	t_header *header_finalizar_umc = malloc(sizeof(t_header));
+
+	header_finalizar_umc->id_proceso_emisor = PROCESO_NUCLEO;
+	header_finalizar_umc->id_proceso_receptor = PROCESO_UMC;
+	header_finalizar_umc->id_mensaje = MENSAJE_FINALIZAR_PROGRAMA;
+	header_finalizar_umc->longitud_mensaje = buffer_finalizar->longitud_buffer;
+
+	if (enviar_buffer(socket_umc, header_finalizar_umc, buffer_finalizar)
+			< sizeof(t_header) + buffer_finalizar->longitud_buffer) {
+		perror("Fallo enviar buffer finalizar umc");
+	}
+
+	free(finalizar);
+	free(buffer_finalizar);
+	free(header_finalizar_umc);
+
+	asignar_pcb_a_cpu(socket_cpu);
+}
+
+void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
+		int socket_cpu) {
+
+	sem_wait(&mutex_tabla_procesos);
+	int cant_filas = sizeof(*tabla_procesos) / sizeof(t_fila_tabla_procesos);
+	int i;
+	for (i = 0; i < cant_filas; ++i) {
+		if (tabla_procesos[i]->socket_cpu == socket_cpu) {
+			tabla_procesos[i]->pcb = pcb;
+			tabla_procesos[i]->pcb->estado = READY;
+			tabla_procesos[i]->socket_cpu = NO_ASIGNADO;
+			sem_post(&mutex_tabla_procesos);
+		} else {
+			++i;
+		}
+	}
+	sem_post(&mutex_tabla_procesos);
+
+}
+
+void finalizar_proceso_en_tabla_pag_con_socket_cpu(t_pcb * pcb, int socket_cpu) {
+	sem_wait(&mutex_tabla_procesos);
+	int socket_con = buscar_socket_consola_por_socket_cpu(socket_cpu);
+	eliminar_proceso_de_tabla_procesos_con_pid(pcb->pid);
+	enviar_header_completado(socket_con, PROCESO_CONSOLA,
+	MENSAJE_FINALIZO_OK);
+}
