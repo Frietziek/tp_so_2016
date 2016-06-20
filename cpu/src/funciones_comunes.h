@@ -11,48 +11,7 @@
 #include <semaphore.h>
 #include <commons/log.h> // Libreria de Logs
 #include <commons/collections/list.h> // Libreria para listas
-#include <parser/metadata_program.h>
-
-typedef struct {
-	int pagina;
-	int offset;
-	int size;
-} t_posicion_memoria;
-
-typedef struct {
-	char id;
-	t_posicion_memoria *posicion_memoria;
-} t_variables_stack;
-
-typedef struct {
-	int posicion_retorno;
-	t_posicion_memoria *posicion_variable_retorno;
-	int cantidad_variables;
-	t_variables_stack *variables;
-	int cantidad_argumentos;
-	t_posicion_memoria *argumentos;
-} t_indice_stack;
-
-typedef struct {
-	int pid;
-	int pc;
-	int cant_paginas_codigo_stack;
-	int estado;
-	int contexto_actual;
-	int stack_position;
-	int stack_pointer;
-	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
-	char* etiquetas;
-	t_size instrucciones_size;
-	t_intructions *instrucciones_serializadas;
-	int stack_size;
-	t_indice_stack *indice_stack;
-} t_pcb;
-
-typedef struct {
-	int quantum;
-	t_pcb *pcb;
-} t_pcb_quantum;
+#include "serializaciones_cpu.h"
 
 // Semaforos para continuar proceso y finalizar
 sem_t s_codigo; // Para cuando pido lectura de codigo
