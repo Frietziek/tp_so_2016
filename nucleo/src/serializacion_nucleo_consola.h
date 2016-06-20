@@ -11,13 +11,18 @@
 #include <serializacion.h>
 #include "atiendo_cpu.h"
 
-// Funciones Consola - Nucleo
-#define CODIGO 0
-#define FINALIZAR 2
+// Mensajes Consola - Nucleo
+#define INICIAR 0
+#define MATAR 2
 
-// Funciones Nucleo - Consola
+// Mensajes Nucleo - Consola
 #define MENSAJE_IMPRIMIR 3
 #define MENSAJE_IMPRIMIR_TEXTO 4
+#define MENSAJE_ERROR_AL_INICIAR 10
+#define MENSAJE_MATAR_OK 20
+#define MENSAJE_ERROR_AL_MATAR 30
+#define MENSAJE_FINALIZO_OK 5
+
 
 void deserializar_codigo(void* buffer, t_texto *codigo);
 

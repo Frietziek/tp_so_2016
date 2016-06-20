@@ -8,18 +8,24 @@
 #ifndef SERIALIZACION_NUCLEO_UMC_H_
 #define SERIALIZACION_NUCLEO_UMC_H_
 
-// UMC - Nucleo OK
+
+// Funciones Nucleo - UMC
+#define MENSAJE_HANDSHAKE_UMC 0
+#define REPUESTA_HANDSHAKE_UMC 10
+#define MENSAJE_INICIALIZAR_PROGRAMA 1
+#define MENSAJE_MATAR_PROGRAMA 2
+#define MENSAJE_FINALIZAR_PROGRAMA 4
+// Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
 #define RESPUESTA_MATAR_PROGRAMA 12
-// UMC - Nucleo Error
+// Respuestas ERROR
 #define ERROR_INICIALIZAR_PROGRAMA 21
 #define ERROR_MATAR_PROGRAMA 22
 
-// Funciones Nucleo - UMC
-#define HANDSHAKE_UMC 0
-#define RECIBIR_TAMANIO_PAGINA 10
-#define MENSAJE_INICIALIZAR_PROGRAMA 1
-#define MENSAJE_MATAR_PROGRAMA 2
+
+
+
+
 
 typedef struct {
 	int id_programa;
@@ -33,15 +39,15 @@ typedef struct {
 
 typedef struct {
 	int pid;
-} t_finalizar;
+} t_pid;
 
 t_buffer *serializar_programa_completo(t_programa_completo *programa);
 
 void deserializar_programa_completo(void *buffer, t_programa_completo *programa);
 
-t_buffer *serializar_finalizar(t_finalizar *finalizar);
+t_buffer *serializar_pid(t_pid *finalizar);
 
-void deserializar_finalizar(void *buffer, t_finalizar *finalizar);
+void deserializar_pid(void *buffer, t_pid *finalizar);
 
 void deserializar_pagina_tamanio(void *buffer, t_pagina_tamanio *pagina_tamanio);
 

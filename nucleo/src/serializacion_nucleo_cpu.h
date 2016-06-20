@@ -40,6 +40,14 @@
 #define ERROR_QUANTUM 28
 #define ERROR_PROGRAMA_FINALIZADO 29
 
-//TODO ver cual es finalizar
-#define FINALIZAR 10
+// Funciones Nucleo - CPU
+#define MENSAJE_PCB_NUCLEO 1
+#define MENSAJE_MATAR 2
+// Respuestas OK
+#define RESPUESTA_PCB_NUCLEO 11
+#define RESPUESTA_MATAR 12
+// Respuestas Error
+#define ERROR_PCB_NUCLEO 21
+#define ERROR_MATAR 22
+
 #endif /* SERIALIZACION_NUCLEO_CPU_H_ */
