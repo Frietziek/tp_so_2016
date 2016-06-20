@@ -60,6 +60,7 @@ sem_t s_instruccion_finalizada; // Para esperar a recibir respuesta del UMC o Nu
 sem_t s_cambio_proceso; // Para esperar la confirmacion de cambio de UMC
 sem_t s_variable_stack; // Para cuando pido lectura de variable
 sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
+sem_t s_matar_cpu; // Para cuando llega SIGUSR1
 sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
 void *valor_pagina; // Contenido de pagina de UMC
 int size_pagina; // Tamanio de pagina de UMC
@@ -68,6 +69,7 @@ int wait_nucleo; // 1 para avisar que se mando wait al nucleo
 int matar_proceso; // 1 para avisar que mato al proceso
 int fin_proceso; // 1 para avisar que termino el proceso
 int excepcion_umc; // 1 para avisar que hubo un problema con la UMC
+int matar_cpu; // 1 para avisar que llego SIGUSR1
 
 // Codigo de prueba;
 char *codigo;

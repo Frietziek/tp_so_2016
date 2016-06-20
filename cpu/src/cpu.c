@@ -147,6 +147,7 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_cambio_proceso, 0, 0); // Semaforo para la confirmacion de cambio de Proceso de UMC
 	sem_init(&s_variable_stack, 0, 0); // Semaforo para pedido de lectura de variable en UMC
 	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
+	sem_init(&s_matar_cpu, 0, 0); // Semaforo para matar CPU con SIGUSR1
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	// Inicio variable para instruccion wait de ansisop
@@ -155,6 +156,8 @@ void inicio_seniales_semaforos() {
 	matar_proceso = 0;
 	// Inicio variable de Excepcion de UMC
 	excepcion_umc = 0;
+	// Inicio variable para matar CPU
+	matar_cpu = 0;
 }
 
 void cierro_cpu(t_config_cpu* configuracion) {
@@ -166,6 +169,7 @@ void cierro_cpu(t_config_cpu* configuracion) {
 	sem_destroy(&s_cambio_proceso);
 	sem_destroy(&s_variable_stack);
 	sem_destroy(&s_variable_compartida);
+	sem_destroy(&s_matar_cpu);
 	free(pcb_quantum);
 	free(configuracion);
 	close(socket_umc);
@@ -200,6 +204,8 @@ void atender_seniales(int signum) {
 	switch (signum) {
 	case SIGUSR1:
 		log_trace(logger_manager, "Se recibio la senial SIGUSR1.");
+		matar_cpu = 1;
+		sem_wait(&s_matar_cpu);
 		sem_post(&s_cpu_finaliza);
 		break;
 	default:
@@ -318,6 +324,10 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	case RESPUESTA_QUANTUM:
 		log_info(logger_manager, "Recibi respuesta de quantum de Nucleo.");
 		break;
+	case RESPUESTA_MATAR_CPU:
+		log_info(logger_manager, "Recibi respuesta de Nucleo para matar CPU.");
+		sem_post(&s_matar_cpu);
+		break;
 	case ERROR_HANDSHAKE:
 		log_error(logger_manager, "Error en Handshake con el Nucleo.");
 		break;
@@ -345,6 +355,9 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	case ERROR_QUANTUM:
 		log_error(logger_manager, "Error al recibir quantum de Nucleo.");
 		break;
+	case ERROR_MATAR_CPU:
+		log_error(logger_manager, "Error al recibir matar CPU de Nucleo.");
+		break;
 	default:
 		log_warning(logger_manager, "Comando no reconocido de Nucleo.");
 		break;
@@ -367,9 +380,6 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	t_pcb_quantum *pcb_q2 = malloc(sizeof(t_pcb_quantum));
-	deserializar_pcb_quantum(buffer->contenido_buffer, pcb_q2);
-	printf("Termino des");
 }
 
 void cambio_proceso_activo() {
@@ -390,7 +400,7 @@ void ejecuto_instrucciones() {
 	fin_proceso = 0;
 
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
-			&& !matar_proceso && !excepcion_umc) {
+			&& !matar_proceso && !excepcion_umc && !matar_cpu) {
 
 		/*leo_instruccion_desde_UMC(pcb_quantum->pcb);
 		 // Espero hasta que llega la pagina
@@ -434,6 +444,9 @@ void ejecuto_instrucciones() {
 	} else if (excepcion_umc) {
 		id_mensaje = MENSAJE_EXCEPCION_UMC;
 		excepcion_umc = 0;
+	} else if (matar_cpu) {
+		id_mensaje = MENSAJE_MATAR_CPU;
+		matar_cpu = 0;
 	} else {
 		id_mensaje = MENSAJE_QUANTUM;
 	}
