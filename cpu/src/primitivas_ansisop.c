@@ -62,12 +62,11 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	int contenido_variable = 0;
 	log_info(logger_manager, "Dereferencia de: %d ", direccion_variable);
 
-	t_pagina *p_pagina = malloc(sizeof(t_pagina));
+	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
 	p_pagina->pagina = calcula_pagina(direccion_variable);
 	p_pagina->offset = calcula_offset(direccion_variable);
 	p_pagina->tamanio = sizeof(int);
-	p_pagina->socket_pedido = socket_umc;
-	t_buffer *buffer = serializar_pagina(p_pagina);
+	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
 
 	pagina_es_codigo = 0;
 
@@ -92,14 +91,13 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 	log_info(logger_manager, "Asignando en: %d el valor: %i.", direccion,
 			valor);
 
-	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
+	t_pagina_pedido_completa *p_pagina = malloc(sizeof(t_pagina_pedido_completa));
 	p_pagina->pagina = calcula_pagina(direccion);
 	p_pagina->offset = calcula_offset(direccion);
 	p_pagina->tamanio = sizeof(int);
 	p_pagina->valor = malloc(sizeof(int));
 	memcpy(p_pagina->valor, &valor, p_pagina->tamanio);
-	p_pagina->socket_pedido = socket_umc;
-	t_buffer *buffer = serializar_pagina_completa(p_pagina);
+	t_buffer *buffer = serializar_pagina_pedido_completa(p_pagina);
 
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
 	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",
@@ -218,14 +216,13 @@ void ansisop_retornar(t_valor_variable retorno) {
 
 	t_indice_stack* indice_stack = posiciono_indice_stack();
 
-	t_pagina_completa *p_pagina = malloc(sizeof(t_pagina_completa));
+	t_pagina_pedido_completa *p_pagina = malloc(sizeof(t_pagina_pedido_completa));
 	p_pagina->pagina = indice_stack->posicion_variable_retorno->pagina;
 	p_pagina->offset = indice_stack->posicion_variable_retorno->offset;
 	p_pagina->tamanio = indice_stack->posicion_variable_retorno->size;
 	p_pagina->valor = malloc(sizeof(int));
 	memcpy(p_pagina->valor, &retorno, p_pagina->tamanio);
-	p_pagina->socket_pedido = socket_umc;
-	t_buffer *buffer = serializar_pagina_completa(p_pagina);
+	t_buffer *buffer = serializar_pagina_pedido_completa(p_pagina);
 
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
 	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",

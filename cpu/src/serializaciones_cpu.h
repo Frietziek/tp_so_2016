@@ -70,23 +70,19 @@ typedef struct {
 } t_pcb_quantum;
 // Estructuras CPU - UMC
 typedef struct {
-	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;
-	int socket_pedido;
-} t_pagina;
+} t_pagina_pedido;
 typedef struct {
 	int tamanio;
 } t_pagina_tamanio;
 typedef struct {
-	int id_programa;
 	int pagina;
 	int offset;
 	int tamanio;
 	void *valor;
-	int socket_pedido;
-} t_pagina_completa;
+} t_pagina_pedido_completa;
 typedef struct {
 	int id_programa;
 } t_programa;
@@ -109,10 +105,10 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
 // Funciones CPU - UMC
 t_buffer *serializar_programa(t_programa *programa);
 void deserializar_programa(void *buffer, t_programa *programa);
-t_buffer *serializar_pagina(t_pagina *pagina);
-void deserializar_pagina(void *buffer, t_pagina *pagina);
-t_buffer *serializar_pagina_completa(t_pagina_completa *pagina);
-void deserializar_pagina_completa(void *buffer, t_pagina_completa *pagina);
+t_buffer *serializar_pagina_pedido(t_pagina_pedido *pagina);
+void deserializar_pagina_pedido(void *buffer, t_pagina_pedido *pagina);
+t_buffer *serializar_pagina_pedido_completa(t_pagina_pedido_completa *pagina);
+void deserializar_pagina_pedido_completa(void *buffer, t_pagina_pedido_completa *pagina);
 void deserializar_pagina_tamanio(void *buffer, t_pagina_tamanio *pagina_tamanio);
 
 #endif /* SERIALIZACIONES_CPU_H_ */

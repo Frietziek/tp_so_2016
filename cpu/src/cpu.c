@@ -253,8 +253,8 @@ void respuesta_handshake_cpu_umc(void *buffer) {
 }
 
 void respuesta_leer_pagina(void *buffer) {
-	t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
-	deserializar_pagina_completa(buffer, pagina);
+	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
+	deserializar_pagina_pedido_completa(buffer, pagina);
 
 	valor_pagina = malloc(pagina->tamanio);
 	size_pagina = pagina->tamanio;
@@ -462,12 +462,11 @@ void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
 
 void leo_instruccion_desde_UMC(t_pcb *pcb) {
 
-	t_pagina *p_pagina = malloc(sizeof(t_pagina));
+	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
 	p_pagina->pagina = calcula_pagina(deserializo_instruccion(pcb->pc)->start);
 	p_pagina->offset = deserializo_instruccion(pcb->pc)->start;
 	p_pagina->tamanio = deserializo_instruccion(pcb->pc)->offset;
-	p_pagina->socket_pedido = socket_umc;
-	t_buffer *buffer = serializar_pagina(p_pagina);
+	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
 
 	pagina_es_codigo = 1;
 
