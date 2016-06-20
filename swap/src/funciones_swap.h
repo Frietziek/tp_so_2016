@@ -17,5 +17,6 @@ void atender_UMC(t_paquete *paquete, int socket_conexion);
 void handshake_error(int socket_remitente);
 void enviar_mensaje_con_buffer_al_UMC(int socket_umc, int id_mensaje, t_buffer *t_buffers);
 void enviar_header_al_UMC(int socket_umc, int id_mensaje);
+void compactar_swap();
 
 #endif /* FUNCIONES_SWAP_H_ */

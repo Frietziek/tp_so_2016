@@ -100,8 +100,6 @@ int main(void) {
 }
 
 
-
-
 /*********************	Función que atiende cada mensaje del UMC	*********************/
 
 void atender_UMC(t_paquete *paquete, int socket_conexion) {
@@ -234,7 +232,7 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
 /********************* Funcionalidad necesaria para atender al UMC ***********************/
 
-/*Crea la estructura de control asociada al programa y reserva el espacio necesario en el swap, devuelve 0 si salio bien y -1 en caso de que de error al buscar bloque y -2 en caso de que el programa ya exista*/
+/*Crea la estructura de control asociada al programa y reserva el espacio necesario en el swap, devuelve 0 si salio bien ,-2 en caso de que el programa ya exista, -1 en caso de que no haya espacio libre total disponible (no entra aunque compacte)*/
 int inicializar_programa(t_programa_nuevo *inicio_programa_info){
 
 	t_program_info *program_info = buscar_programa(inicio_programa_info->id_programa, lista_programas);
@@ -244,14 +242,21 @@ int inicializar_programa(t_programa_nuevo *inicio_programa_info){
 		return -2;
 	}
 
+	//Revisar si hay espacio total disponible libre, en caso de que no rechazar pedido
+	if(!hay_espacio_total_disponible){
+		log_error(loggerManager,"[Inicializacion del programa %i] No queda espacio libre en el swap como para meter el programita (aunque compacte)", inicio_programa_info->id_programa);
+		return -1;
+	}
+
 	//Se busca un bloque de memoria continua donde quepa el programa
 	int numero_pagina_inicial = encontrar_ubicacion_libre(inicio_programa_info->paginas_requeridas, paginas_bitmap);
 
-	if(numero_pagina_inicial != -1){
+	if(numero_pagina_inicial != -1){//Encontró el espacio continuo suficiente
 		log_trace(loggerManager,"[Inicializacion del programa %i] Se obtuvo directamente un bloque de memoria continuo de tamano %i (paginas) en la pagina numero: %i", inicio_programa_info->id_programa, inicio_programa_info->paginas_requeridas, numero_pagina_inicial);
 	}else{
-		log_error(loggerManager,"[Inicializacion del programa %i] No se encontro un bloque de memoria continuo de tamano %i (paginas)", inicio_programa_info->id_programa, inicio_programa_info->paginas_requeridas);
-		return -1;
+		log_trace(loggerManager,"[Inicializacion del programa %i] No se encontro un bloque de memoria continuo de tamano %i (paginas), pero hay espacio suficiente, se procede a compactar", inicio_programa_info->id_programa, inicio_programa_info->paginas_requeridas);
+		compactar_swap();
+		numero_pagina_inicial = encontrar_ubicacion_libre(inicio_programa_info->paginas_requeridas, paginas_bitmap);
 	}
 	//Se reserva el espacio encontrado (seteando 1's en el bitmap)
 	reservar_lugar_para_el_programa(numero_pagina_inicial, inicio_programa_info->paginas_requeridas, paginas_bitmap);
@@ -293,8 +298,6 @@ int finalizar_programa(t_programa *fin_programa_info){
 /*Busca y retorna el contenido solicitado al swap*/
 int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer){
 
-	//TODO: Leer en la (posicion pagina * tamano de pagina) + offset una cantidad
-
 	int posicion_lectura = leer_pagina_info->pagina * config_swap->tamano_pagina + leer_pagina_info->offset;
 	fseek(archivo_swap, posicion_lectura, SEEK_SET);
 
@@ -330,6 +333,36 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info){
 		log_error(loggerManager,"[Escritura de bytes] Ocurrio un problema, se escribieron %i de %i bytes", cantidad_escrita, escribir_pagina_info->tamanio);
 		return -1;
 	}
+}
+
+//Compacta el SWAP
+void compactar_swap(){
+
+	log_trace(loggerManager,"[Compactación] Iniciando...");
+	simular_espera(config_swap->retardo_compactacion);
+
+	int index;
+	int cantidad_de_bits = bitarray_get_max_bit(paginas_bitmap);
+	int contador_ceros = 0;
+	t_program_info * un_programa;
+
+	for(index = 0 ; index < cantidad_de_bits ; index ++){
+
+		if(bitarray_test_bit(paginas_bitmap, index) && contador_ceros > 0){//1's y hubo ceros antes
+			un_programa = buscar_programa_por_pagina_inicial(index, lista_programas); //TODO: Verificar que al modificarlo de este lado se modifique en la lista perse, si es un puntero debería
+			reescribir_programa(un_programa, contador_ceros, archivo_swap, paginas_bitmap, config_swap, loggerManager);//Se reescribe el programa cantidad_ceros posiciones a la izquierda
+			contador_ceros = 0; //Se reinicia el contador
+			index = un_programa->pagina_inicial_swap + un_programa->cantidad_paginas; // Se reposiciona el index al final del programa que se movio, para seguir el algoritmo desde ahi
+
+		}else if(!bitarray_test_bit(paginas_bitmap, index)){ //0's
+			contador_ceros ++;
+
+		}
+
+	}
+
+	log_trace(loggerManager,"[Compactación] Finalizado");
+
 }
 
 /***************************************************************************************/
