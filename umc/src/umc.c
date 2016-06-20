@@ -8,20 +8,6 @@
  ============================================================================
  */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h> // Funcion sleep y close
-#include <pthread.h>
-#include <commons/config.h>
-#include <comunicaciones.h>
-#include <serializacion.h>
-#include <commons/collections/list.h>
-#include <commons/txt.h>
-#include <commons/log.h>
-#include <commons/string.h>
-#include <string.h>
-
 #include "umc.h"
 
 int socket_swap;
@@ -228,7 +214,7 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		escribir_pagina(paquete->payload, socket_conexion);
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
-		// TODO Terminar funcion
+		cambiar_proceso_activo(paquete->payload,socket_conexion);
 		break;
 	default:
 		log_error(log_umc,"Id mensaje enviado por el CPU no reconocido: %d",paquete->header->id_mensaje);
@@ -1393,5 +1379,18 @@ void eliminar_programa_nuevo_en_buffer(int pid){
 	free(buffer_nuevo_programa);
 }
 
-
+void cambiar_proceso_activo(void * buffer, int socket){
+	t_programa *programa = malloc(sizeof(t_pagina_completa));
+	deserializar_programa(buffer, programa);
+	t_header * header_cpu = malloc(sizeof(t_header));
+	header_cpu->id_proceso_emisor = PROCESO_UMC;
+	header_cpu->id_proceso_receptor = PROCESO_CPU;
+	header_cpu->id_mensaje = RESPUESTA_CAMBIO_PROCESO_ACTIVO;
+	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
+	log_info("Se procede a tratar un nuevo proceso por la CPU. PID: %d",programa->id_programa);
+	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
+		log_error(log_umc,"Error de comunicacion");
+	}
+	free(programa);
+}
 

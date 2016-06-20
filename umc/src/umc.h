@@ -8,6 +8,20 @@
 #ifndef SRC_UMC_H_
 #define SRC_UMC_H_
 
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h> // Funcion sleep y close
+#include <pthread.h>
+#include <commons/config.h>
+#include <comunicaciones.h>
+#include <serializacion.h>
+#include <commons/collections/list.h>
+#include <commons/txt.h>
+#include <commons/log.h>
+#include <commons/string.h>
+#include <string.h>
 #include "serializacion_umc_swap.h"
 
 // Funciones de la consola de UMC
@@ -236,5 +250,7 @@ void escribir_programa_test(void* buffer);
 void respuesta_leer_pagina_test(t_pagina_completa * pagina, int id_mensaje);
 
 t_marco * crear_marco(int start,int nro_marco);
+
+void cambiar_proceso_activo(void * buffer, int socket);
 
 #endif /* SRC_UMC_H_ */
