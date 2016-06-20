@@ -12,8 +12,7 @@
 
 int aux_socket_nucleo;
 
-void contar ();
-
+void contar();
 
 int main(int argc, char **argv) {
 
@@ -27,7 +26,7 @@ int main(int argc, char **argv) {
 			configuracion->puerto, &atender_nucleo);
 	aux_socket_nucleo = socket_nucleo;
 
-	signal (SIGINT, contar);
+	signal(SIGINT, contar);
 
 	printf("Proceso Consola creado.\n");
 
@@ -47,7 +46,8 @@ int main(int argc, char **argv) {
 
 	enviar_codigo(archivo, socket_nucleo);
 
-	while (1);
+	while (1)
+		;
 
 	fclose(archivo);
 	close(socket_nucleo);
@@ -102,7 +102,6 @@ int Generar_Buffer_Programa(FILE *archivo, char **Aux_Buff) {
 	return (len);
 }
 
-
 void enviar_codigo(FILE * archivo, int socket_nucleo) {
 	t_header *header = malloc(sizeof(t_header));
 	t_buffer *p_buffer;
@@ -132,7 +131,7 @@ void enviar_codigo(FILE * archivo, int socket_nucleo) {
 
 	header->id_proceso_emisor = PROCESO_CONSOLA;
 	header->id_proceso_receptor = PROCESO_NUCLEO;
-	header->id_mensaje = CODIGO;
+	header->id_mensaje = MENSAJE_INICIAR_PROGRAMA;
 	header->longitud_mensaje = p_buffer->longitud_buffer;
 
 	if (enviar_buffer(socket_nucleo, header, p_buffer)
@@ -149,53 +148,52 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
 	case MENSAJE_IMPRIMIR:
 		printf("La variable vale:\n");
-		t_variable_valor * valor_imprimir = malloc (sizeof (t_variable_valor));
-		deserializar_variable_valor (paquete->payload,valor_imprimir);
-		printf("%d\n",valor_imprimir->valor);
+		t_variable_valor * valor_imprimir = malloc(sizeof(t_variable_valor));
+		deserializar_variable_valor(paquete->payload, valor_imprimir);
+		printf("%d\n", valor_imprimir->valor);
 		opcion = RESPUESTA_IMPRIMIR;
 		consola_nucleo(aux_socket_nucleo, opcion);
 		break;
 	case MENSAJE_IMPRIMIR_TEXTO:
 		printf("El texto es:\n");
-		t_texto * texto_imprimir = malloc (sizeof (t_texto));
-		deserializar_texto (paquete->payload,texto_imprimir);
-		printf("%s\n",texto_imprimir->texto);
+		t_texto * texto_imprimir = malloc(sizeof(t_texto));
+		deserializar_texto(paquete->payload, texto_imprimir);
+		printf("%s\n", texto_imprimir->texto);
 		opcion = RESPUESTA_IMPRIMIR_TEXTO;
 		consola_nucleo(aux_socket_nucleo, opcion);
 		break;
 	case MENSAJE_PROGRAMA_FINALIZADO:
-		printf ("Programa Finalizado Correctamente\n");
+		printf("Programa Finalizado Correctamente\n");
 		opcion = RESPUESTA_PROGRAMA_FINALIZADO;
 		consola_nucleo(aux_socket_nucleo, opcion);
-		exit (1);
+		exit(1);
 	default:
 		printf("Comando no reconocido\n");
 		break;
 	}
 }
 
-void contar ()
-{
-    /* Primero desactivamos la señal SIGINT por si se pulsa CTRL+C
-       mientras se está ejecutando esta función. */
-	int opcion = MENSAJE_MATAR_PROCESO;
+void contar() {
+	/* Primero desactivamos la señal SIGINT por si se pulsa CTRL+C
+	 mientras se está ejecutando esta función. */
+	int opcion = MENSAJE_INICIAR_PROGRAMA;
 	pid_t pid;
-    signal (SIGINT, SIG_IGN);
-    printf ("Has pulsado CTRL-C\n");
-    printf("llego");
-    consola_nucleo(aux_socket_nucleo, opcion);
-    pid = getpid ();
-    kill (pid,SIGTERM);
+	signal(SIGINT, SIG_IGN);
+	printf("Has pulsado CTRL-C\n");
+	printf("llego");
+	consola_nucleo(aux_socket_nucleo, opcion);
+	pid = getpid();
+	kill(pid, SIGTERM);
 }
 /*
-void handler_señal(int s) {
-	int opcion = MENSAJE_MATAR_PROCESO;
-	pid_t pid;
-	consola_nucleo(aux_socket_nucleo, opcion);
-	printf("llego");
-	pid = getpid ();
-	kill (pid,SIGTERM);
-	printf("No llego");
-}
+ void handler_señal(int s) {
+ int opcion = MENSAJE_MATAR_PROCESO;
+ pid_t pid;
+ consola_nucleo(aux_socket_nucleo, opcion);
+ printf("llego");
+ pid = getpid ();
+ kill (pid,SIGTERM);
+ printf("No llego");
+ }
 
-*/
+ */
