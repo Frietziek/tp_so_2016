@@ -87,7 +87,7 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	pcb->estado = NEW;
 	pcb->contexto_actual = 0;
 	pcb->stack_position = strlen(codigo_de_consola);
-	pcb->stack_pointer = pcb->stack_position - 4;
+	pcb->stack_pointer = pcb->stack_position - sizeof(int);
 	pcb->etiquetas_size = metadata->etiquetas_size;
 	pcb->etiquetas = metadata->etiquetas;
 	pcb->instrucciones_size = metadata->instrucciones_size;
