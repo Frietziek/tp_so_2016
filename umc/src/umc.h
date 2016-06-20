@@ -119,7 +119,9 @@ t_configuracion_servidor* creo_servidor_umc(t_config_umc* configuracion);
 
 int conecto_con_swap(t_config_umc* configuracion);
 
-void menu_principal(t_config_umc *configuracion);
+void * menu_principal();
+
+void *hola(void *arg);
 
 void atender_peticiones(t_paquete *paquete, int socket_conexion,
 		t_config_umc *configuracion);
@@ -159,7 +161,7 @@ void handshake_proceso(int socket, t_config_umc *configuracion,
 
 int pagina_en_tlb();
 
-void cambiar_retardo(t_config_umc *configuracion);
+void cambiar_retardo();
 
 void generar_dump();
 
@@ -187,7 +189,9 @@ int cant_pag_x_proc(int pid);
 
 int obtener_marco();
 
-void guardar_en_TLB(t_pagina_completa * pagina,int marco);
+void guardar_en_TLB(int nro_pagina, int pid ,int marco);
+
+void quitar_pagina_TLB(int marco);
 
 void LRU(t_tlb * pagina_a_ubicar);
 
@@ -222,5 +226,15 @@ void dump_tabla(int pid);
 void dump_contenido(int pid);
 
 void eliminar_programa_nuevo_en_buffer(int pid);
+
+void iniciar_programa_test(void* buffer);
+
+void leer_programa_test(void* buffer);
+
+void escribir_programa_test(void* buffer);
+
+void respuesta_leer_pagina_test(t_pagina_completa * pagina, int id_mensaje);
+
+t_marco * crear_marco(int start,int nro_marco);
 
 #endif /* SRC_UMC_H_ */
