@@ -22,7 +22,8 @@
 #include <commons/log.h>
 #include <commons/string.h>
 #include <string.h>
-#include "serializacion_umc_swap.h"
+
+#include "serializacion_umc.h"
 
 // Funciones de la consola de UMC
 #define RETARDO 1

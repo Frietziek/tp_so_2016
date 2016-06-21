@@ -51,7 +51,7 @@ int main(void) {
 	socket_swap = conecto_con_swap(configuracion);
 
 	// Inicio servidor UMC
-	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);
+	creo_servidor_umc(configuracion);
 
 	pthread_create(&thread_consola,NULL,(void*)menu_principal, NULL);
 
@@ -767,12 +767,18 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 }
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
-	handshake_proceso(socket_cpu, configuracion, PROCESO_CPU,
-	REPUESTA_HANDSHAKE);
+	handshake_proceso(socket_cpu, configuracion, PROCESO_CPU,REPUESTA_HANDSHAKE);
+	bool es_cpu(t_cpu *elemento){
+		return (elemento->socket_cpu == socket_cpu);
+	}
+	t_cpu * cpu = (t_cpu *) list_find(lista_cpus,(void*)es_cpu);
+	if(cpu != NULL){
+		list_remove_by_condition(lista_cpus,(void*)es_cpu);
+		free(cpu);
+	}
 	t_cpu * cpu_nueva = malloc(sizeof(t_cpu));
 	cpu_nueva->socket_cpu = socket_cpu;
 	list_add(lista_cpus,cpu_nueva);
-	//TODO si finaliza el cpu y viene uno nuevo, puede que tenga el mismo socket? en ese caso ir eliminando de la lista
 }
 
 void handshake_umc_nucleo(int socket_nucleo, t_config_umc *configuracion) {
