@@ -50,6 +50,19 @@ typedef struct {
 	int paginas_requeridas;
 } t_programa_nuevo;
 
+typedef struct {
+	int pagina;
+	int offset;
+	int tamanio;
+} t_pagina_pedido;
+
+typedef struct {
+	int pagina;
+	int offset;
+	int tamanio;
+	void *valor;
+} t_pagina_pedido_completa;
+
 t_buffer *serializar_programa(t_programa *programa);
 void deserializar_programa(void *buffer, t_programa *programa);
 
@@ -70,5 +83,11 @@ void deserializar_programa_nuevo(void *buffer, t_programa_nuevo *programa);
 
 t_buffer *serializar_programa_para_escritura(t_programa_para_escritura *programa);
 void deserializar_programa_para_escritura(void *buffer, t_programa_para_escritura *programa);
+
+t_buffer *serializar_pagina_pedido(t_pagina_pedido *pagina);
+void deserializar_pagina_pedido(void *buffer, t_pagina_pedido *pagina);
+
+t_buffer *serializar_pagina_pedido_completa(t_pagina_pedido_completa *pagina);
+void deserializar_pagina_pedido_completa(void *buffer, t_pagina_pedido_completa *pagina);
 
 #endif /* SERIALIZACION_UMC_H_ */

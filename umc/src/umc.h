@@ -127,6 +127,11 @@ typedef struct {
 	int pid;
 } t_tabla_cantidad_entradas;
 
+typedef struct {
+	int socket_cpu;
+	int pid;
+} t_cpu;
+
 void carga_configuracion_UMC(char *archivo, t_config_umc *configuracion);
 
 t_configuracion_servidor* creo_servidor_umc(t_config_umc* configuracion);
