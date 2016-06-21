@@ -14,12 +14,6 @@ typedef struct {
 	int id_programa;
 } t_programa;
 
-/*typedef struct {
-	int id_programa;
-	int paginas_requeridas;
-	char *codigo;
-} t_programa_completo;*/
-
 typedef struct {
     int id_programa;
     int paginas_requeridas;
@@ -50,8 +44,8 @@ typedef struct {
 t_buffer *serializar_programa(t_programa *programa);
 void deserializar_programa(void *buffer, t_programa *programa);
 
-t_buffer *serializar_programa_completo(t_programa_nuevo *programa);
-void deserializar_programa_completo(void *buffer, t_programa_nuevo *programa);
+t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa);
+void deserializar_programa_nuevo(void *buffer, t_programa_nuevo *programa);
 
 t_buffer *serializar_pagina(t_pagina *pagina);
 void deserializar_pagina(void *buffer, t_pagina *pagina);
