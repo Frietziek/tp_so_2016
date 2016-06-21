@@ -493,7 +493,6 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		}
 		free(pagina);
 	}
-
 }
 
 void escribir_pagina(void *buffer, int socket_conexion){
@@ -528,7 +527,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 			tabla[pagina->pagina].uso = 1;
 
 			if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
-				perror("Error al finalizar programa");
+				log_error(log_umc,"Error al finalizar programa");
 			}
 			free(header_cpu);
 		//2° caso: esta en memoria
@@ -556,7 +555,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 				else{
 					// Pido la pagina a Swap. La guardo en memoria y solo escribo en la memoria
 					log_info(log_umc,"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
-					list_add(lista_buffer_escritura,pagina);//pongo en un buffer lo que se pide escribir .
+					guardar_pagina_en_buffer(id_programa,socket_conexion,pagina);
 
 					t_header *header_swap = malloc(sizeof(t_header));
 					header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -578,28 +577,31 @@ void escribir_pagina(void *buffer, int socket_conexion){
 							< sizeof(t_header) + payload_swap->longitud_buffer) {
 						log_error(log_umc,"Error de comunicacion al enviar Leer pagina a SWAP - PID:%d",id_programa);
 					}
-					if (enviar_header(socket_swap, header_swap) < sizeof(header_swap)) {
-							perror("Error al finalizar programa");
-					}
 					free(header_cpu);
+					free(pagina_swap);
+					free(header_swap);
 					}
 		}
 	free(pagina);
 }
 
 void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
+	int pid,socket;
 	t_header *header_cpu = malloc(sizeof(t_header));
 	header_cpu->id_proceso_emisor = PROCESO_UMC;
 	header_cpu->id_proceso_receptor = PROCESO_CPU;
 	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-	t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
-	deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
-
-	t_pagina_completa *pagina_buffer;
-	copiar_pagina_escritura_desde_buffer(pagina_recibida_de_swap->id_programa, pagina_recibida_de_swap->pagina,pagina_buffer);
-
 	if(id_mensaje == RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR){
+		t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
+		deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
+
+		pid = pagina_recibida_de_swap->id_programa;
+		socket = pagina_recibida_de_swap->socket_pedido;
+
+		t_pagina_completa *pagina_buffer;
+		copiar_pagina_escritura_desde_buffer(pid, pagina_recibida_de_swap->pagina,pagina_buffer);
+
 		//Primero guardo en memoria la pagina como esta en swap y luego la sobreescribo con lo que manda la cpu
 		log_info(log_umc,"Se recibe del SWAP la Pagina:%d PID:%d",pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa);
 		if(guardar_en_mp(pagina_recibida_de_swap) == 0){// guardo la pagina en memoria
@@ -615,17 +617,21 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		tabla[pagina_recibida_de_swap->pagina].modificado = 1;
 
 		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
-
+		free(pagina_buffer);
+		free(pagina_recibida_de_swap);
 	}
 	else if(id_mensaje == ERROR_LEER_PAGINA_PARA_ESCRIBIR){
+		t_pagina *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
+		deserializar_pagina(buffer, pagina_recibida_de_swap);
+		pid = pagina_recibida_de_swap->id_programa;
+		socket = pagina_recibida_de_swap->socket_pedido;
 		log_error(log_umc,"Hubo un error al recibir del swap la PAGINA:%d PID:%d",pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa);
 		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
+		free(pagina_recibida_de_swap);
 	}
-	if (enviar_header(pagina_recibida_de_swap->socket_pedido, header_cpu) < sizeof(header_cpu)) {
+	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
 			log_error(log_umc,"Error al enviar header a cpu");
 	}
-	free(pagina_buffer);
-	free(pagina_recibida_de_swap);
 	free(header_cpu);
 }
 
@@ -642,19 +648,20 @@ void respuesta_escribir_pagina(void *buffer,int id_mensaje){ //por reemplazo
 		header_cpu->id_proceso_emisor = PROCESO_UMC;
 		header_cpu->id_proceso_receptor = PROCESO_CPU;
 		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
-		t_buffer * payload_cpu = serializar_pagina_completa(pagina_recibida_de_swap);
-		header_cpu->longitud_mensaje = payload_cpu->longitud_buffer;
+		header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-		if (enviar_buffer(pagina_recibida_de_swap->socket_pedido, header_cpu, payload_cpu)
-				< sizeof(t_header) + payload_cpu->longitud_buffer) {
-			log_error(log_umc,"Fallo enviar buffer Leer pagina de Swap");
+		if (enviar_header(pagina_recibida_de_swap->socket_pedido, header_cpu) < sizeof(header_cpu)) {
+				log_error(log_umc,"Error al enviar header a cpu");
 		}
 	}
 }
 
 void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
-	t_programa *programa_id = malloc(sizeof(t_programa));
-	deserializar_programa(buffer, programa_id);
+	t_pagina_completa *pagina_completa = malloc(sizeof(t_programa));
+	deserializar_pagina_completa(buffer, pagina_completa);
+
+	t_programa * programa_id = malloc(sizeof(t_programa));
+	programa_id->id_programa = pagina_completa->id_programa;
 
 	t_buffer * payload_nucleo = serializar_programa(programa_id);
 
@@ -691,7 +698,7 @@ void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,i
 
 	if (enviar_buffer(socket, header_cpu, payload_cpu)
 			< sizeof(t_header) + payload_cpu->longitud_buffer) {
-		perror("Fallo al responder pedido CPU");
+		log_error(log_umc,"Fallo al responder pedido CPU");
 	}
 
 	free(header_cpu);
@@ -1392,5 +1399,16 @@ void cambiar_proceso_activo(void * buffer, int socket){
 		log_error(log_umc,"Error de comunicacion");
 	}
 	free(programa);
+}
+
+void guardar_pagina_en_buffer(int id_programa,int socket_conexion,t_pagina_pedido_completa * pagina){
+	t_pagina_completa * pagina_completa = malloc(sizeof(t_pagina_completa));//la creo para guardarla
+	pagina_completa->id_programa = id_programa;
+	pagina_completa->offset = pagina->offset;
+	pagina_completa->socket_pedido = socket_conexion;
+	pagina_completa->pagina = pagina->pagina;
+	pagina_completa->tamanio = pagina->tamanio;
+	memcpy(pagina_completa->valor,pagina->valor,pagina->tamanio);
+	list_add(lista_buffer_escritura,pagina);//pongo en un buffer lo que se pide escribir .
 }
 

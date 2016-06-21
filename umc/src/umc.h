@@ -258,4 +258,6 @@ t_marco * crear_marco(int start,int nro_marco);
 
 void cambiar_proceso_activo(void * buffer, int socket);
 
+void guardar_pagina_en_buffer(int id_programa,int socket_conexion,t_pagina_pedido_completa * pagina);
+
 #endif /* SRC_UMC_H_ */
