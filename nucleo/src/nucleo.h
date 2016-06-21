@@ -160,6 +160,7 @@ int buscar_socket_consola_por_pid(int pid);
 void eliminar_proceso_de_tabla_procesos_con_pid(int pid);
 void atiendo_quantum(void *buffer, int socket_conexion);
 void atiendo_programa_finalizado(void *buffer, int socket_cpu);
-void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb, int socket_cpu);
+void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
+		int socket_cpu);
 void finalizar_proceso_en_tabla_pag_con_socket_cpu(t_pcb * pcb, int socket_cpu);
 #endif /* NUCLEO_H_ *///

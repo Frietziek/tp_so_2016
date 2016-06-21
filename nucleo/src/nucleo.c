@@ -549,15 +549,15 @@ void inicializar_variables_compartidas(char **shared_vars) {
 
 void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init) {
 	int i = 0;
-	solitudes_semaforo = malloc(sizeof(t_dictionary));
+	solitudes_semaforo = dictionary_create();
 	while (sem_id[i] != NULL || sem_init[i] != NULL) {
 		t_atributos_semaforo *atributos = malloc(sizeof(t_atributos_semaforo));
 		atributos->valor = atoi(sem_init[i]);
 		atributos->solicitudes = queue_create();
-		++i;
 		sem_wait(&mutex_solicitudes_semaforo);
 		dictionary_put(solitudes_semaforo, sem_id[i], atributos);
 		sem_post(&mutex_solicitudes_semaforo);
+		++i;
 
 	}
 }

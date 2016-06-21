@@ -48,7 +48,7 @@ int main(void) {
 	txt_write_in_file(dump_file, "\n\n NUEVO INICIO DE UMC \n\n");
 
 	// Se realiza la conexión con el swap
-	//socket_swap = conecto_con_swap(configuracion);
+	socket_swap = conecto_con_swap(configuracion);
 
 	// Inicio servidor UMC
 	t_configuracion_servidor* servidor_umc = creo_servidor_umc(configuracion);

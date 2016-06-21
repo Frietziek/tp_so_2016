@@ -43,9 +43,6 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		atiendo_programa_finalizado(paquete->payload, socket_cpu);
 		break;
 	}
-
-	free(paquete);
-
 }
 
 void atiendo_handshake(void *buffer, int socket_conexion) {
@@ -259,7 +256,6 @@ void atiendo_signal(void *buffer, int socket_conexion,
 
 	free(semaforo);
 }
-
 
 t_buffer *serializar_variable(t_variable *variable) {
 	int cantidad_a_reservar = sizeof(int) + strlen(variable->nombre);
