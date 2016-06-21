@@ -128,25 +128,33 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1-6] leer_pagina");
 
 			t_pagina *pagina = malloc (sizeof (t_pagina));
-			t_buffer *t_buffers = malloc(sizeof(t_buffers));
 			deserializar_pagina(paquete->payload, pagina);
 
-			retorno_de_funcion = leer_bytes_swap(pagina, t_buffers->contenido_buffer);
-			t_buffers->longitud_buffer = pagina->tamanio;
+			t_pagina_completa *pagina_completa_lectura= malloc (sizeof (t_pagina_completa)); //Se va a usar para responder ok
+			pagina_completa_lectura->id_programa = pagina->id_programa;
+			pagina_completa_lectura->socket_pedido = pagina->socket_pedido;
+
+			retorno_de_funcion = leer_bytes_swap(pagina, pagina_completa_lectura->valor);
+
+
+			t_buffer *buffer_pagina = serializar_pagina(pagina);
+			t_buffer *buffer_pagina_completa_lectura = serializar_pagina_completa(pagina_completa_lectura);
 
 			//Diferentes retornos de mensajes dependiendo de la situación. PD: Si quedó horrible pero el tiempo está en nuestra contra :P
 			if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA)
-				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA, t_buffers);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA, buffer_pagina_completa_lectura);
 			else if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA_PARA_ESCRIBIR)
-				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR, t_buffers);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR, buffer_pagina_completa_lectura);
 
 			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA)
-				enviar_header_al_UMC(socket_conexion, ERROR_LEER_PAGINA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_LEER_PAGINA, buffer_pagina);
 			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_LEER_PAGINA_PARA_ESCRIBIR)
-				enviar_header_al_UMC(socket_conexion, ERROR_LEER_PAGINA_PARA_ESCRIBIR);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_LEER_PAGINA_PARA_ESCRIBIR, buffer_pagina);
 
 			free (pagina);
-			free (t_buffers);
+			free (pagina_completa_lectura);
+			free (buffer_pagina);
+			free (buffer_pagina_completa_lectura);
 
 			break;
 
@@ -155,23 +163,26 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 		case MENSAJE_ESCRIBIR_PAGINA:
 
 			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 2-7] escribir_pagina");
-			t_pagina_completa *pagina_completa = malloc (sizeof (t_pagina_completa));
-			deserializar_pagina_completa(paquete->payload , pagina_completa);
+			t_pagina_completa *pagina_completa_escritura = malloc (sizeof (t_pagina_completa));
+			deserializar_pagina_completa(paquete->payload , pagina_completa_escritura);
 
-			retorno_de_funcion = escribir_bytes_swap(pagina_completa);
+			retorno_de_funcion = escribir_bytes_swap(pagina_completa_escritura);
+
+			t_buffer *buffer_pagina_completa_escritura = serializar_pagina_completa(pagina_completa_escritura);
 
 			//Diferentes retornos de mensajes dependiendo de la situación. PD: Si quedó horrible pero el tiempo está en nuestra contra :P
 			if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA)
-				enviar_header_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA, buffer_pagina_completa_escritura);
 			else if (retorno_de_funcion != -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA_NUEVA)
-				enviar_header_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA_NUEVA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_ESCRIBIR_PAGINA_NUEVA, buffer_pagina_completa_escritura);
 
 			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA)
-				enviar_header_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA, buffer_pagina_completa_escritura);
 			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA_NUEVA)
-				enviar_header_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA_NUEVA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA_NUEVA, buffer_pagina_completa_escritura);
 
-			free (pagina_completa);
+			free (pagina_completa_escritura);
+			free (buffer_pagina_completa_escritura);
 
 			break;
 
@@ -181,14 +192,13 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
 			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 3] iniciar_programa");
 			t_programa_nuevo *programa_nuevo = malloc (sizeof (t_programa_nuevo));
-			deserializar_programa_completo(paquete->payload , programa_nuevo);
+			deserializar_programa_nuevo(paquete->payload , programa_nuevo);
 
 			retorno_de_funcion = inicializar_programa (programa_nuevo);
 
 			t_buffer *buffer_con_programa_nuevo = serializar_programa_nuevo(programa_nuevo);
 
 			if (retorno_de_funcion != -1)
-				//enviar_header_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA);
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_INICIALIZAR_PROGRAMA, buffer_con_programa_nuevo);
 			else
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA, buffer_con_programa_nuevo);
@@ -209,12 +219,15 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
 			retorno_de_funcion = finalizar_programa (programa);
 
+			t_buffer *buffer_con_programa = serializar_programa(programa);
+
 			if (retorno_de_funcion != -1)
-				enviar_header_al_UMC(socket_conexion, RESPUESTA_FINALIZAR_PROGRAMA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, RESPUESTA_FINALIZAR_PROGRAMA, buffer_con_programa);
 			else
-				enviar_header_al_UMC(socket_conexion, ERROR_FINALIZAR_PROGRAMA);
+				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_FINALIZAR_PROGRAMA, buffer_con_programa);
 
 			free (programa);
+			free(buffer_con_programa);
 
 			break;
 
@@ -243,7 +256,7 @@ int inicializar_programa(t_programa_nuevo *inicio_programa_info){
 	}
 
 	//Revisar si hay espacio total disponible libre, en caso de que no rechazar pedido
-	if(!hay_espacio_total_disponible){
+	if(!hay_espacio_total_disponible(inicio_programa_info->paginas_requeridas, paginas_bitmap)){
 		log_error(loggerManager,"[Inicializacion del programa %i] No queda espacio libre en el swap como para meter el programita (aunque compacte)", inicio_programa_info->id_programa);
 		return -1;
 	}
@@ -304,13 +317,13 @@ int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer){
 	int cantidad_leida = fread(buffer,leer_pagina_info->tamanio, 1, archivo_swap);
 
 	if (cantidad_leida == 1){//leyo un bloque del tamano
-			log_trace(loggerManager,"[Lectura de bytes] Se leyeron correctamente %i bloque de %i bytes", cantidad_leida, leer_pagina_info->tamanio);
-			return 0;
-		}
-		else {
-			log_error(loggerManager,"[Lectura de bytes] Ocurrio un problema, se leyeron %i bloques de %i bytes", cantidad_leida, leer_pagina_info->tamanio);
-			return -1;
-		}
+		log_trace(loggerManager,"[Lectura de bytes] Se leyeron correctamente %i bloque de %i bytes", cantidad_leida, leer_pagina_info->tamanio);
+		return 0;
+	}
+	else {
+		log_error(loggerManager,"[Lectura de bytes] Ocurrio un problema, se leyeron %i bloques de %i bytes", cantidad_leida, leer_pagina_info->tamanio);
+		return -1;
+	}
 
 }
 
