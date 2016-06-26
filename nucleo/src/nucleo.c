@@ -46,7 +46,7 @@ int main(void) {
 
 	logger_manager = log_create("nucleo.log", "NUCLEO", true, LOG_LEVEL_TRACE); // Creo archivo de log
 	log_trace(logger_manager, "Proceso Nucleo creado.");
-	pid_count = 0;
+	pid_count = 1;
 	configuracion = malloc(sizeof(t_config_nucleo));
 	cargar_configuracion_nucleo("src/config.nucleo.ini", configuracion);
 
