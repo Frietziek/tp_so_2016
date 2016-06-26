@@ -80,7 +80,7 @@ int main(void) {
 	log_info(logger_manager, "Se cargo el tamanio de la pagina: %i",
 			tamanio_pagina);
 
-	enviar_programa_completo_a_umc(0, 1,
+	enviar_programa_completo_a_umc(1, 1,
 			"begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend");
 
 	/*log_trace(logger_manager, "Inicializando servidor consola");
