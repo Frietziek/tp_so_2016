@@ -13,7 +13,6 @@
 int socket_swap;
 int socket_nucleo;
 void *memoria_principal;
-//void *cache_tlb;
 t_lista_algoritmo * listas_algoritmo;
 t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_buffer_escritura,*lista_tabla_entradas,*lista_cpus,*lista_buffer_prog_completo;
 t_config_umc *configuracion;
@@ -52,11 +51,11 @@ int main(void) {
 	socket_swap = conecto_con_swap(configuracion);
 
 	// Inicio servidor UMC
-	pthread_create(&thread_consola,NULL,(void*)menu_principal, NULL);
+	//pthread_create(&thread_consola,NULL,(void*)menu_principal, NULL);
 
 	creo_servidor_umc(configuracion);
-
-	pthread_join(thread_consola,NULL);
+	getchar(); //pausa
+	//pthread_join(thread_consola,NULL);
 
 	free(configuracion);
 	//free(servidor_umc);
@@ -684,7 +683,7 @@ void respuesta_escribir_pagina(void *buffer,int id_mensaje){ //por reemplazo
 }
 
 void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
-	t_pagina_completa *pagina_completa = malloc(sizeof(t_programa));
+	t_pagina_completa *pagina_completa = malloc(sizeof(t_pagina_completa));
 	deserializar_pagina_completa(buffer, pagina_completa);
 
 	t_programa * programa_id = malloc(sizeof(t_programa));
@@ -709,6 +708,11 @@ void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc,"Error de comunicacion con el Nucleo");
 	}
+	free(pagina_completa->valor);
+	free(pagina_completa);
+	free(programa_id);
+	free(payload_nucleo);
+	free(header_nucleo);
 }
 
 
