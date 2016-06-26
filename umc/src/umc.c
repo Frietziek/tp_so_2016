@@ -20,6 +20,7 @@ t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
 pthread_t thread_consola;
+char * buffer_programas[CANT_TABLAS_MAX];
 
 int main(void) {
 	//creo archivo log
@@ -316,7 +317,15 @@ void iniciar_programa(void* buffer) {
 	//el contenido lo guardo en un buffer
 
 
-	list_add(lista_buffer_prog_completo,programa);//guardo en un buffer para mandar luego al swap
+	buffer_programas[programa->id_programa] = programa->codigo;
+
+	//list_add(lista_buffer_prog_completo,programa_buffer);//guardo en un buffer para mandar luego al swap
+
+	//para testear
+	t_programa_completo * programa_completo_en_buffer = copiar_programa_completo_desde_buffer(programa->id_programa);
+
+	log_info(log_umc,"TEST 3 Se pasa el codigo del nuevo programa a swap");
+	//-----------------
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
 	header_swap->id_proceso_receptor = PROCESO_SWAP;
@@ -329,12 +338,12 @@ void iniciar_programa(void* buffer) {
 	t_buffer *payload_swap = serializar_programa_nuevo(programa_swap);
 
 	header_swap->longitud_mensaje = payload_swap->longitud_buffer;
+	log_info(log_umc,"Se envia a SWAP una solicitud de reserva de espacio para un nuevo programa - PID:%d",programa->id_programa);
 
 	if (enviar_buffer(socket_swap, header_swap, payload_swap)
 			< sizeof(header_swap) + payload_swap->longitud_buffer) {
 		log_error(log_umc,"Fallo la comunicacion con SWAP para iniciar el programa PID:%d",programa->id_programa);
 	}
-	log_info(log_umc,"Se envia a SWAP una solicitud de reserva de espacio para un nuevo programa - PID:%d",programa->id_programa);
 
 	free(header_swap);
 	free(programa_swap);
@@ -1052,11 +1061,12 @@ void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa
 	pag_completa = (t_pagina_completa *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
 }
 
-void copiar_programa_completo_desde_buffer(int pid, t_programa_completo * programa_completo){
+t_programa_completo * copiar_programa_completo_desde_buffer(int pid){
 	bool es_buffer(t_programa_completo *un_buffer){
 		return (un_buffer->id_programa == pid);
 	}
-	programa_completo = (t_programa_completo *) list_get(lista_buffer_prog_completo,(void*)es_buffer);
+	t_programa_completo * programa_completo = (t_programa_completo *) list_get(lista_buffer_prog_completo,(void*)es_buffer);
+	return programa_completo;
 }
 
 void crear_listas(){
@@ -1249,15 +1259,13 @@ void mandar_a_swap(int pid,int pagina,int id_mensaje){
 	if(id_mensaje == MENSAJE_ESCRIBIR_PAGINA_NUEVA){
 		//busco el contenido que me mando el nucleo en el buffer en que lo guarde y se lo mando al swap
 
-		t_programa_completo * programa_completo_en_buffer;
-		copiar_programa_completo_desde_buffer(pid, programa_completo_en_buffer);
+		t_programa_completo * prog_comp = malloc(sizeof(t_programa_completo));
+		pagina_completa->valor = buffer_programas[pid];
 
-		pagina_completa->tamanio = strlen(programa_completo_en_buffer->codigo);
-		pagina_completa->valor = malloc(sizeof(pagina_completa->tamanio));
-		memcpy(pagina_completa->valor,programa_completo_en_buffer->codigo,strlen(programa_completo_en_buffer->codigo));
+		pagina_completa->tamanio = strlen(buffer_programas[pid]);
 		log_info(log_umc,"TEST 3 Se pasa el codigo del nuevo programa a swap");
+		log_info(log_umc,"TEST codigo: %s\npid: %d\ntamanio: %d\n",pagina_completa->valor,pagina_completa->id_programa,pagina_completa->tamanio);
 		t_buffer * buffer = serializar_pagina_completa(pagina_completa);
-		free(programa_completo_en_buffer);// me falla
 	}
 	else if(id_mensaje == MENSAJE_ESCRIBIR_PAGINA){
 		//busco en memoria el contenido de la pagina y se lo mando al swap
@@ -1275,7 +1283,7 @@ void mandar_a_swap(int pid,int pagina,int id_mensaje){
 			< sizeof(t_header) + payload_swap->longitud_buffer) {
 		log_error(log_umc,"Fallo al responder pedido CPU");
 	}
-	free(pagina_completa->valor);
+	free(buffer_programas[pid]);
 	free(pagina_completa);
 	free(header_swap);
 	free(payload_swap);
