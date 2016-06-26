@@ -15,7 +15,7 @@ int socket_nucleo;
 void *memoria_principal;
 //void *cache_tlb;
 t_lista_algoritmo * listas_algoritmo;
-t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_buffer_escritura,*lista_tabla_entradas,*lista_cpus;
+t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_buffer_escritura,*lista_tabla_entradas,*lista_cpus,*lista_buffer_prog_completo;
 t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
@@ -51,9 +51,9 @@ int main(void) {
 	socket_swap = conecto_con_swap(configuracion);
 
 	// Inicio servidor UMC
-	creo_servidor_umc(configuracion);
-
 	pthread_create(&thread_consola,NULL,(void*)menu_principal, NULL);
+
+	creo_servidor_umc(configuracion);
 
 	pthread_join(thread_consola,NULL);
 
@@ -231,6 +231,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 }
 
 void atender_swap(t_paquete *paquete, int socket_conexion) {
+	log_info(log_umc,"TEST se recibe el id_mensaje: %d",paquete->header->id_mensaje);
 	switch (paquete->header->id_mensaje) {
 	case REPUESTA_HANDSHAKE:
 		respuesta_handshake_umc_swap();
@@ -313,7 +314,9 @@ void iniciar_programa(void* buffer) {
 	// ejemplo: t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
 
 	//el contenido lo guardo en un buffer
-	list_add(lista_buffer_escritura,programa);//guardo en un buffer para mandar luego al swap
+
+
+	list_add(lista_buffer_prog_completo,programa);//guardo en un buffer para mandar luego al swap
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
 	header_swap->id_proceso_receptor = PROCESO_SWAP;
@@ -340,15 +343,30 @@ void iniciar_programa(void* buffer) {
 
 void respuesta_iniciar_programa(void *buffer,int id_mensaje){
 
-	t_programa_nuevo * programa = malloc(sizeof(t_programa));
+	t_programa_nuevo * programa = malloc(sizeof(t_programa_nuevo));
 	deserializar_programa_nuevo(buffer,programa);
-
+	log_info(log_umc,"TEST programa: %d",programa->id_programa);
 	if(id_mensaje == RESPUESTA_INICIAR_PROGRAMA){
 		mandar_a_swap(programa->id_programa,0,MENSAJE_ESCRIBIR_PAGINA_NUEVA);//al ser nuevo escribe en la pagina cero
-
 	}
 	else if(id_mensaje == ERROR_INICIAR_PROGRAMA){
+		t_header * header_nucleo = malloc(sizeof(t_header));
+		header_nucleo->id_proceso_emisor = PROCESO_UMC;
+		header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
+		t_programa * programa_id = malloc(sizeof(t_programa));
+		t_buffer * payload_nucleo = serializar_programa(programa_id);
+		header_nucleo->longitud_mensaje = payload_nucleo->longitud_buffer;
+		log_error(log_umc,"El SWAP fallo al reservar el nuevo programa PID:%d",programa_id->id_programa);
+		header_nucleo->id_mensaje = ERROR_INICIALIZAR_PROGRAMA;
 		eliminar_programa_nuevo_en_buffer(programa->id_programa);
+
+		if (enviar_buffer(socket_nucleo, header_nucleo, payload_nucleo)
+				< sizeof(t_header) + payload_nucleo->longitud_buffer) {
+			log_error(log_umc,"Error de comunicacion con el Nucleo");
+		}
+		free(header_nucleo);
+		free(payload_nucleo);
+		free(programa_id);
 	}
 }
 
@@ -1026,6 +1044,7 @@ void flush_tlb(){
 	}
 }
 
+//guardo las paginas que necesito escribir en memoria
 void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa){
 	bool es_buffer(t_pagina_completa *un_buffer){
 		return (un_buffer->id_programa == pid && un_buffer->pagina == pagina);
@@ -1033,11 +1052,11 @@ void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa
 	pag_completa = (t_pagina_completa *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
 }
 
-void copiar_programa_nuevo_desde_buffer(int pid, t_programa_completo * buffer_nuevo_programa){
+void copiar_programa_completo_desde_buffer(int pid, t_programa_completo * programa_completo){
 	bool es_buffer(t_programa_completo *un_buffer){
 		return (un_buffer->id_programa == pid);
 	}
-	buffer_nuevo_programa = (t_programa_completo *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
+	programa_completo = (t_programa_completo *) list_get(lista_buffer_prog_completo,(void*)es_buffer);
 }
 
 void crear_listas(){
@@ -1048,6 +1067,7 @@ void crear_listas(){
 	lista_tablas = list_create();
 	lista_tabla_entradas = list_create();
 	lista_cpus = list_create();
+	lista_buffer_prog_completo = list_create();
 	t_fila_tabla_pagina * tabla_pagina = malloc(sizeof(t_fila_tabla_pagina));//meto paginas vacias para que me funcione el index por lista
 	tabla_pagina[0].pid = 0;
 	for(i=0;i < CANT_TABLAS_MAX; i++){
@@ -1220,28 +1240,29 @@ void mandar_a_swap(int pid,int pagina,int id_mensaje){
 	header_swap->id_proceso_receptor = PROCESO_SWAP;
 	header_swap->id_mensaje = id_mensaje;
 
-	//t_programa_para_escritura * programa_para_escritura = malloc(sizeof(t_programa_para_escritura));
-	t_pagina_completa * pagina_completa = malloc(sizeof(t_programa_para_escritura));
-	//programa_para_escritura->id_programa = pid;
-	//programa_para_escritura->nro_pagina_inicial = pagina;
+	t_pagina_completa * pagina_completa = malloc(sizeof(t_pagina_completa));
 	pagina_completa->id_programa = pid;
 	pagina_completa->offset = 0;
 	pagina_completa->pagina = pagina;
-	pagina_completa->socket_pedido = 0;// TODO: si es el nucleo ya lo se, y si es un cpu fijarme donde lo estoy guardando
+	pagina_completa->socket_pedido = 0;
 
 	if(id_mensaje == MENSAJE_ESCRIBIR_PAGINA_NUEVA){
 		//busco el contenido que me mando el nucleo en el buffer en que lo guarde y se lo mando al swap
+
 		t_programa_completo * programa_completo_en_buffer;
-		copiar_programa_nuevo_desde_buffer(pid, programa_completo_en_buffer);
+		copiar_programa_completo_desde_buffer(pid, programa_completo_en_buffer);
+
 		pagina_completa->tamanio = strlen(programa_completo_en_buffer->codigo);
+		pagina_completa->valor = malloc(sizeof(pagina_completa->tamanio));
 		memcpy(pagina_completa->valor,programa_completo_en_buffer->codigo,strlen(programa_completo_en_buffer->codigo));
+		log_info(log_umc,"TEST 3 Se pasa el codigo del nuevo programa a swap");
 		t_buffer * buffer = serializar_pagina_completa(pagina_completa);
-		pagina_completa->tamanio = buffer->longitud_buffer;
-		free(programa_completo_en_buffer);
+		free(programa_completo_en_buffer);// me falla
 	}
 	else if(id_mensaje == MENSAJE_ESCRIBIR_PAGINA){
 		//busco en memoria el contenido de la pagina y se lo mando al swap
 		pagina_completa->tamanio = configuracion->marco_size;
+		pagina_completa->valor = malloc(sizeof(pagina_completa->tamanio));
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,pid);
 		int dir_mp = retornar_direccion_mp(tabla[pagina].frame);
 		memcpy(pagina_completa->valor,dir_mp,configuracion->marco_size);
@@ -1249,11 +1270,12 @@ void mandar_a_swap(int pid,int pagina,int id_mensaje){
 	t_buffer *payload_swap = serializar_pagina_completa(pagina_completa);
 
 	header_swap->longitud_mensaje = payload_swap->longitud_buffer;
-
+	log_info(log_umc,"TEST 4 Se pasa el codigo del nuevo programa a swap");
 	if (enviar_buffer(socket_swap, header_swap, payload_swap)
 			< sizeof(t_header) + payload_swap->longitud_buffer) {
 		log_error(log_umc,"Fallo al responder pedido CPU");
 	}
+	free(pagina_completa->valor);
 	free(pagina_completa);
 	free(header_swap);
 	free(payload_swap);
@@ -1385,6 +1407,14 @@ void eliminar_programa_nuevo_en_buffer(int pid){
 	}
 	t_programa_completo * buffer_nuevo_programa = (t_programa_completo *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
 	free(buffer_nuevo_programa);
+}
+
+void eliminar_pagina_completa_en_buffer(int pid){
+	bool es_buffer(t_pagina_completa *un_buffer){
+		return (un_buffer->id_programa == pid);
+	}
+	t_pagina_completa * buffer_pag_completa = (t_programa_completo *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
+	free(buffer_pag_completa);
 }
 
 void cambiar_proceso_activo(void * buffer, int socket){

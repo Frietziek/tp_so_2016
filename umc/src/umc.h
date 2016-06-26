@@ -261,4 +261,8 @@ void cambiar_proceso_activo(void * buffer, int socket);
 
 void guardar_pagina_en_buffer(int id_programa,int socket_conexion,t_pagina_pedido_completa * pagina);
 
+void copiar_programa_completo_desde_buffer(int pid, t_programa_completo * programa_completo);
+
+void eliminar_pagina_completa_en_buffer(int pid);
+
 #endif /* SRC_UMC_H_ */
