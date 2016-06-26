@@ -104,7 +104,6 @@ t_buffer *serializar_semaforo(t_semaforo *semaforo) {
 	estructura_buffer->longitud_buffer = posicion_buffer;
 	return (estructura_buffer);
 }
-
 void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida) {
 	int posicion_buffer = 0;
 	escribir_atributo_desde_string_de_buffer(buffer, &(entrada_salida->nombre),

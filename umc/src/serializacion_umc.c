@@ -183,6 +183,7 @@ void deserializar_pagina_completa(void *buffer, t_pagina_completa *pagina) {
 			&posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->tamanio),
 			&posicion_buffer);
+	pagina->valor = malloc(pagina->tamanio);
 	memcpy(pagina->valor, buffer + posicion_buffer, pagina->tamanio);
 	posicion_buffer = posicion_buffer + pagina->tamanio;
 	escribir_atributo_desde_int_de_buffer(buffer, &(pagina->socket_pedido),

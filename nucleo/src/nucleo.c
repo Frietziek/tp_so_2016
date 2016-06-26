@@ -80,37 +80,37 @@ int main(void) {
 	log_info(logger_manager, "Se cargo el tamanio de la pagina: %i",
 			tamanio_pagina);
 
-	enviar_programa_completo_a_umc(1, 1,
-			"begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend");
+	//enviar_programa_completo_a_umc(1, 1,
+	//		"begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend");
 
-	/*log_trace(logger_manager, "Inicializando servidor consola");
-	 t_configuracion_servidor *configuracion_servidor_consola = malloc(
-	 sizeof(t_configuracion_servidor));
-	 configuracion_servidor_consola->puerto = configuracion->puerto_prog;
-	 configuracion_servidor_consola->funcion = &atender_consola;
+	log_trace(logger_manager, "Inicializando servidor consola");
+	t_configuracion_servidor *configuracion_servidor_consola = malloc(
+			sizeof(t_configuracion_servidor));
+	configuracion_servidor_consola->puerto = configuracion->puerto_prog;
+	configuracion_servidor_consola->funcion = &atender_consola;
 
-	 crear_servidor(configuracion_servidor_consola);
-	 log_trace(logger_manager, "Servidor consola creado");
-	 //FIN ATIENDO CONSOLA
+	crear_servidor(configuracion_servidor_consola);
+	log_trace(logger_manager, "Servidor consola creado");
+	//FIN ATIENDO CONSOLA
 
-	 //INICIO ATIENDO CPU
-	 log_trace(logger_manager, "Inicializando servidor cpu");
-	 t_configuracion_servidor *configuracion_servidor_cpu = malloc(
-	 sizeof(t_configuracion_servidor));
-	 configuracion_servidor_cpu->puerto = configuracion->puerto_cpu;
-	 configuracion_servidor_cpu->funcion = &atender_cpu;
-	 //configuracion_servidor_cpu->parametros_funcion = configuracion;
+	//INICIO ATIENDO CPU
+	log_trace(logger_manager, "Inicializando servidor cpu");
+	t_configuracion_servidor *configuracion_servidor_cpu = malloc(
+			sizeof(t_configuracion_servidor));
+	configuracion_servidor_cpu->puerto = configuracion->puerto_cpu;
+	configuracion_servidor_cpu->funcion = &atender_cpu;
+	//configuracion_servidor_cpu->parametros_funcion = configuracion;
 
-	 crear_servidor(configuracion_servidor_cpu);
-	 log_trace(logger_manager, "Servidor cpu creado");*/
+	crear_servidor(configuracion_servidor_cpu);
+	log_trace(logger_manager, "Servidor cpu creado");
 	//FIN ATIENDO CPU
 	getchar();
 
 	log_trace(logger_manager, "Cerrando Nucleo");
 	//Libero antes de cerrar
 	free(configuracion);
-	/*free(configuracion_servidor_cpu);
-	 free(configuracion_servidor_consola);*/
+	free(configuracion_servidor_cpu);
+	free(configuracion_servidor_consola);
 
 	queue_destroy(cola_block);
 	queue_destroy(cola_ready);
