@@ -6,6 +6,8 @@
  */
 
 #include "serializacion_swap_umc.h"
+#include <stdlib.h>
+#include <string.h>
 
 
 

@@ -311,7 +311,9 @@ int finalizar_programa(t_programa *fin_programa_info){
 /*Busca y retorna el contenido solicitado al swap*/
 int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer){
 
-	int posicion_lectura = leer_pagina_info->pagina * config_swap->tamano_pagina + leer_pagina_info->offset;
+	t_program_info *programa_info = buscar_programa(leer_pagina_info->id_programa, lista_programas);
+
+	int posicion_lectura = (programa_info->pagina_inicial_swap + leer_pagina_info->pagina) * config_swap->tamano_pagina + leer_pagina_info->offset;
 	fseek(archivo_swap, posicion_lectura, SEEK_SET);
 
 	int cantidad_leida = fread(buffer,leer_pagina_info->tamanio, 1, archivo_swap);
@@ -333,7 +335,9 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info){
 
 	//TODO: No se esta evaluando si es correcto que se escriba en esta region de memoria, evaluar eso despues
 
-	int posicion_escritura = escribir_pagina_info->pagina * config_swap->tamano_pagina + escribir_pagina_info->offset;
+	t_program_info *programa_info = buscar_programa(escribir_pagina_info->id_programa, lista_programas);
+
+	int posicion_escritura = (programa_info->pagina_inicial_swap + escribir_pagina_info->pagina) * config_swap->tamano_pagina + escribir_pagina_info->offset;
 	fseek(archivo_swap, posicion_escritura, SEEK_SET);
 
 	int cantidad_escrita = fwrite(escribir_pagina_info->valor,1, escribir_pagina_info->tamanio ,archivo_swap); //Ojo con ese 1 hardcodeado
@@ -398,7 +402,7 @@ void enviar_mensaje_con_buffer_al_UMC(int socket_umc, int id_mensaje, t_buffer *
 	if (cantidad_bytes_enviados < sizeof(t_header))
 		log_error(loggerManager,"[Comunicacion UMC] [%i] Ocurrió un problema al enviar el mensaje", id_mensaje);
 	else
-		log_trace(loggerManager,"[Comunicacion UMC] [%i] Se realizo el envio del mensaje correctamente");
+		log_trace(loggerManager,"[Comunicacion UMC] [%i] Se realizo el envio del mensaje correctamente", id_mensaje);
 
 	free(header);
 }
@@ -414,9 +418,9 @@ void enviar_header_al_UMC(int socket_umc, int id_mensaje) {
 	int cantidad_bytes_enviados = enviar_header(socket_umc, header);
 
 	if (cantidad_bytes_enviados < sizeof(t_header))
-		log_error(loggerManager,"[Comunicacion UMC] [%i] Ocurrió un problema al enviar el mensaje");
+		log_error(loggerManager,"[Comunicacion UMC] [%i] Ocurrió un problema al enviar el mensaje", id_mensaje);
 	else
-		log_trace(loggerManager,"[Comunicacion UMC] [%i] Se realizo el envio del mensaje correctamente");
+		log_trace(loggerManager,"[Comunicacion UMC] [%i] Se realizo el envio del mensaje correctamente", id_mensaje);
 
 	free(header);
 }
