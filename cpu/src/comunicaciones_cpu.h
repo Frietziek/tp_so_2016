@@ -8,6 +8,7 @@
 #ifndef COMUNICACIONES_CPU_H_
 #define COMUNICACIONES_CPU_H_
 
+#include <comunicaciones.h>
 #include <serializacion.h>
 #include "funciones_comunes.h"
 

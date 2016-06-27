@@ -74,12 +74,13 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 			"Fallo al enviar lectura de pagina a UMC.", buffer);
 
 	free(p_pagina);
+	free(buffer->contenido_buffer);
 	free(buffer);
 
-	// TODO Comentar / Descomentar para probar con procesos
+	// TODO Descomentar para probar con procesos
 	sem_wait(&s_variable_stack);
 
-	memcpy(contenido_variable, valor_pagina, size_pagina);
+	memcpy((void*) contenido_variable, (void*) valor_pagina, size_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
@@ -91,7 +92,8 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 	log_info(logger_manager, "Asignando en: %d el valor: %i.", direccion,
 			valor);
 
-	t_pagina_pedido_completa *p_pagina = malloc(sizeof(t_pagina_pedido_completa));
+	t_pagina_pedido_completa *p_pagina = malloc(
+			sizeof(t_pagina_pedido_completa));
 	p_pagina->pagina = calcula_pagina(direccion);
 	p_pagina->offset = calcula_offset(direccion);
 	p_pagina->tamanio = sizeof(int);
@@ -105,7 +107,9 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 
 	sem_post(&s_instruccion_finalizada);
 
+	free(p_pagina->valor);
 	free(p_pagina);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -113,7 +117,7 @@ t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) 
 	log_info(logger_manager, "El nombre de variable compartida es %s ",
 			variable);
 
-	int contenido_variable;
+	int contenido_variable = 0;
 
 	t_variable *p_compartida = malloc(sizeof(t_variable));
 	p_compartida->nombre = variable;
@@ -124,11 +128,12 @@ t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) 
 			buffer);
 
 	free(p_compartida);
+	free(buffer->contenido_buffer);
 	free(buffer);
 
 	sem_wait(&s_variable_compartida);
 
-	memcpy(contenido_variable, valor_pagina, size_pagina);
+	memcpy((void*) contenido_variable, (void*) valor_pagina, size_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
@@ -153,6 +158,7 @@ t_valor_variable ansisop_asignar_valor_compartida(t_nombre_compartida variable,
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_compartida);
+	free(buffer->contenido_buffer);
 	free(buffer);
 
 	return valor;
@@ -178,8 +184,7 @@ void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 	log_info(logger_manager, "Llamar a etiqueta: %s con retorno en: %d.",
 			etiqueta, donde_retornar);
 
-	int puntero_etiqueta;
-	puntero_etiqueta = metadata_buscar_etiqueta(etiqueta,
+	int puntero_etiqueta = metadata_buscar_etiqueta(etiqueta,
 			pcb_quantum->pcb->etiquetas, pcb_quantum->pcb->etiquetas_size);
 
 	pcb_quantum->pcb->indice_stack = (t_indice_stack*) realloc(
@@ -216,7 +221,8 @@ void ansisop_retornar(t_valor_variable retorno) {
 
 	t_indice_stack* indice_stack = posiciono_indice_stack();
 
-	t_pagina_pedido_completa *p_pagina = malloc(sizeof(t_pagina_pedido_completa));
+	t_pagina_pedido_completa *p_pagina = malloc(
+			sizeof(t_pagina_pedido_completa));
 	p_pagina->pagina = indice_stack->posicion_variable_retorno->pagina;
 	p_pagina->offset = indice_stack->posicion_variable_retorno->offset;
 	p_pagina->tamanio = indice_stack->posicion_variable_retorno->size;
@@ -238,6 +244,11 @@ void ansisop_retornar(t_valor_variable retorno) {
 	pcb_quantum->pcb->pc = indice_stack->posicion_retorno;
 	--pcb_quantum->pcb->contexto_actual;
 
+	free(p_pagina->valor);
+	free(p_pagina);
+	free(buffer->contenido_buffer);
+	free(buffer);
+
 	sem_post(&s_instruccion_finalizada);
 }
 
@@ -254,6 +265,7 @@ void ansisop_imprimir(t_valor_variable valor_mostrar) {
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_variable);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -270,6 +282,7 @@ void ansisop_imprimir_texto(char* texto) {
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_texto);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -288,6 +301,7 @@ void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_entrada_salida);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -306,6 +320,7 @@ void ansisop_wait(t_nombre_semaforo semaforo) {
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_semaforo);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -322,6 +337,7 @@ void ansisop_signal(t_nombre_semaforo semaforo) {
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_semaforo);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 

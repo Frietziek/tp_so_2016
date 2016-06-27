@@ -42,19 +42,21 @@ int main(void) {
 
 	socket_umc = conecto_con_umc(configuracion);
 
-	// TODO Comentar / Descomentar para probar con procesos
+	// TODO Comentar para probar con procesos
 	// Programa a probar
 	//codigo ="function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,A,g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\nf = 8\t  \n    g <- doble !Global\t\n    io impresora 20\n\t:Siguiente\t\n    imprimir A\n    textPrint    Hola Mundo!\n    \n    sumar1 &g\t\t\n    print \t\tg    \n    \n    sinParam\n    \nend\nfunction sinParam\n\ttextPrint Bye\nend\n\n#Devolver el doble del\n#primer parametro\nfunction doble\nvariables f\n    f = $0 + $0\n    return f\nend\n\nfunction sumar1\n\t*$0 = 1 + *$0\nend";
 	//codigo = "function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
 	//codigo = "begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend";
 	//codigo = "begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
 	//codigo = "begin\nend";
-
-	/*t_pcb *pcb = crear_PCB(codigo);
+	// TODO Comentar para probar con procesos
+	/*
+	 t_pcb *pcb = crear_PCB(codigo);
 	 pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	 pcb_quantum->pcb = pcb;
-	 pcb_quantum->quantum = pcb_quantum->pcb->instrucciones_size - 1;*/
-	//ejecuto_instrucciones();
+	 pcb_quantum->quantum = pcb_quantum->pcb->instrucciones_size - 1;
+	 ejecuto_instrucciones();
+	 */
 	sem_wait(&s_cpu_finaliza);
 
 	cierro_cpu(configuracion);
@@ -91,6 +93,10 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	pcb->indice_stack->posicion_retorno = 0;
 	pcb->stack_size = 1;
 
+	free(metadata->etiquetas);
+	free(metadata->instrucciones_serializado);
+	free(metadata);
+
 	return pcb;
 }
 
@@ -104,8 +110,7 @@ int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola) {
 }
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
-	t_config *configuracion = malloc(sizeof(t_config));
-	configuracion = config_create(archivo);
+	t_config *configuracion = config_create(archivo);
 	if (config_has_property(configuracion, "IP_NUCLEO")) {
 		configuracion_cpu->ip_nucleo = config_get_string_value(configuracion,
 				"IP_NUCLEO");
@@ -122,7 +127,7 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 		configuracion_cpu->puerto_umc = config_get_int_value(configuracion,
 				"PUERTO_UMC");
 	}
-	free(configuracion);
+	config_destroy(configuracion);
 }
 
 void inicio_seniales_semaforos() {
@@ -158,10 +163,26 @@ void cierro_cpu(t_config_cpu* configuracion) {
 	sem_destroy(&s_variable_stack);
 	sem_destroy(&s_variable_compartida);
 	sem_destroy(&s_matar_cpu);
+	free(valor_pagina);
+	t_indice_stack *indice_stack = pcb_quantum->pcb->indice_stack;
+	int i_stack;
+	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+		indice_stack += i_stack;
+		free(indice_stack->argumentos);
+		free(indice_stack->posicion_variable_retorno);
+		free(indice_stack->variables->posicion_memoria);
+		free(indice_stack->variables);
+	}
+	free(pcb_quantum->pcb->indice_stack);
+	free(pcb_quantum->pcb);
 	free(pcb_quantum);
 	free(configuracion);
-	close(socket_umc);
-	close(socket_nucleo);
+	if (socket_umc >= 0) {
+		close(socket_umc);
+	}
+	if (socket_nucleo >= 0) {
+		close(socket_nucleo);
+	}
 }
 
 int conecto_con_nucleo(t_config_cpu* configuracion) {
@@ -250,6 +271,7 @@ void respuesta_handshake_cpu_umc(void *buffer) {
 	tamanio_pagina = pagina->tamanio;
 	log_info(logger_manager, "Se cargo el tamanio de la pagina: %i",
 			tamanio_pagina);
+	free(pagina);
 }
 
 void respuesta_leer_pagina(void *buffer) {
@@ -264,6 +286,8 @@ void respuesta_leer_pagina(void *buffer) {
 	} else {
 		sem_post(&s_variable_stack);
 	}
+	free(pagina->valor);
+	free(pagina);
 }
 
 // Funciones CPU - Nucleo
@@ -366,6 +390,8 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
+	free(buffer->contenido_buffer);
+	free(buffer);
 }
 
 void cambio_proceso_activo() {
@@ -378,6 +404,7 @@ void cambio_proceso_activo() {
 			"Fallo al enviar cambio de proceso activo a UMC.", buffer);
 
 	free(p_programa);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -389,24 +416,31 @@ void ejecuto_instrucciones() {
 			&& !matar_proceso && !excepcion_umc && !matar_cpu) {
 
 		leo_instruccion_desde_UMC(pcb_quantum->pcb);
-		// Espero hasta que llega la pagina
+		// TODO Descomentar para probar con procesos
 		sem_wait(&s_codigo);
 
-		// TODO Comentar / Descomentar para probar con procesos
-		char instruccion_a_ejecutar[size_pagina + 1];
-		memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina);
-		instruccion_a_ejecutar[size_pagina] = '\0';
-		/*char *instruccion_a_ejecutar = malloc(
-		 deserializo_instruccion(pcb_quantum->pcb->pc)->offset - 1);
-		 memcpy(instruccion_a_ejecutar,
-		 codigo + deserializo_instruccion(pcb_quantum->pcb->pc)->start,
-		 deserializo_instruccion(pcb_quantum->pcb->pc)->offset - 1);
-		 instruccion_a_ejecutar[deserializo_instruccion(pcb_quantum->pcb->pc)->offset
-		 - 1] = '\0';*/
+		// TODO Descomentar para probar con procesos
+		char *instruccion_a_ejecutar = malloc(sizeof(char) * size_pagina);
+		memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina - 1);
+		instruccion_a_ejecutar[size_pagina - 1] = '\0';
+		// TODO Comentar para probar con procesos
+		/*
+		char *instruccion_a_ejecutar =
+				malloc(
+						sizeof(char)
+								* (deserializo_instruccion(pcb_quantum->pcb->pc)->offset));
+		memcpy(instruccion_a_ejecutar,
+				codigo + deserializo_instruccion(pcb_quantum->pcb->pc)->start,
+				deserializo_instruccion(pcb_quantum->pcb->pc)->offset - 1);
+		instruccion_a_ejecutar[deserializo_instruccion(pcb_quantum->pcb->pc)->offset
+				- 1] = '\0';
+		*/
 		log_info(logger_manager, "Instruccion a ejecutar: %s",
 				instruccion_a_ejecutar);
 		analizadorLinea(strdup(instruccion_a_ejecutar), &functions,
 				&kernel_functions);
+
+		free(instruccion_a_ejecutar);
 
 		sem_wait(&s_instruccion_finalizada);
 
@@ -439,6 +473,8 @@ void ejecuto_instrucciones() {
 	}
 
 	enviar_PCB(id_mensaje);
+	// TODO Comentar para probar con procesos
+	//sem_post(&s_cpu_finaliza);
 }
 
 t_intructions *deserializo_instruccion(int pc) {
@@ -457,6 +493,7 @@ void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
 			"Fallo al enviar excepcion al Nucleo.", buffer);
 
 	free(p_texto);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
@@ -474,5 +511,6 @@ void leo_instruccion_desde_UMC(t_pcb *pcb) {
 			"Fallo al enviar lectura de pagina a UMC.", buffer);
 
 	free(p_pagina);
+	free(buffer->contenido_buffer);
 	free(buffer);
 }

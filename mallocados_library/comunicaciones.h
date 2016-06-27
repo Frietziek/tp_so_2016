@@ -8,6 +8,7 @@
 #ifndef SOCKETS_H_
 #define SOCKETS_H_
 
+#include <pthread.h>
 #include "serializacion.h"
 
 typedef struct {
