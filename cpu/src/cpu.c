@@ -127,7 +127,7 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 		configuracion_cpu->puerto_umc = config_get_int_value(configuracion,
 				"PUERTO_UMC");
 	}
-	config_destroy(configuracion);
+	free(configuracion);
 }
 
 void inicio_seniales_semaforos() {
