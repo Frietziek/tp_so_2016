@@ -130,7 +130,7 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu);
 void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
 		char *codigo);
 
-void agregar_pcb_a_tabla_procesos(t_pcb *pcb, int socket_consola);
+void agregar_pcb_a_lista_procesos(t_pcb *pcb, int socket_consola);
 
 int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
 
@@ -161,10 +161,10 @@ int signal_semaforo(char *semaforo_nombre);
 t_pcb *buscar_pcb_por_pid(int pid);
 void sacar_socket_cpu_de_tabla(int socket_cpu);
 int buscar_socket_consola_por_pid(int pid);
-void eliminar_proceso_de_tabla_procesos_con_pid(int pid);
+void eliminar_proceso_de_lista_procesos_con_pid(int pid);
 void atiendo_quantum(void *buffer, int socket_conexion);
 void atiendo_programa_finalizado(void *buffer, int socket_cpu);
 void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
 		int socket_cpu);
-void finalizar_proceso_en_tabla_pag_con_socket_cpu(t_pcb * pcb, int socket_cpu);
+void finalizar_proceso_en_lista_proc_con_socket_cpu(t_pcb * pcb, int socket_cpu);
 #endif /* NUCLEO_H_ *///

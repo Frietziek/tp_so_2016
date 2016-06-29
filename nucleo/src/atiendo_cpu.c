@@ -130,8 +130,9 @@ void atiendo_imprimir(void *buffer, int socket_conexion,
 	t_buffer *p_consola = serializar_variable_valor(variable);
 	h_consola->longitud_mensaje = p_consola->longitud_buffer;
 
-	if (enviar_buffer(devuelve_socket_consola(socket_conexion), h_consola,
-			p_consola) < sizeof(h_consola) + p_consola->longitud_buffer) {
+	if (enviar_buffer(buscar_socket_consola_por_socket_cpu(socket_conexion),
+			h_consola, p_consola)
+			< sizeof(h_consola) + p_consola->longitud_buffer) {
 		perror("Fallo al enviar Imprimir a la Consola\n");
 	}
 
@@ -166,8 +167,9 @@ void atiendo_imprimir_texto(void *buffer, int socket_conexion,
 	t_buffer *p_consola = serializar_texto(texto);
 	h_consola->longitud_mensaje = p_consola->longitud_buffer;
 
-	if (enviar_buffer(devuelve_socket_consola(socket_conexion), h_consola,
-			p_consola) < sizeof(h_consola) + p_consola->longitud_buffer) {
+	if (enviar_buffer(buscar_socket_consola_por_socket_cpu(socket_conexion),
+			h_consola, p_consola)
+			< sizeof(h_consola) + p_consola->longitud_buffer) {
 		perror("Fallo al enviar Imprimir a la Consola\n");
 	}
 

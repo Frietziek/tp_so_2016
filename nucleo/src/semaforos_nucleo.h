@@ -14,7 +14,7 @@ sem_t mutex_pid_count;
 sem_t mutex_cola_ready;
 sem_t mutex_cola_exec;
 sem_t mutex_cola_block;
-sem_t mutex_tabla_procesos;
+sem_t mutex_lista_procesos;
 sem_t mutex_variables_compartidas;
 sem_t mutex_diccionario_entrada_salida;
 sem_t mutex_solicitudes_semaforo;
