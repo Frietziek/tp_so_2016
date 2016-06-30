@@ -149,7 +149,10 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		log_info(logger_manager,
 				"Recibi confirmacion de proceso creado en memoria con pid: %d",
 				pid_a_ready->pid);
-		t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid_a_ready->pid);
+		// TODO Eliminar esta linea de test
+		asignar_pcb_a_cpu(socket_cpu);
+		// TODO Descomentar el bloque para probar con procesos
+		/*t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid_a_ready->pid);
 		sem_wait(&mutex_tabla_procesos);
 		pcb_a_ready->estado = READY;
 		sem_post(&mutex_tabla_procesos);
@@ -158,7 +161,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		sem_post(&mutex_cola_ready);
 		log_info(logger_manager, "Agregue pid: %d a cola ready",
 				pid_a_ready->pid);
-		free(pid_a_ready);
+		free(pid_a_ready);*/
 		break;
 	case RESPUESTA_MATAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 
@@ -225,6 +228,9 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		//fin para ver lo que contiene el payload,
 
 		t_pcb *pcb = crear_PCB(codigo_de_consola->texto);
+
+		// TODO Eliminar esta linea de test
+		pcb_cpu = pcb;
 
 		agregar_pcb_a_tabla_procesos(pcb, socket_consola);
 
@@ -811,9 +817,12 @@ void envio_buffer_a_proceso(int socket_proceso, int proceso_receptor,
 
 void asignar_pcb_a_cpu(int socket_cpu) {
 	t_pcb_quantum *pcb_quantum_a_cpu = malloc(sizeof(t_pcb_quantum));
-	sem_wait(&mutex_cola_ready);
+	// TODO Eliminar esta linea de test
+	pcb_quantum_a_cpu->pcb = pcb_cpu;
+	// TODO Descomentar el bloque para probar con procesos
+	/*sem_wait(&mutex_cola_ready);
 	pcb_quantum_a_cpu->pcb = queue_pop(cola_ready);
-	sem_post(&mutex_cola_ready);
+	sem_post(&mutex_cola_ready);*/
 	pcb_quantum_a_cpu->quantum = configuracion->quantum;
 	t_buffer *pcb_quantum_buffer = serializar_pcb_quantum(pcb_quantum_a_cpu);
 	envio_buffer_a_proceso(socket_cpu, PROCESO_CPU, MENSAJE_PCB_NUCLEO,

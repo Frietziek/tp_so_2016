@@ -56,6 +56,9 @@ void atiendo_handshake(void *buffer, int socket_conexion) {
 		perror("Fallo al enviar confirmacion Handshake\n");
 	}
 
+	// TODO Eliminar esta linea de test
+	socket_cpu = socket_conexion;
+
 	free(header);
 }
 
