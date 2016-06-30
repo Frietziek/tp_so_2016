@@ -14,12 +14,13 @@ int socket_swap;
 int socket_nucleo;
 void *memoria_principal;
 t_lista_algoritmo * listas_algoritmo;
-t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_buffer_escritura,*lista_tabla_entradas,*lista_cpus,*lista_buffer_prog_completo;
+t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_buffer_escritura,*lista_tabla_entradas,*lista_cpus;
 t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
 pthread_t thread_consola;
 char * buffer_programas[CANT_TABLAS_MAX];
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int main(void) {
 	//creo archivo log
@@ -172,6 +173,7 @@ void * menu_principal() {
 
 void atender_peticiones(t_paquete *paquete, int socket_conexion,
 		t_config_umc *configuracion) {
+	pthread_mutex_lock(&mutex);
 	switch (paquete->header->id_proceso_emisor) {
 	case PROCESO_CPU:
 		atender_cpu(paquete, socket_conexion, configuracion);
@@ -183,6 +185,7 @@ void atender_peticiones(t_paquete *paquete, int socket_conexion,
 		log_error(log_umc,"Proceso ID:%d No tiene permisos para comunicarse con la UMC",paquete->header->id_proceso_emisor);
 		break;
 	}
+	pthread_mutex_unlock(&mutex);
 }
 
 void atender_cpu(t_paquete *paquete, int socket_conexion,
@@ -314,17 +317,8 @@ void iniciar_programa(void* buffer) {
 	// ejemplo: t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
 
 	//el contenido lo guardo en un buffer
-
-
 	buffer_programas[programa->id_programa] = programa->codigo;
 
-	//list_add(lista_buffer_prog_completo,programa_buffer);//guardo en un buffer para mandar luego al swap
-
-	//para testear
-	t_programa_completo * programa_completo_en_buffer = copiar_programa_completo_desde_buffer(programa->id_programa);
-
-	log_info(log_umc,"TEST 3 Se pasa el codigo del nuevo programa a swap");
-	//-----------------
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
 	header_swap->id_proceso_receptor = PROCESO_SWAP;
@@ -708,6 +702,7 @@ void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc,"Error de comunicacion con el Nucleo");
 	}
+	log_info("se mando la confirmacion del inicio al nucleo %d",programa_id->id_programa);
 	free(pagina_completa->valor);
 	free(pagina_completa);
 	free(programa_id);
@@ -812,8 +807,9 @@ void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
 	list_add(lista_cpus,cpu_nueva);
 }
 
-void handshake_umc_nucleo(int socket_nucleo, t_config_umc *configuracion) {
-	handshake_proceso(socket_nucleo, configuracion, PROCESO_NUCLEO,
+void handshake_umc_nucleo(int socket_conexion, t_config_umc *configuracion) {
+	socket_nucleo = socket_conexion;
+	handshake_proceso(socket_conexion, configuracion, PROCESO_NUCLEO,
 	REPUESTA_HANDSHAKE);
 }
 
@@ -1065,13 +1061,13 @@ void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa
 	pag_completa = (t_pagina_completa *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
 }
 
-t_programa_completo * copiar_programa_completo_desde_buffer(int pid){
+/*t_programa_completo * copiar_programa_completo_desde_buffer(int pid){
 	bool es_buffer(t_programa_completo *un_buffer){
 		return (un_buffer->id_programa == pid);
 	}
 	t_programa_completo * programa_completo = (t_programa_completo *) list_get(lista_buffer_prog_completo,(void*)es_buffer);
 	return programa_completo;
-}
+}*/
 
 void crear_listas(){
 	int i;
@@ -1081,7 +1077,7 @@ void crear_listas(){
 	lista_tablas = list_create();
 	lista_tabla_entradas = list_create();
 	lista_cpus = list_create();
-	lista_buffer_prog_completo = list_create();
+	//lista_buffer_prog_completo = list_create();
 	t_fila_tabla_pagina * tabla_pagina = malloc(sizeof(t_fila_tabla_pagina));//meto paginas vacias para que me funcione el index por lista
 	tabla_pagina[0].pid = 0;
 	for(i=0;i < CANT_TABLAS_MAX; i++){
