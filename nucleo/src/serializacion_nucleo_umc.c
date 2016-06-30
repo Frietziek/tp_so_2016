@@ -9,24 +9,19 @@
 
 t_buffer *serializar_programa_completo(t_programa_completo *programa) {
 
-	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
-
 	int cantidad_a_reservar = sizeof(programa->id_programa)
 			+ sizeof(programa->paginas_requeridas) + sizeof(int)
 			+ strlen(programa->codigo);
-
-	estructura_buffer->longitud_buffer = cantidad_a_reservar;
-
-	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
-
+	void *buffer = malloc(cantidad_a_reservar);
 	int posicion_buffer = 0;
+	copiar_int_en_buffer(buffer, programa->id_programa, &posicion_buffer);
+	copiar_int_en_buffer(buffer, programa->paginas_requeridas, &posicion_buffer);
+	copiar_string_en_buffer(buffer, programa->codigo, &posicion_buffer);
 
-	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
-			programa->id_programa, &posicion_buffer);
-	copiar_int_en_buffer(estructura_buffer->contenido_buffer,
-			programa->paginas_requeridas, &posicion_buffer);
-	copiar_string_en_buffer(estructura_buffer->contenido_buffer,
-			programa->codigo, &posicion_buffer);
+	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
+	estructura_buffer->contenido_buffer = buffer;
+	estructura_buffer->longitud_buffer = posicion_buffer;
+
 	return (estructura_buffer);
 }
 

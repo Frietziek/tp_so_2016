@@ -109,6 +109,10 @@ typedef struct {
 	int socket;
 } t_valor_socket_cola_semaforos;
 
+// TODO Eliminar estas estructuras, solo son de prueba
+int socket_cpu;
+t_pcb *pcb_cpu;
+
 void inicializar_variables_compartidas(char **shared_vars);
 
 void cargar_configuracion_nucleo(char *archivo, t_config_nucleo *configuracion);
