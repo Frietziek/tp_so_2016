@@ -106,19 +106,6 @@ void escuchar_clientes(void *configuracion) {
 	struct sockaddr_in their_addr; // info del cliente
 	socklen_t sin_size;
 
-	//Creamos estructura para mandarsela a recv
-	t_th_parametros_receive *param_receive = malloc(
-			sizeof(t_th_parametros_receive));
-
-	param_receive->funcion = configuracion_escucha->funcion;
-
-	//ACA PREGUNTO SI LOS PARAMETROS SON NULL
-
-	if (configuracion_escucha->parametros_funcion != NULL) {
-		param_receive->parametros_funcion =
-				configuracion_escucha->parametros_funcion;
-	}
-
 	//ciclo hasta que lleguen conexiones nuevas
 	while (TRUE) {
 		sin_size = sizeof(struct sockaddr_in);
@@ -128,9 +115,21 @@ void escuchar_clientes(void *configuracion) {
 			perror("accept");
 			break;
 		}
-		printf("Recibi conexion de:  %s\n", inet_ntoa(their_addr.sin_addr));
 
+		//Creamos estructura para mandarsela a recv
+		t_th_parametros_receive *param_receive = malloc(
+				sizeof(t_th_parametros_receive));
 		param_receive->socket_cliente = socket_nueva_conexion;
+
+		param_receive->funcion = configuracion_escucha->funcion;
+
+		//ACA PREGUNTO SI LOS PARAMETROS SON NULL
+
+		if (configuracion_escucha->parametros_funcion != NULL) {
+			param_receive->parametros_funcion =
+					configuracion_escucha->parametros_funcion;
+		}
+
 
 		//creamos el hilo para recibir
 		pthread_create(&hilo_funcion, NULL, (void*) recibir_mensaje,
@@ -139,7 +138,7 @@ void escuchar_clientes(void *configuracion) {
 	}
 	printf("No escucho mas.\n");
 	free(configuracion_escucha);
-	free(param_receive);
+
 }
 
 void recibir_mensaje(t_th_parametros_receive *parametros) {
@@ -157,6 +156,7 @@ void recibir_mensaje(t_th_parametros_receive *parametros) {
 				buffer_header, sizeof(t_header), 0)) == -1) {
 			estoy_conectado = FALSE;
 			perror("recv header");
+			free(parametros);
 			break;
 		}
 
