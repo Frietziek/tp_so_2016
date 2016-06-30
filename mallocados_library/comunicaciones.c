@@ -116,6 +116,8 @@ void escuchar_clientes(void *configuracion) {
 			break;
 		}
 
+		printf("Recibi conexion de:  %s\n", inet_ntoa(their_addr.sin_addr));
+
 		//Creamos estructura para mandarsela a recv
 		t_th_parametros_receive *param_receive = malloc(
 				sizeof(t_th_parametros_receive));
