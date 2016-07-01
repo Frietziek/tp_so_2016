@@ -14,15 +14,15 @@ int socket_swap;
 int socket_nucleo;
 void *memoria_principal;
 t_lista_algoritmo * listas_algoritmo;
-t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_buffer_escritura,*lista_tabla_entradas,*lista_cpus;
+t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_tabla_entradas,*lista_cpus;
 t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
 pthread_t thread_consola;
-char * buffer_programas[CANT_TABLAS_MAX];
-static pthread_mutex_t mutex_lista_marcos = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t mutex_lista_paginas = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t mutex_list_tablas = PTHREAD_MUTEX_INITIALIZER;
+void * buffer_programas[CANT_TABLAS_MAX];
+static pthread_mutex_t mutex_lista_tabla_entradas = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_lista_paginas_tlb = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mutex_lista_cpus = PTHREAD_MUTEX_INITIALIZER;
 
 int main(void) {
 	//creo archivo log
@@ -36,9 +36,6 @@ int main(void) {
 	memoria_principal = calloc(configuracion->marcos,
 			configuracion->marco_size);
 	log_info(log_umc,"Iniciando UMC...  Memoria disponible: %d bytes",configuracion->marcos * configuracion->marco_size );
-
-	//Para usar los algoritmos
-	listas_algoritmo = malloc(CANT_TABLAS_MAX * sizeof(t_lista_algoritmo));
 
 	//iniciar listas
 	crear_listas();
@@ -234,7 +231,6 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 }
 
 void atender_swap(t_paquete *paquete, int socket_conexion) {
-	log_info(log_umc,"TEST se recibe el id_mensaje: %d",paquete->header->id_mensaje);
 	switch (paquete->header->id_mensaje) {
 	case REPUESTA_HANDSHAKE:
 		respuesta_handshake_umc_swap();
@@ -309,7 +305,7 @@ void iniciar_programa(void* buffer) {
 		tabla_paginas[i].presencia = 0;
 		tabla_paginas[i].uso = 0;
 		tabla_paginas[i].numero_pagina = i;
-		list_add(listas_algoritmo[programa->id_programa].lista_paginas_mp,(tabla_paginas + i));
+		//list_add(listas_algoritmo[programa->id_programa].lista_paginas_mp,(tabla_paginas + i));
 	}
 	guardar_cant_entradas(programa->id_programa,programa->paginas_requeridas);
 
@@ -409,7 +405,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
 		free(pagina_cpu);
-
+		free(pagina);
 		//2° caso: esta en Memoria Principal
 		} else {
 		log_info(log_umc,"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
@@ -424,23 +420,29 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			log_info(log_umc,"Pagina encontrada en Memoria. Marco: %d",tabla[pagina->pagina].frame);
 			memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
 			if(configuracion->entradas_tlb != 0){ //valido si esta habilitada
-			guardar_en_TLB(pagina_cpu->pagina,pagina_cpu->id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
+				guardar_en_TLB(pagina_cpu->pagina,pagina_cpu->id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 			}
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 			free(pagina_cpu);
+			free(pagina);
 		}
 		//3° caso: esta en Swap
 			else{
 				// Pido la pagina a Swap
 				log_info(log_umc,"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
+
+				//me guardo el pedido
+				buffer_programas[id_programa] = pagina;
+
 				t_header *header_swap = malloc(sizeof(t_header));
 				header_swap->id_proceso_emisor = PROCESO_UMC;
 				header_swap->id_proceso_receptor = PROCESO_SWAP;
 				header_swap->id_mensaje = MENSAJE_LEER_PAGINA;
 
 				t_pagina *pagina_swap = malloc(sizeof(t_pagina));
+				pagina_swap->id_programa = id_programa;
 				pagina_swap->pagina = pagina->pagina;
-				pagina_swap->offset = pagina->offset;
+				pagina_swap->offset = 0;
 				pagina_swap->tamanio = pagina->tamanio;
 				pagina_swap->socket_pedido = socket_conexion;
 
@@ -457,9 +459,10 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		free(pagina_swap);
 		free(payload_swap);
 		}
+
 	}
 
-	free(pagina);
+
 }
 
 void respuesta_leer_pagina(void *buffer, int id_mensaje) {
@@ -468,15 +471,18 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 		deserializar_pagina_completa(buffer, pagina);
 
+		t_pagina_pedido * pagina_pedido = buffer_programas[pagina->id_programa];
+
 		log_info(log_umc,"Se recibe del SWAP la respuesta de lectura de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 
 		pagina_cpu->id_programa = pagina->id_programa;
 		pagina_cpu->pagina = pagina->pagina;
-		pagina_cpu->offset = pagina->offset;
+		pagina_cpu->offset = pagina_pedido->offset;
 		pagina_cpu->tamanio = pagina->tamanio;
 		pagina_cpu->socket_pedido = pagina->socket_pedido;
+
 
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,pagina->id_programa);
 
@@ -497,7 +503,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu, id_mensaje);
 		log_info(log_umc,"Se envía al CPU la lectura solicitada de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 		free(pagina);
-
+		free(pagina_pedido);
 	}
 	else if(id_mensaje == ERROR_LEER_PAGINA){
 		t_pagina *pagina = malloc(sizeof(t_pagina_completa));
@@ -802,12 +808,16 @@ void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus,(void*)es_cpu);
 	if(cpu != NULL){
+		pthread_mutex_lock(&mutex_lista_cpus);
 		list_remove_by_condition(lista_cpus,(void*)es_cpu);
+		pthread_mutex_unlock(&mutex_lista_cpus);
 		free(cpu);
 	}
 	t_cpu * cpu_nueva = malloc(sizeof(t_cpu));
 	cpu_nueva->socket_cpu = socket_cpu;
+	pthread_mutex_lock(&mutex_lista_cpus);
 	list_add(lista_cpus,cpu_nueva);
+	pthread_mutex_unlock(&mutex_lista_cpus);
 }
 
 void handshake_umc_nucleo(int socket_conexion, t_config_umc *configuracion) {
@@ -876,14 +886,18 @@ int buscar_pagina_tlb(int id_programa,int pagina){
 	bool esta_en_tlb(t_tlb *un_tlb){
 		return (un_tlb->pid == id_programa && un_tlb->pagina == pagina);
 	}
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	pagina_tlb = list_remove_by_condition(lista_paginas_tlb,(void*)esta_en_tlb);//si esta se elimina para luego agregarla al final
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	if(pagina_tlb == NULL){
 		marco = 0;
 	}
 	else{
 		marco = pagina_tlb->frame;
 		//la agrego al final
+		pthread_mutex_lock(&mutex_lista_paginas_tlb);
 		list_add(lista_paginas_tlb,pagina_tlb);
+		pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	}
 	return marco;
 }
@@ -1006,8 +1020,10 @@ void quitar_pagina_TLB(int marco){
 	bool esta_en_tlb(t_tlb *un_tlb){
 		return (un_tlb->frame == marco);
 	}
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	t_tlb * pagina_tlb = list_remove_by_condition(lista_paginas_tlb,(void*)esta_en_tlb);
 	free(pagina_tlb);
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
 
 void guardar_en_TLB(int nro_pagina, int pid ,int marco){
@@ -1020,15 +1036,18 @@ void guardar_en_TLB(int nro_pagina, int pid ,int marco){
 }
 
 void LRU(t_tlb * pagina_a_ubicar){
-	//validar antes de usuarlo que no este deshabilitado
 	//valido si hay lugar y sino reemplazo:
 	if(list_size(lista_paginas_tlb) < configuracion->entradas_tlb){
+		pthread_mutex_lock(&mutex_lista_paginas_tlb);
 		list_add(lista_paginas_tlb,pagina_a_ubicar);
+		pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	}
 	else{
+		pthread_mutex_lock(&mutex_lista_paginas_tlb);
 		t_tlb * pagina_tlb_removida = list_remove(lista_paginas_tlb,0);//el que esta primero va a ser el Least recently used
 		list_add(lista_paginas_tlb,pagina_a_ubicar);
 		free(pagina_tlb_removida);
+		pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	}
 }
 
@@ -1039,32 +1058,36 @@ void flush_programa_tlb(int pid){
 		return (un_tlb->pid == pid);
 	}
 	int count = list_count_satisfying(lista_paginas_tlb,(void*)esta_en_tlb);
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	while(i < count){
 		t_tlb * pagina_tlb = list_remove_by_condition(lista_paginas_tlb,(void*)esta_en_tlb);
 		free(pagina_tlb);
 		i++;
 	}
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
 
 void flush_tlb(){
 	int i = 0;
 	int count = list_size(lista_paginas_tlb);
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	while(i < count){
 		t_tlb * pagina_tlb = list_remove(lista_paginas_tlb,0);
 		free(pagina_tlb);
 		i++;
 	}
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
 
 //guardo las paginas que necesito escribir en memoria
-void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa){
+/*void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa){
 	bool es_buffer(t_pagina_completa *un_buffer){
 		return (un_buffer->id_programa == pid && un_buffer->pagina == pagina);
 	}
 	pag_completa = (t_pagina_completa *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
 }
 
-/*t_programa_completo * copiar_programa_completo_desde_buffer(int pid){
+t_programa_completo * copiar_programa_completo_desde_buffer(int pid){
 	bool es_buffer(t_programa_completo *un_buffer){
 		return (un_buffer->id_programa == pid);
 	}
@@ -1074,7 +1097,8 @@ void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa
 
 void crear_listas(){
 	int i;
-	lista_buffer_escritura = list_create();//guardo t_programa_completo y t_fila_tabla_pagina - tener en cuenta por si eso da problemas
+	//lista_buffer_escritura = list_create();//guardo t_programa_completo y t_fila_tabla_pagina - tener en cuenta por si eso da problemas
+	listas_algoritmo = malloc(CANT_TABLAS_MAX * sizeof(t_lista_algoritmo));//Para usar los algoritmos
 	lista_de_marcos = list_create();
 	lista_paginas_tlb = list_create();
 	lista_tablas = list_create();
@@ -1384,7 +1408,9 @@ void guardar_cant_entradas(int pid,int cant_pag){
 	t_tabla_cantidad_entradas * tabla_cant = malloc(sizeof(t_tabla_cantidad_entradas));
 	tabla_cant->cant_paginas = cant_pag;
 	tabla_cant->pid = pid;
+	pthread_mutex_lock(&mutex_lista_tabla_entradas);
 	list_add(lista_tabla_entradas,tabla_cant);
+	pthread_mutex_unlock(&mutex_lista_tabla_entradas);
 } //TODO: ver de eliminarlas al finalizar pid
 
 void liberar_marcos(int pid){
