@@ -459,10 +459,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		free(pagina_swap);
 		free(payload_swap);
 		}
-
 	}
-
-
 }
 
 void respuesta_leer_pagina(void *buffer, int id_mensaje) {
@@ -925,10 +922,12 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 		quitar_pagina_TLB(pagina_a_sustituir->frame);
 		pagina_a_ubicar->frame = pagina_a_sustituir->frame;
 		pagina_a_ubicar->uso = 1;
+		pagina_a_ubicar->modificado = 0;
 		pagina_a_sustituir->frame = 0;
 		pagina_a_sustituir->presencia = 0;
 		if (pagina_a_sustituir->modificado ){
 			mandar_a_swap(pagina_a_sustituir->pid,pagina_a_sustituir->numero_pagina,MENSAJE_ESCRIBIR_PAGINA);
+			pagina_a_sustituir->modificado = 0;
 		}
 		list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 		listas_algoritmo[pid].puntero++;
@@ -1002,10 +1001,12 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	quitar_pagina_TLB(pagina_a_sustituir->frame);
 	pagina_a_ubicar->frame = pagina_a_sustituir->frame;
 	pagina_a_ubicar->uso = 1;
+	pagina_a_ubicar->modificado = 0;
 	pagina_a_sustituir->frame = 0;
 	pagina_a_sustituir->presencia = 0;
 	if (pagina_a_sustituir->modificado ){
 		mandar_a_swap(pagina_a_sustituir->pid,pagina_a_sustituir->numero_pagina,MENSAJE_ESCRIBIR_PAGINA);
+		pagina_a_sustituir->modificado = 0;
 		}
 	list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 	listas_algoritmo[pid].puntero++;
@@ -1156,6 +1157,8 @@ int guardar_en_mp(t_pagina_completa *pagina){
 		numero_marco = obtener_marco();
 		tabla[pagina->pagina].frame = numero_marco;
 		tabla[pagina->pagina].presencia = 1;
+		tabla[pagina->pagina].uso = 1;
+		tabla[pagina->pagina].modificado = 0;
 		list_add(listas_algoritmo[pagina->id_programa].lista_paginas_mp,&tabla[pagina->pagina]);
 		dir_mp = retornar_direccion_mp(numero_marco);
 		memcpy(dir_mp,pagina->valor,configuracion->marco_size);
@@ -1177,7 +1180,7 @@ int guardar_en_mp(t_pagina_completa *pagina){
 	else if (!(list_any_satisfy(lista_de_marcos,(void*)hay_marco_libre)) && paginas_en_mp < configuracion->marco_x_proc){
 		if(paginas_en_mp == 0){
 			return 0;
-			log_error(log_umc,"No hay marcos libres y pagina del proceso esta en mp para poder ser reemplazada");
+			log_error(log_umc,"No hay marcos libres y ninguna pagina del proceso esta en mp para poder ser reemplazada");
 		}
 		else{
 			numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
