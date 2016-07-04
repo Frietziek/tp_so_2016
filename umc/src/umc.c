@@ -51,17 +51,17 @@ int main(void) {
 	socket_swap = conecto_con_swap(configuracion);
 
 	// Inicio servidor UMC
-	//pthread_create(&thread_consola,NULL,(void*)menu_principal, NULL);
+	pthread_create(&thread_consola,NULL,(void*)menu_principal, NULL);
 
 	creo_servidor_umc(configuracion);
-	getchar(); //pausa
-	//pthread_join(thread_consola,NULL);
+	//getchar(); //pausa
+	pthread_join(thread_consola,NULL);
 
 	free(configuracion);
-	//free(servidor_umc);
+
 	close(socket_swap);
 	free(memoria_principal);
-	//free(cache_tlb);
+
 	return EXIT_SUCCESS;
 }
 
@@ -399,11 +399,9 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		pagina_cpu->valor = malloc(pagina->tamanio);
 		memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
 
-		//memcpy(pagina_cpu->valor, "variables a, b", 14);
-		//pagina_cpu->valor = "variables a, b";
-
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
+		free(pagina_cpu->valor);
 		free(pagina_cpu);
 		free(pagina);
 		//2° caso: esta en Memoria Principal
@@ -411,10 +409,14 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		log_info(log_umc,"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
 		sleep(configuracion->retardo);
 		log_info(log_umc,"Se accede a MP. Tiempo de acceso %d seg",configuracion->retardo);
-		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
-		inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
+
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *)list_get(lista_tablas,id_programa);
 		if (tabla[pagina->pagina].presencia){
+
+			t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+			inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
+			pagina_cpu->valor = malloc(pagina->tamanio);
+
 			tabla[pagina->pagina].uso = 1;
 			int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
 			log_info(log_umc,"Pagina encontrada en Memoria. Marco: %d",tabla[pagina->pagina].frame);
@@ -423,6 +425,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				guardar_en_TLB(pagina_cpu->pagina,pagina_cpu->id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 			}
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
+			free(pagina_cpu->valor);
 			free(pagina_cpu);
 			free(pagina);
 		}
@@ -560,7 +563,6 @@ void escribir_pagina(void *buffer, int socket_conexion){
 			log_info(log_umc,"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
 			sleep(configuracion->retardo);
 			log_info(log_umc,"Se accede a MP. Tiempo de acceso %d seg",configuracion->retardo);
-			t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,id_programa);
 			if (tabla[pagina->pagina].presencia){
 				tabla[pagina->pagina].uso = 1;
@@ -569,7 +571,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 				memcpy(direccion_mp + pagina->offset,pagina->valor,pagina->tamanio);
 				marcar_modificada(id_programa,pagina->pagina);
 				if(configuracion->entradas_tlb != 0){
-					guardar_en_TLB(pagina_cpu->pagina,pagina_cpu->id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
+					guardar_en_TLB(pagina->pagina,id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 				}
 				if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
 					log_error(log_umc,"Error de comunicacion con el CPU");
@@ -743,17 +745,16 @@ void finalizar_programa(void *buffer) {
 	deserializar_programa(buffer, programa);
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,programa->id_programa);
 	tabla[0].pid = 0; //ver si hay alguna forma mejor
+
 	//saco de tlb paginas asociadas al proceso
 	flush_programa_tlb(programa->id_programa);
+
 	//libero los marcos usados por ese proceso
 	liberar_marcos(programa->id_programa);
 	//saco de memoria - pongo toda la pagina con \0 , hace falta?
 	//elimino la lista usada para los algoritmos
 	list_clean(listas_algoritmo[programa->id_programa].lista_paginas_mp);
 	list_destroy(listas_algoritmo[programa->id_programa].lista_paginas_mp);
-
-	//lista_tabla_entradas
-	//pedir a swap limpiarlo
 
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -769,7 +770,7 @@ void finalizar_programa(void *buffer) {
 
 	if (enviar_buffer(socket_swap, header_swap, payload_swap)
 			< sizeof(header_swap) + payload_swap->longitud_buffer) {
-		perror("Fallo al finalizar el programa");
+		log_error(log_umc,"Fallo al finalizar el programa");
 	}
 
 	free(programa);
