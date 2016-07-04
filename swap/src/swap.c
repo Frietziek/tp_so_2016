@@ -132,8 +132,11 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
 			t_pagina_completa *pagina_completa_lectura= malloc (sizeof (t_pagina_completa)); //Se va a usar para responder ok
 			pagina_completa_lectura->id_programa = pagina->id_programa;
+			pagina_completa_lectura->offset = pagina->offset;
+			pagina_completa_lectura->tamanio = pagina->tamanio;
 			pagina_completa_lectura->socket_pedido = pagina->socket_pedido;
 			pagina_completa_lectura->valor = malloc(pagina->tamanio);
+
 
 			retorno_de_funcion = leer_bytes_swap(pagina, pagina_completa_lectura->valor);
 
