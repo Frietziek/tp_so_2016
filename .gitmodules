@@ -4,3 +4,6 @@
 [submodule "ansisop-parser"]
 	path = ansisop-parser
 	url = https://github.com/sisoputnfrba/ansisop-parser.git
+[submodule "scripts-ansisop"]
+	path = scripts-ansisop
+	url = https://github.com/sisoputnfrba/scripts-ansisop.git
