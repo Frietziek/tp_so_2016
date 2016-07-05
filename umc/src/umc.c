@@ -446,7 +446,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				pagina_swap->id_programa = id_programa;
 				pagina_swap->pagina = pagina->pagina;
 				pagina_swap->offset = 0;
-				pagina_swap->tamanio = pagina->tamanio;
+				pagina_swap->tamanio = configuracion->marco_size;
 				pagina_swap->socket_pedido = socket_conexion;
 
 				t_buffer *payload_swap = serializar_pagina(pagina_swap);
@@ -472,7 +472,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		deserializar_pagina_completa(buffer, pagina);
 
 		t_pagina_pedido * pagina_pedido = buffer_programas[pagina->id_programa];
-
+		printf("\nTEST: Recibo del swap: %s\n",pagina->valor);
 		log_info(log_umc,"Se recibe del SWAP la respuesta de lectura de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 
 		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
@@ -480,7 +480,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		pagina_cpu->id_programa = pagina->id_programa;
 		pagina_cpu->pagina = pagina->pagina;
 		pagina_cpu->offset = pagina_pedido->offset;
-		pagina_cpu->tamanio = pagina->tamanio;
+		pagina_cpu->tamanio = pagina_pedido->tamanio;
 		pagina_cpu->socket_pedido = pagina->socket_pedido;
 
 
@@ -496,10 +496,10 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 
 		int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
 
-		pagina_cpu->valor = malloc(pagina->tamanio);
+		pagina_cpu->valor = malloc(pagina_cpu->tamanio);
 
-		memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
-
+		memcpy(pagina_cpu->valor,direccion_mp + pagina_cpu->offset,pagina_cpu->tamanio);
+		printf("\nTEST: Le mando al cpu: %s\n",pagina_cpu->valor);
 		enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu, id_mensaje);
 		log_info(log_umc,"Se envía al CPU la lectura solicitada de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 		free(pagina);
