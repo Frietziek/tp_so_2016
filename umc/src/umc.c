@@ -388,7 +388,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	//1° caso: esta en TLB
 	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 
-		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 		inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,id_programa);
@@ -413,7 +413,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *)list_get(lista_tablas,id_programa);
 		if (tabla[pagina->pagina].presencia){
 
-			t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+			t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 			inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 			pagina_cpu->valor = malloc(pagina->tamanio);
 
@@ -422,7 +422,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			log_info(log_umc,"Pagina encontrada en Memoria. Marco: %d",tabla[pagina->pagina].frame);
 			memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
 			if(configuracion->entradas_tlb != 0){ //valido si esta habilitada
-				guardar_en_TLB(pagina_cpu->pagina,pagina_cpu->id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
+				guardar_en_TLB(pagina_cpu->pagina,pagina>id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 			}
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 			free(pagina_cpu->valor);
@@ -475,13 +475,13 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		printf("\nTEST: Recibo del swap: %s\n",pagina->valor);
 		log_info(log_umc,"Se recibe del SWAP la respuesta de lectura de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 
-		t_pagina_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 
-		pagina_cpu->id_programa = pagina->id_programa;
+
 		pagina_cpu->pagina = pagina->pagina;
 		pagina_cpu->offset = pagina_pedido->offset;
 		pagina_cpu->tamanio = pagina_pedido->tamanio;
-		pagina_cpu->socket_pedido = pagina->socket_pedido;
+
 
 
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,pagina->id_programa);
@@ -504,6 +504,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		log_info(log_umc,"Se envía al CPU la lectura solicitada de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 		free(pagina);
 		free(pagina_pedido);
+		free(pagina_cpu);
 	}
 	else if(id_mensaje == ERROR_LEER_PAGINA){
 		t_pagina *pagina = malloc(sizeof(t_pagina_completa));
@@ -719,14 +720,14 @@ void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
 }
 
 
-void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,int id_mensaje) {
+void enviar_pagina(int socket, int proceso_receptor, t_pagina_pedido_completa *pagina,int id_mensaje) {
 
 	t_header *header_cpu = malloc(sizeof(t_header));
 	header_cpu->id_proceso_emisor = PROCESO_UMC;
 	header_cpu->id_proceso_receptor = proceso_receptor;
 	header_cpu->id_mensaje = id_mensaje;
 
-	t_buffer *payload_cpu = serializar_pagina_completa(pagina);
+	t_buffer *payload_cpu = serializar_pagina_pedido_completa(pagina);
 
 	header_cpu->longitud_mensaje = payload_cpu->longitud_buffer;
 
@@ -1230,12 +1231,10 @@ int retornar_direccion_mp(int un_marco){
 	return marco_buscado->direccion_mp;
 }
 
-void inicializar_pagina_cpu(t_pagina_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion){
-	pagina_cpu->id_programa = una_pagina->id_programa;
+void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion){
 	pagina_cpu->pagina = una_pagina->pagina;
 	pagina_cpu->offset = una_pagina->offset;
 	pagina_cpu->tamanio = una_pagina->tamanio;
-	pagina_cpu->socket_pedido = socket_conexion;
 }
 
 void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,t_pagina_completa * una_pagina, int socket_conexion){

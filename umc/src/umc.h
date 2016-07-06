@@ -166,7 +166,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 void respuesta_leer_pagina(void *buffer,int id_mensaje);
 
-void enviar_pagina(int socket, int proceso_receptor, t_pagina_completa *pagina,int id_mensaje);
+void enviar_pagina(int socket, int proceso_receptor, t_pagina_pedido_completa *pagina,int id_mensaje);
 
 void escribir_pagina(void *buffer, int socket_conexion);
 
@@ -195,7 +195,7 @@ void crear_marcos();
 
 int retornar_direccion_mp(int marco);
 
-void inicializar_pagina_cpu(t_pagina_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion);
+void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion);
 
 void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,t_pagina_completa * una_pagina, int socket_conexion);
 
