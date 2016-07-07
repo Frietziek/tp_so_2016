@@ -195,7 +195,7 @@ void crear_marcos();
 
 int retornar_direccion_mp(int marco);
 
-void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion);
+void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina_pedido * una_pagina, int socket_conexion);
 
 void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,t_pagina_completa * una_pagina, int socket_conexion);
 

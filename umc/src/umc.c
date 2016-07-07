@@ -343,7 +343,7 @@ void respuesta_iniciar_programa(void *buffer,int id_mensaje){
 
 	t_programa_nuevo * programa = malloc(sizeof(t_programa_nuevo));
 	deserializar_programa_nuevo(buffer,programa);
-	log_info(log_umc,"TEST programa: %d",programa->id_programa);
+
 	if(id_mensaje == RESPUESTA_INICIAR_PROGRAMA){
 		mandar_a_swap(programa->id_programa,0,MENSAJE_ESCRIBIR_PAGINA_NUEVA);//al ser nuevo escribe en la pagina cero
 	}
@@ -398,7 +398,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 		pagina_cpu->valor = malloc(pagina->tamanio);
 		memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
-
+		printf("se manda a la cpu el valor de la pagina:%s",pagina_cpu->valor);
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
 		free(pagina_cpu->valor);
@@ -472,7 +472,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		deserializar_pagina_completa(buffer, pagina);
 
 		t_pagina_pedido * pagina_pedido = buffer_programas[pagina->id_programa];
-		printf("\nTEST: Recibo del swap: %s\n",pagina->valor);
+
 		log_info(log_umc,"Se recibe del SWAP la respuesta de lectura de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 
 		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
@@ -499,7 +499,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		pagina_cpu->valor = malloc(pagina_cpu->tamanio);
 
 		memcpy(pagina_cpu->valor,direccion_mp + pagina_cpu->offset,pagina_cpu->tamanio);
-		printf("\nTEST: Le mando al cpu: %s\n",pagina_cpu->valor);
+
 		enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu, id_mensaje);
 		log_info(log_umc,"Se envía al CPU la lectura solicitada de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 		free(pagina);
@@ -711,7 +711,7 @@ void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc,"Error de comunicacion con el Nucleo");
 	}
-	log_info("TEST se mando la confirmacion del inicio al nucleo %d",programa_id->id_programa);
+
 	free(pagina_completa->valor);
 	free(pagina_completa);
 	free(programa_id);
@@ -1231,7 +1231,7 @@ int retornar_direccion_mp(int un_marco){
 	return marco_buscado->direccion_mp;
 }
 
-void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina * una_pagina, int socket_conexion){
+void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina_pedido * una_pagina, int socket_conexion){
 	pagina_cpu->pagina = una_pagina->pagina;
 	pagina_cpu->offset = una_pagina->offset;
 	pagina_cpu->tamanio = una_pagina->tamanio;
