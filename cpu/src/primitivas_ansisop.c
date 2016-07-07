@@ -80,7 +80,7 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	// TODO Descomentar para probar con procesos
 	sem_wait(&s_variable_stack);
 
-	memcpy((void*) contenido_variable, (void*) valor_pagina, size_pagina);
+	contenido_variable = *((int *)valor_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
@@ -133,7 +133,7 @@ t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) 
 
 	sem_wait(&s_variable_compartida);
 
-	memcpy((void*) contenido_variable, (void*) valor_pagina, size_pagina);
+	contenido_variable = *((int *)valor_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
