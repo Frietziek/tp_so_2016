@@ -277,7 +277,9 @@ void respuesta_handshake_cpu_umc(void *buffer) {
 void respuesta_leer_pagina(void *buffer) {
 	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
 	deserializar_pagina_pedido_completa(buffer, pagina);
-
+	log_info(logger_manager,
+			"Recibi pagina de umc, pagina: %i, offset: %i, tamanio: %i",
+			pagina->pagina, pagina->offset, pagina->tamanio);
 	valor_pagina = malloc(pagina->tamanio);
 	size_pagina = pagina->tamanio;
 	memcpy(valor_pagina, pagina->valor, pagina->tamanio);
@@ -425,16 +427,16 @@ void ejecuto_instrucciones() {
 		instruccion_a_ejecutar[size_pagina - 1] = '\0';
 		// TODO Comentar para probar con procesos
 		/*
-		char *instruccion_a_ejecutar =
-				malloc(
-						sizeof(char)
-								* (deserializo_instruccion(pcb_quantum->pcb->pc)->offset));
-		memcpy(instruccion_a_ejecutar,
-				codigo + deserializo_instruccion(pcb_quantum->pcb->pc)->start,
-				deserializo_instruccion(pcb_quantum->pcb->pc)->offset - 1);
-		instruccion_a_ejecutar[deserializo_instruccion(pcb_quantum->pcb->pc)->offset
-				- 1] = '\0';
-		*/
+		 char *instruccion_a_ejecutar =
+		 malloc(
+		 sizeof(char)
+		 * (deserializo_instruccion(pcb_quantum->pcb->pc)->offset));
+		 memcpy(instruccion_a_ejecutar,
+		 codigo + deserializo_instruccion(pcb_quantum->pcb->pc)->start,
+		 deserializo_instruccion(pcb_quantum->pcb->pc)->offset - 1);
+		 instruccion_a_ejecutar[deserializo_instruccion(pcb_quantum->pcb->pc)->offset
+		 - 1] = '\0';
+		 */
 		log_info(logger_manager, "Instruccion a ejecutar: %s",
 				instruccion_a_ejecutar);
 		analizadorLinea(strdup(instruccion_a_ejecutar), &functions,
@@ -506,6 +508,9 @@ void leo_instruccion_desde_UMC(t_pcb *pcb) {
 	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
 
 	pagina_es_codigo = 1;
+	log_info(logger_manager,
+			"Envio pedido a UMC, pagina: %i, offset: %i, tamanio: %i",
+			p_pagina->pagina, p_pagina->offset, p_pagina->tamanio);
 
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
 			"Fallo al enviar lectura de pagina a UMC.", buffer);
