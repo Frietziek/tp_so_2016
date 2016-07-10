@@ -42,6 +42,7 @@ typedef struct {
 	int cantidad_paginas;
 	int tamano_pagina;
 	int retardo_compactacion;
+	int retardo_acceso;
 } t_config_swap;
 
 typedef struct {
