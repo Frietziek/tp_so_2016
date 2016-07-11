@@ -38,7 +38,7 @@ int main(void) {
 
 	config_swap = malloc(sizeof(t_config_swap));
 	cargar_configuracion_swap("src/config.swap.ini",config_swap);
-	log_trace(loggerManager, "\nSe cargaron las configuraciones con los siguientes valores: \nPUERTO_ESCUCHA=%i \nNOMBRE_SWAP=%s\nCANTIDAD_PAGINAS=%i\nTAMANO_PAGINA=%i\nRETARDO_COMPACTACION=%i\n", config_swap->puerto_escucha, config_swap->nombre_swap, config_swap->cantidad_paginas, config_swap->tamano_pagina, config_swap->retardo_compactacion);
+	log_trace(loggerManager, "\nSe cargaron las configuraciones con los siguientes valores: \nPUERTO_ESCUCHA=%i \nNOMBRE_SWAP=%s\nCANTIDAD_PAGINAS=%i\nTAMANO_PAGINA=%i\nRETARDO_COMPACTACION=%i\nRETARDO_ACCESO=%i\n", config_swap->puerto_escucha, config_swap->nombre_swap, config_swap->cantidad_paginas, config_swap->tamano_pagina, config_swap->retardo_compactacion, config_swap->retardo_acceso);
 
 	/***************************************************************************************/
 
@@ -316,6 +316,8 @@ int finalizar_programa(t_programa *fin_programa_info){
 /*Busca y retorna el contenido solicitado al swap*/
 int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer){
 
+	simular_espera(config_swap->retardo_acceso);
+
 	t_program_info *programa_info = buscar_programa(leer_pagina_info->id_programa, lista_programas);
 
 	int posicion_lectura = (programa_info->pagina_inicial_swap + leer_pagina_info->pagina) * config_swap->tamano_pagina + leer_pagina_info->offset;
@@ -338,7 +340,7 @@ int leer_bytes_swap(t_pagina *leer_pagina_info, void *buffer){
 /*Escribe en el swap el contenido de buffer, retorna 0 si el estado es ok, -1 en caso de error*/
 int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info){
 
-	//TODO: No se esta evaluando si es correcto que se escriba en esta region de memoria, evaluar eso despues
+	simular_espera(config_swap->retardo_acceso);
 
 	t_program_info *programa_info = buscar_programa(escribir_pagina_info->id_programa, lista_programas);
 

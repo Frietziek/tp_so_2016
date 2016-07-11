@@ -16,6 +16,7 @@
 #define DEFAULT_CANTIDAD_PAGINAS 512
 #define DEFAULT_TAMANO_PAGINA 256
 #define DEFAULT_RETARDO_COMPACTACION 60000
+#define DEFAULT_RETARDO_ACCESO 600
 /*----------------------------------------------------------------------------------------------------*/
 
 void cargar_configuracion_swap(char *archivo, t_config_swap *configuracion_swap) {
@@ -57,6 +58,13 @@ void cargar_configuracion_swap(char *archivo, t_config_swap *configuracion_swap)
 				archivo_configuracion, "RETARDO_COMPACTACION");
 	} else {
 		configuracion_swap->retardo_compactacion = DEFAULT_RETARDO_COMPACTACION;
+	}
+
+	if (config_has_property(archivo_configuracion, "RETARDO_ACCESO")) {
+			configuracion_swap->retardo_acceso = config_get_int_value(
+			archivo_configuracion, "RETARDO_ACCESO");
+	} else {
+		configuracion_swap->retardo_acceso = DEFAULT_RETARDO_ACCESO;
 	}
 
 	free(archivo_configuracion);
