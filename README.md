@@ -8,7 +8,7 @@
 * Leonel Gutierrez
 * Federico Hausler
 * Noemi Moreno 
-* Nicolas Gonzalez
+* Sergio Nicosia
 
 
 ### Ayudantes:
