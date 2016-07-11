@@ -398,7 +398,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 		pagina_cpu->valor = malloc(pagina->tamanio);
 		memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
-		printf("se manda a la cpu el valor de la pagina:%s",pagina_cpu->valor);
+		printf("\nse manda a la cpu el valor de la pagina:%s\n",pagina_cpu->valor);
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
 		free(pagina_cpu->valor);
@@ -790,7 +790,7 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 	header_nucleo->id_mensaje = id_mensaje;
-	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;// TODO: ver si mando asi o mando tambien el id
+	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
 
 	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
 		log_error(log_umc,"Error de comunicacion con el nucleo");

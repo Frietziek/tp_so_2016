@@ -57,7 +57,8 @@ void atiendo_handshake(void *buffer, int socket_conexion) {
 	}
 
 	// TODO Eliminar esta linea de test
-	socket_cpu = socket_conexion;
+	//socket_cpu = socket_conexion;
+	agregar_cpu_disponible(socket_conexion);
 
 	free(header);
 }

@@ -109,9 +109,13 @@ typedef struct {
 	int socket;
 } t_valor_socket_cola_semaforos;
 
+typedef struct {
+	int socket_cpu;
+} t_cpu;
+
 // TODO Eliminar estas estructuras, solo son de prueba
-int socket_cpu;
-t_pcb *pcb_cpu;
+//int socket_cpu;
+//t_pcb *pcb_cpu;
 
 void inicializar_variables_compartidas(char **shared_vars);
 
@@ -167,4 +171,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu);
 void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
 		int socket_cpu);
 void finalizar_proceso_en_lista_proc_con_socket_cpu(t_pcb * pcb, int socket_cpu);
+void * queue_pop_pid(t_queue *self,int pid);
+void agregar_cpu_disponible(int socket_conexion);
+void asignar_pcb_a_cola_exec();
 #endif /* NUCLEO_H_ *///
