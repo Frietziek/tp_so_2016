@@ -789,7 +789,11 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-	header_nucleo->id_mensaje = id_mensaje;
+	if(id_mensaje == RESPUESTA_FINALIZAR_PROGRAMA){
+		header_nucleo->id_mensaje = RESPUESTA_MATAR_PROGRAMA;
+	}else if(id_mensaje == ERROR_FINALIZAR_PROGRAMA){
+		header_nucleo->id_mensaje = ERROR_MATAR_PROGRAMA;
+	}
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
 
 	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {

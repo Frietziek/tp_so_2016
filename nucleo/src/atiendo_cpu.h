@@ -9,6 +9,7 @@
 #define ATIENDO_CPU_H_
 
 #include "serializacion.h"
+#include "serializacion_nucleo_cpu.h"
 #include "nucleo.h"
 #include "semaforos_nucleo.h"
 

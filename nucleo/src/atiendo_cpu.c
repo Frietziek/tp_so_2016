@@ -7,6 +7,7 @@
 
 #include "atiendo_cpu.h"
 
+
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
 
@@ -42,8 +43,13 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 	case MENSAJE_PROGRAMA_FINALIZADO:
 		atiendo_programa_finalizado(paquete->payload, socket_cpu);
 		break;
+	case RESPUESTA_MATAR:
+		respuesta_matar(paquete->payload, socket_cpu);
+		break;
 	}
 }
+
+
 
 void atiendo_handshake(void *buffer, int socket_conexion) {
 	t_header *header = malloc(sizeof(t_header));
