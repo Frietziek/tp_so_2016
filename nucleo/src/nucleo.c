@@ -777,7 +777,8 @@ void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
 	sem_wait(&mutex_cola_block);
 	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
 	queue_push(cola_block, pcb);
-	sem_post(&mutex_cola_block);
+	log_info(logger_manager,"PROCESO %d - Se agrega a la cola BLOCK",pcb->pid);
+        sem_post(&mutex_cola_block);
 
 	sem_wait(&mutex_cola_exec);
 	bool busqueda_pcb(t_pcb *_pcb) {
@@ -805,7 +806,8 @@ void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 	sem_wait(&mutex_cola_block);
 	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
 	queue_push(cola_block, pcb);
-	sem_post(&mutex_cola_block);
+	log_info(logger_manager,"PROCESO %d - Se agrega a la cola BLOCK",pcb->pid);
+        sem_post(&mutex_cola_block);
 
 	sem_wait(&mutex_cola_exec);
 	bool busqueda_pcb(t_pcb *_pcb) {
@@ -881,14 +883,15 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 	sem_post(&mutex_cola_exec);
 
 	cambiar_estado_proceso_por_pid(pcb_a_exec->pid, EXEC);
-
+	actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(pcb_a_exec, socket_cpu);
 	pcb_quantum_a_cpu->pcb = pcb_a_exec;
 
 	pcb_quantum_a_cpu->quantum = configuracion->quantum;
 	t_buffer *pcb_quantum_buffer = serializar_pcb_quantum(pcb_quantum_a_cpu);
 	envio_buffer_a_proceso(socket_cpu, PROCESO_CPU, MENSAJE_PCB_NUCLEO,
 			"error al enviar pcb quantum a cpu", pcb_quantum_buffer);
-	free(pcb_quantum_buffer);
+	log_info(logger_manager,"Se envio el Proceso a la CPU");
+        free(pcb_quantum_buffer);
 }
 
 int wait_semaforo(char *semaforo_nombre) {
@@ -922,7 +925,8 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 
 	sem_wait(&mutex_cola_ready);
 	queue_push(cola_ready, pcb_a_ready);
-	sem_post(&mutex_cola_ready);
+	log_info(logger_manager,"PROCESO %d - Se agrega a la cola READY",pcb_a_ready->pid);
+    sem_post(&mutex_cola_ready);
 	sem_post(&cant_ready);
 
 	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(pcb_quantum->pcb,
@@ -963,7 +967,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 			< sizeof(t_header) + buffer_finalizar->longitud_buffer) {
 		perror("Fallo enviar buffer finalizar umc");
 	}
-
+        log_info(logger_manager,"PROCESO %d - Se manda a la umc a ser finalizado",pcb_quantum->pcb->pid);
 	free(finalizar);
 	free(buffer_finalizar);
 	free(header_finalizar_umc);
@@ -1007,8 +1011,22 @@ void agregar_cpu_disponible(socket_conexion){
 	cpu_nueva->socket_cpu = socket_conexion;
 	sem_wait(&mutex_cola_cpu);
 	queue_push(cola_cpus,cpu_nueva);
+        log_info(logger_manager,"Se libera un cpu para su uso");
 	sem_post(&mutex_cola_cpu);
 	sem_post(&cant_cpu);
 }
 
+void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb,
+		int socket_cpu) {
 
+	sem_wait(&mutex_lista_procesos);
+	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
+		return (pcb->pid == proceso->pcb->pid);
+	}
+	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica)));
+	proceso->socket_cpu = socket_cpu;
+	proceso->pcb->estado = EXEC;
+	sem_post(&mutex_lista_procesos);
+
+}

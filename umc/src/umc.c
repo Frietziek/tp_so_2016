@@ -201,6 +201,7 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		escribir_pagina(paquete->payload, socket_conexion);
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
+		log_info(log_umc,"Cambio de proceso activo");
 		cambiar_proceso_activo(paquete->payload,socket_conexion);
 		break;
 	default:
@@ -363,6 +364,7 @@ void respuesta_iniciar_programa(void *buffer,int id_mensaje){
 				< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 			log_error(log_umc,"Error de comunicacion con el Nucleo");
 		}
+		log_info(log_umc,"se responde al nucleo - Iniciar programa OK");
 		free(header_nucleo);
 		free(payload_nucleo);
 		free(programa_id);
@@ -398,8 +400,10 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 		pagina_cpu->valor = malloc(pagina->tamanio);
 		memcpy(pagina_cpu->valor,direccion_mp + pagina->offset,pagina->tamanio);
-		printf("\nse manda a la cpu el valor de la pagina:%s\n",pagina_cpu->valor);
+
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
+
+		log_info(log_umc,"se mando al cpu la lectura solicitada");
 
 		free(pagina_cpu->valor);
 		free(pagina_cpu);
@@ -425,6 +429,9 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				guardar_en_TLB(pagina_cpu->pagina,pagina>id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 			}
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
+
+			log_info(log_umc,"se mando al cpu la lectura solicitada");
+
 			free(pagina_cpu->valor);
 			free(pagina_cpu);
 			free(pagina);
@@ -458,9 +465,9 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 					log_error(log_umc,"Error de comunicacion al enviar buffer Leer pagina a SWAP - PID:%d",id_programa);
 				}
 
-		free(header_swap);
-		free(pagina_swap);
-		free(payload_swap);
+				free(header_swap);
+				free(pagina_swap);
+				free(payload_swap);
 		}
 	}
 }
@@ -519,6 +526,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		if (enviar_header(pagina->socket_pedido, header_cpu) < sizeof(header_cpu)) {
 			log_error(log_umc,"Error de comunicacion");
 		}
+		log_info(log_umc,"hubo un error al leer la pagina");
 		free(pagina);
 	}
 }
@@ -554,9 +562,10 @@ void escribir_pagina(void *buffer, int socket_conexion){
 			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,id_programa);
 			tabla[pagina->pagina].uso = 1;
 
-			if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
+			if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
 				log_error(log_umc,"Error al finalizar programa");
 			}
+			log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
 			free(header_cpu);
 			free(pagina);
 		//2° caso: esta en memoria
@@ -574,9 +583,10 @@ void escribir_pagina(void *buffer, int socket_conexion){
 				if(configuracion->entradas_tlb != 0){
 					guardar_en_TLB(pagina->pagina,id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 				}
-				if (enviar_header(socket_nucleo, header_cpu) < sizeof(header_cpu)) {
+				if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
 					log_error(log_umc,"Error de comunicacion con el CPU");
 				}
+				log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
 				free(header_cpu);
 				free(pagina);
 			}
@@ -646,6 +656,7 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		tabla[pagina_recibida_de_swap->pagina].modificado = 1;
 
 		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
+		log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
 		free(pagina_buffer);
 		free(pagina_recibida_de_swap);
 	}
@@ -657,6 +668,7 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		log_error(log_umc,"Hubo un error al recibir del swap la PAGINA:%d PID:%d",pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa);
 		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
 		free(pagina_recibida_de_swap);
+		log_info(log_umc,"Se manda la respuesta al cpu de la escritura con ERROR ");
 	}
 	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
 			log_error(log_umc,"Error al enviar header a cpu");
@@ -791,8 +803,10 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 	if(id_mensaje == RESPUESTA_FINALIZAR_PROGRAMA){
 		header_nucleo->id_mensaje = RESPUESTA_MATAR_PROGRAMA;
+		log_info(log_umc,"Se responde al nucleo - MATAR PROGRAMA OK");
 	}else if(id_mensaje == ERROR_FINALIZAR_PROGRAMA){
 		header_nucleo->id_mensaje = ERROR_MATAR_PROGRAMA;
+		log_info(log_umc,"Se responde al nucleo - MATAR PROGRAMA ERROR");
 	}
 	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
 

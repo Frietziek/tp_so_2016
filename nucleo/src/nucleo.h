@@ -19,7 +19,7 @@
 #define BLOCK 3
 #define EXIT 4
 
-#define NO_ASIGNADO -10
+#define NO_ASIGNADO 90 //estaba negativo y pinchaba al asignarse en un int, de ultima cambiar el tipo
 #define VALOR_INICIAL_VARIABLE_COMPARTIDA 0
 
 t_log *logger_manager;
@@ -174,4 +174,5 @@ void finalizar_proceso_en_lista_proc_con_socket_cpu(t_pcb * pcb, int socket_cpu)
 void * queue_pop_pid(t_queue *self,int pid);
 void agregar_cpu_disponible(int socket_conexion);
 void asignar_pcb_a_cola_exec();
+void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb,int socket_cpu);
 #endif /* NUCLEO_H_ *///

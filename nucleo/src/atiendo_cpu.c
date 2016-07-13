@@ -13,37 +13,48 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 
 	switch (paquete->header->id_mensaje) {
 	case MENSAJE_HANDSHAKE:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_HANDSHAKE");
 		atiendo_handshake(paquete->payload, socket_cpu);
 		printf("Se establecio conexion con cpu\n\n");
 		break;
 	case MENSAJE_OBTENER_VALOR_COMPARTIDA:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_OBTENER_VALOR_COMPARTIDA");
 		atiendo_obtener_compartida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA");
 		atiendo_asignar_compartida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_IMPRIMIR:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_IMPRIMIR");
 		atiendo_imprimir(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_IMPRIMIR_TEXTO:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_IMPRIMIR_TEXTO");
 		atiendo_imprimir_texto(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_ENTRADA_SALIDA:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_ENTRADA_SALIDA");
 		atiendo_entrada_salida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_WAIT:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_WAIT");
 		atiendo_wait(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_SIGNAL:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_SIGNAL");
 		atiendo_signal(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_QUANTUM:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_QUANTUM");
 		atiendo_quantum(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_PROGRAMA_FINALIZADO:
+		log_info(logger_manager,"Se recibe del cpu: MENSAJE_PROGRAMA_FINALIZADO");
 		atiendo_programa_finalizado(paquete->payload, socket_cpu);
 		break;
 	case RESPUESTA_MATAR:
+		log_info(logger_manager,"Se recibe del cpu: RESPUESTA_MATAR");
 		respuesta_matar(paquete->payload, socket_cpu);
 		break;
 	}
