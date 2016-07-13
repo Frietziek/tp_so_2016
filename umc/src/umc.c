@@ -223,7 +223,11 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 		break;
 	case MENSAJE_MATAR_PROGRAMA:
 		log_info(log_umc,"Solicitud de finalización de un programa.");
-		finalizar_programa(paquete->payload);
+		finalizar_programa(paquete->payload,paquete->header->id_mensaje);
+		break;
+	case MENSAJE_FINALIZAR_PROGRAMA:
+		log_info(log_umc,"Solicitud de finalización de un programa.");
+		finalizar_programa(paquete->payload,paquete->header->id_mensaje);
 		break;
 	default:
 		log_error(log_umc,"Id mensaje enviado por el NUCLEO no reconocido: %d",paquete->header->id_mensaje);
@@ -753,7 +757,7 @@ void enviar_pagina(int socket, int proceso_receptor, t_pagina_pedido_completa *p
 }
 
 
-void finalizar_programa(void *buffer) {
+void finalizar_programa(void *buffer,int id_mensaje) {
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,programa->id_programa);
@@ -772,7 +776,7 @@ void finalizar_programa(void *buffer) {
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
 	header_swap->id_proceso_receptor = PROCESO_SWAP;
-	header_swap->id_mensaje = MENSAJE_FINALIZAR_PROGRAMA;
+	header_swap->id_mensaje = id_mensaje;
 
 	t_programa *programa_swap = malloc(sizeof(t_programa));
 	programa_swap->id_programa = programa->id_programa;
@@ -797,25 +801,25 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 
 	t_programa *programa = malloc(sizeof(t_programa_completo));
 	deserializar_programa(buffer, programa);
-
+	log_info("se finalizo el pid %d",programa->id_programa);
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-	if(id_mensaje == RESPUESTA_FINALIZAR_PROGRAMA){
-		header_nucleo->id_mensaje = RESPUESTA_MATAR_PROGRAMA;
-		log_info(log_umc,"Se responde al nucleo - MATAR PROGRAMA OK");
-	}else if(id_mensaje == ERROR_FINALIZAR_PROGRAMA){
-		header_nucleo->id_mensaje = ERROR_MATAR_PROGRAMA;
-		log_info(log_umc,"Se responde al nucleo - MATAR PROGRAMA ERROR");
-	}
-	header_nucleo->longitud_mensaje = PAYLOAD_VACIO;
+	header_nucleo->id_mensaje = id_mensaje;
 
-	if (enviar_header(socket_nucleo, header_nucleo) < sizeof(header_nucleo)) {
-		log_error(log_umc,"Error de comunicacion con el nucleo");
-	}
 
+
+	t_buffer *payload_nucleo = serializar_programa(programa);
+
+	header_nucleo->longitud_mensaje = payload_nucleo->longitud_buffer;
+	log_info(log_umc,"Se envia el codigo del nuevo programa a swap ...");
+	if (enviar_buffer(socket_nucleo, header_nucleo, payload_nucleo)
+			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
+		log_error(log_umc,"Fallo al responder pedido CPU");
+	}
 	free(programa);
 	free(header_nucleo);
+	free(payload_nucleo);
 }
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
@@ -1446,7 +1450,7 @@ void liberar_marcos(int pid){
 		return (marco->numero_marco == un_marco);
 	}
 	entradas = (t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,(void*)es_true);
-	while(tabla[nro_pagina].numero_pagina < entradas->cant_paginas){
+	while(nro_pagina < entradas->cant_paginas){
 		if (tabla[nro_pagina].presencia){
 			un_marco = tabla[nro_pagina].frame;
 			tabla[nro_pagina].frame = 0;

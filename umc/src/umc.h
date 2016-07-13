@@ -64,10 +64,11 @@
 // Funciones Nucleo - UMC
 #define MENSAJE_INICIALIZAR_PROGRAMA 1
 #define MENSAJE_MATAR_PROGRAMA 2
-#define MENSAJE_FINALIZAR_PROGRAMA 4
+//#define MENSAJE_FINALIZAR_PROGRAMA 4 - ya esta definido
 // Respuestas OK
 #define RESPUESTA_INICIALIZAR_PROGRAMA 11
 #define RESPUESTA_MATAR_PROGRAMA 12
+
 // Respuestas ERROR
 #define ERROR_INICIALIZAR_PROGRAMA 21
 #define ERROR_MATAR_PROGRAMA 22
@@ -170,7 +171,7 @@ void enviar_pagina(int socket, int proceso_receptor, t_pagina_pedido_completa *p
 
 void escribir_pagina(void *buffer, int socket_conexion);
 
-void finalizar_programa(void *buffer);
+void finalizar_programa(void *buffer,int id_mensaje);
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion);
 

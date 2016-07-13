@@ -175,4 +175,5 @@ void * queue_pop_pid(t_queue *self,int pid);
 void agregar_cpu_disponible(int socket_conexion);
 void asignar_pcb_a_cola_exec();
 void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb,int socket_cpu);
+void respuesta_matar(void * buffer,int socket_cpu);
 #endif /* NUCLEO_H_ *///
