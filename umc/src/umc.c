@@ -193,11 +193,11 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		handshake_umc_cpu(socket_conexion, configuracion);
 		break;
 	case MENSAJE_LEER_PAGINA:
-		log_info(log_umc,"Recibido mensaje derefenciar");
+		log_info(log_umc,"Recibido mensaje leer pagina");
 		leer_pagina(paquete->payload, socket_conexion, configuracion);
 		break;
 	case MENSAJE_ESCRIBIR_PAGINA:
-		log_info(log_umc,"Recibido mensaje asignar");
+		log_info(log_umc,"Recibido mensaje escribir pagina");
 		escribir_pagina(paquete->payload, socket_conexion);
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
@@ -238,42 +238,55 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 void atender_swap(t_paquete *paquete, int socket_conexion) {
 	switch (paquete->header->id_mensaje) {
 	case REPUESTA_HANDSHAKE:
+		log_info(log_umc,"Recibo de SWAP :REPUESTA_HANDSHAKE");
 		respuesta_handshake_umc_swap();
 		break;
 	case RESPUESTA_LEER_PAGINA:
+		log_info(log_umc,"Recibo de SWAP :RESPUESTA_LEER_PAGINA");
 		respuesta_leer_pagina(paquete->payload,RESPUESTA_LEER_PAGINA);
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
+		log_info(log_umc,"Recibo de SWAP :RESPUESTA_ESCRIBIR_PAGINA");
 		respuesta_escribir_pagina(paquete->payload,RESPUESTA_ESCRIBIR_PAGINA);
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA_NUEVA:
+		log_info(log_umc,"Recibo de SWAP :RESPUESTA_ESCRIBIR_PAGINA_NUEVA");
 		respuesta_escribir_pagina_nueva(paquete->payload,RESPUESTA_ESCRIBIR_PAGINA_NUEVA);
 		break;
 	case RESPUESTA_INICIAR_PROGRAMA:
+		log_info(log_umc,"Recibo de SWAP :RESPUESTA_INICIAR_PROGRAMA");
 		respuesta_iniciar_programa(paquete->payload,RESPUESTA_INICIAR_PROGRAMA);
 		break;
 	case RESPUESTA_FINALIZAR_PROGRAMA:
+		log_info(log_umc,"Recibo de SWAP :RESPUESTA_FINALIZAR_PROGRAMA");
 		respuesta_finalizar_programa(paquete->payload,RESPUESTA_FINALIZAR_PROGRAMA);
 		break;
 	case RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR:
+		log_info(log_umc,"Recibo de SWAP :RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR");
 		respuesta_leer_pagina_para_escribir(paquete->payload,RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR);
 		break;
 	case ERROR_INICIAR_PROGRAMA:
+		log_info(log_umc,"Recibo de SWAP :ERROR_INICIAR_PROGRAMA");
 		respuesta_iniciar_programa(paquete->payload,ERROR_INICIAR_PROGRAMA);
 		break;
 	case ERROR_LEER_PAGINA:
+		log_info(log_umc,"Recibo de SWAP :ERROR_LEER_PAGINA");
 		respuesta_leer_pagina(paquete->payload,ERROR_LEER_PAGINA);
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
+		log_info(log_umc,"Recibo de SWAP :ERROR_ESCRIBIR_PAGINA");
 		respuesta_escribir_pagina(paquete->payload,ERROR_ESCRIBIR_PAGINA);
 		break;
 	case ERROR_ESCRIBIR_PAGINA_NUEVA:
+		log_info(log_umc,"Recibo de SWAP :ERROR_ESCRIBIR_PAGINA_NUEVA");
 		respuesta_escribir_pagina_nueva(paquete->payload,ERROR_ESCRIBIR_PAGINA_NUEVA);
 		break;
 	case ERROR_FINALIZAR_PROGRAMA:
+		log_info(log_umc,"Recibo de SWAP :ERROR_FINALIZAR_PROGRAMA");
 		respuesta_finalizar_programa(paquete->payload,ERROR_FINALIZAR_PROGRAMA);
 		break;
 	case ERROR_LEER_PAGINA_PARA_ESCRIBIR:
+		log_info(log_umc,"Recibo de SWAP :ERROR_LEER_PAGINA_PARA_ESCRIBIR");
 		respuesta_leer_pagina_para_escribir(paquete->payload,ERROR_LEER_PAGINA_PARA_ESCRIBIR);
 		break;
 	default:
@@ -415,8 +428,8 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		//2° caso: esta en Memoria Principal
 		} else {
 		log_info(log_umc,"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-		sleep(configuracion->retardo);
-		log_info(log_umc,"Se accede a MP. Tiempo de acceso %d seg",configuracion->retardo);
+		usleep(configuracion->retardo);
+		log_info(log_umc,"Se accede a MP. Tiempo de acceso %d ms",configuracion->retardo);
 
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *)list_get(lista_tablas,id_programa);
 		if (tabla[pagina->pagina].presencia){
@@ -574,8 +587,8 @@ void escribir_pagina(void *buffer, int socket_conexion){
 		//2° caso: esta en memoria
 		}else {
 			log_info(log_umc,"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-			sleep(configuracion->retardo);
-			log_info(log_umc,"Se accede a MP. Tiempo de acceso %d seg",configuracion->retardo);
+			usleep(configuracion->retardo);
+			log_info(log_umc,"Se accede a MP. Tiempo de acceso %d ms",configuracion->retardo);
 			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,id_programa);
 			if (tabla[pagina->pagina].presencia){
 				tabla[pagina->pagina].uso = 1;
