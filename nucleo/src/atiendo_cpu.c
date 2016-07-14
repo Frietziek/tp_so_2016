@@ -7,60 +7,60 @@
 
 #include "atiendo_cpu.h"
 
-
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
 
 	switch (paquete->header->id_mensaje) {
 	case MENSAJE_HANDSHAKE:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_HANDSHAKE");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_HANDSHAKE");
 		atiendo_handshake(paquete->payload, socket_cpu);
 		printf("Se establecio conexion con cpu\n\n");
 		break;
 	case MENSAJE_OBTENER_VALOR_COMPARTIDA:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_OBTENER_VALOR_COMPARTIDA");
+		log_info(logger_manager,
+				"Se recibe del cpu: MENSAJE_OBTENER_VALOR_COMPARTIDA");
 		atiendo_obtener_compartida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA");
+		log_info(logger_manager,
+				"Se recibe del cpu: MENSAJE_ASIGNAR_VARIABLE_COMPARTIDA");
 		atiendo_asignar_compartida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_IMPRIMIR:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_IMPRIMIR");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_IMPRIMIR");
 		atiendo_imprimir(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_IMPRIMIR_TEXTO:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_IMPRIMIR_TEXTO");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_IMPRIMIR_TEXTO");
 		atiendo_imprimir_texto(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_ENTRADA_SALIDA:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_ENTRADA_SALIDA");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_ENTRADA_SALIDA");
 		atiendo_entrada_salida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_WAIT:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_WAIT");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_WAIT");
 		atiendo_wait(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_SIGNAL:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_SIGNAL");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_SIGNAL");
 		atiendo_signal(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_QUANTUM:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_QUANTUM");
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_QUANTUM");
 		atiendo_quantum(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_PROGRAMA_FINALIZADO:
-		log_info(logger_manager,"Se recibe del cpu: MENSAJE_PROGRAMA_FINALIZADO");
+		log_info(logger_manager,
+				"Se recibe del cpu: MENSAJE_PROGRAMA_FINALIZADO");
 		atiendo_programa_finalizado(paquete->payload, socket_cpu);
 		break;
 	case RESPUESTA_MATAR:
-		log_info(logger_manager,"Se recibe del cpu: RESPUESTA_MATAR");
+		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_MATAR");
 		respuesta_matar(paquete->payload, socket_cpu);
 		break;
 	}
 }
-
-
 
 void atiendo_handshake(void *buffer, int socket_conexion) {
 	t_header *header = malloc(sizeof(t_header));
@@ -400,6 +400,7 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 			+ sizeof(pcb_quantum->pcb->cant_paginas_codigo_stack)
 			+ sizeof(pcb_quantum->pcb->estado)
 			+ sizeof(pcb_quantum->pcb->contexto_actual)
+			+ sizeof(pcb_quantum->pcb->stack_size_fisico)
 			+ sizeof(pcb_quantum->pcb->stack_position)
 			+ sizeof(pcb_quantum->pcb->stack_pointer)
 			+ sizeof(pcb_quantum->pcb->etiquetas_size)
@@ -420,6 +421,8 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 			&posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->estado, &posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->contexto_actual,
+			&posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size_fisico,
 			&posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_position,
 			&posicion_buffer);
@@ -543,6 +546,8 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 			&posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,
 			&(pcb_quantum->pcb->contexto_actual), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(pcb_quantum->pcb->stack_size_fisico), &posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,
 			&(pcb_quantum->pcb->stack_position), &posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,

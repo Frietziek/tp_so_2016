@@ -55,6 +55,7 @@ typedef struct {
 	int cant_paginas_codigo_stack;
 	int estado;
 	int contexto_actual;
+	int stack_size_fisico;
 	int stack_position;
 	int stack_pointer;
 	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
