@@ -38,7 +38,7 @@ int socket_nucleo;
 int socket_umc;
 
 // Tamanio de pagina de UMC
-int tamanio_pagina = 512;
+int tamanio_pagina;
 
 // Logger
 t_log *logger_manager;
