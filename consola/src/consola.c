@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 
 	/*--------------------------------------------- CONFIGURACIONES ---------------------------------------------*/
 	t_config_consola *configuracion_consola = malloc(sizeof(t_config_consola));
-	cargar_configuracion_consola("src/config.consola.ini", configuracion_consola);
+	cargar_configuracion_consola("config.consola.ini", configuracion_consola);
 	log_trace(loggerManager, "Se cargaron las configuraciones de la consola con los siguientes valores: \nIP_NUCLEO=%s \nPUERTO_NUCLEO=%i\nNOMBRE_SCRIPT=%s\n", configuracion_consola->ip_nucleo, configuracion_consola->puerto_nucleo, configuracion_consola->nombre_script);
 	/*--------------------------------------------------------------------------------------------------------------*/
 

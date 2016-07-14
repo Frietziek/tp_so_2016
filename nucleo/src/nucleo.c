@@ -53,7 +53,7 @@ int main(void) {
 	log_trace(logger_manager, "Proceso Nucleo creado.");
 	pid_count = 1;
 	configuracion = malloc(sizeof(t_config_nucleo));
-	cargar_configuracion_nucleo("src/config.nucleo.ini", configuracion);
+	cargar_configuracion_nucleo("config.nucleo.ini", configuracion);
 
 	lista_procesos = list_create();
 	cola_ready = queue_create();

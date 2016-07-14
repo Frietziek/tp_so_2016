@@ -30,7 +30,7 @@ int main(void) {
 
 	// Estructura de configuracion de la UMC
 	configuracion = malloc(sizeof(t_config_umc));
-	carga_configuracion_UMC("src/config.umc.ini", configuracion);
+	carga_configuracion_UMC("config.umc.ini", configuracion);
 
 	// Se crea el bloque de la memoria principal
 	memoria_principal = calloc(configuracion->marcos,

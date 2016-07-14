@@ -37,7 +37,7 @@ int main(void) {
 	/********************************  Configuraciones SWAP  ********************************/
 
 	config_swap = malloc(sizeof(t_config_swap));
-	cargar_configuracion_swap("src/config.swap.ini",config_swap);
+	cargar_configuracion_swap("config.swap.ini",config_swap);
 	log_trace(loggerManager, "\nSe cargaron las configuraciones con los siguientes valores: \nPUERTO_ESCUCHA=%i \nNOMBRE_SWAP=%s\nCANTIDAD_PAGINAS=%i\nTAMANO_PAGINA=%i\nRETARDO_COMPACTACION=%i\nRETARDO_ACCESO=%i\n", config_swap->puerto_escucha, config_swap->nombre_swap, config_swap->cantidad_paginas, config_swap->tamano_pagina, config_swap->retardo_compactacion, config_swap->retardo_acceso);
 
 	/***************************************************************************************/

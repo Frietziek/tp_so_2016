@@ -35,7 +35,7 @@ int main(void) {
 
 	// Cargo configuraciones desde archivo ini
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
-	carga_configuracion_cpu("src/config.cpu.ini", configuracion);
+	carga_configuracion_cpu("config.cpu.ini", configuracion);
 	log_trace(logger_manager, "Proceso CPU creado.");
 
 	socket_nucleo = conecto_con_nucleo(configuracion);
