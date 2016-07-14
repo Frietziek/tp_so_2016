@@ -186,6 +186,7 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 			+ sizeof(pcb_quantum->pcb->cant_paginas_codigo_stack)
 			+ sizeof(pcb_quantum->pcb->estado)
 			+ sizeof(pcb_quantum->pcb->contexto_actual)
+			+ sizeof(pcb_quantum->pcb->stack_size_fisico)
 			+ sizeof(pcb_quantum->pcb->stack_position)
 			+ sizeof(pcb_quantum->pcb->stack_pointer)
 			+ sizeof(pcb_quantum->pcb->etiquetas_size)
@@ -204,6 +205,8 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 			&posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->estado, &posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->contexto_actual,
+			&posicion_buffer);
+	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size_fisico,
 			&posicion_buffer);
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_position,
 			&posicion_buffer);
@@ -310,6 +313,8 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 			&posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,
 			&(pcb_quantum->pcb->contexto_actual), &posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer,
+			&(pcb_quantum->pcb->stack_size_fisico), &posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,
 			&(pcb_quantum->pcb->stack_position), &posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer,

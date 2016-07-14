@@ -31,8 +31,6 @@ int main(void) {
 	logger_manager = log_create("cpu.log", "CPU", true, LOG_LEVEL_TRACE); // Creo archivo de log
 	inicio_seniales_semaforos();
 
-	tamanio_pagina = 512;
-
 	// Cargo configuraciones desde archivo ini
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
 	carga_configuracion_cpu("config.cpu.ini", configuracion);
@@ -42,71 +40,11 @@ int main(void) {
 
 	socket_umc = conecto_con_umc(configuracion);
 
-	// TODO Comentar para probar con procesos
-	// Programa a probar
-	//codigo ="function imprimir\n    wait mutexA\n        print $0+1\n    signal mutexB\nend\n\nbegin\nvariables f,A,g\n    A = \t0\n    !Global = 1+A\n    print !Global\n    jnz !Global Siguiente \n:Proximo\nf = 8\t  \n    g <- doble !Global\t\n    io impresora 20\n\t:Siguiente\t\n    imprimir A\n    textPrint    Hola Mundo!\n    \n    sumar1 &g\t\t\n    print \t\tg    \n    \n    sinParam\n    \nend\nfunction sinParam\n\ttextPrint Bye\nend\n\n#Devolver el doble del\n#primer parametro\nfunction doble\nvariables f\n    f = $0 + $0\n    return f\nend\n\nfunction sumar1\n\t*$0 = 1 + *$0\nend";
-	//codigo = "function prueba\nvariables a, b\na = 2\nb = 16\nprint b\nprint a\na = a + b\nreturn a\nend\nbegin\nvariables a, b\na = 20\nprint a\nb <- prueba\nprint b\nprint a\nend";
-	//codigo = "begin\nvariables a,g\na = 1\ng <- doble a\nprint g\nend\nfunction doble\nvariables f\nf = $0 + $0\nreturn f\nend";
-	//codigo = "begin\n# primero declaro las variables\nvariables a, b\na = 20\nprint a\nend";
-	//codigo = "begin\nend";
-	// TODO Comentar para probar con procesos
-	/*
-	 t_pcb *pcb = crear_PCB(codigo);
-	 pcb_quantum = malloc(sizeof(t_pcb_quantum));
-	 pcb_quantum->pcb = pcb;
-	 pcb_quantum->quantum = pcb_quantum->pcb->instrucciones_size - 1;
-	 ejecuto_instrucciones();
-	 */
 	sem_wait(&s_cpu_finaliza);
 
 	cierro_cpu(configuracion);
 
 	return EXIT_SUCCESS;
-}
-
-t_pcb *crear_PCB(char *codigo_de_consola) {
-
-	t_metadata_program *metadata = malloc(sizeof(t_metadata_program));
-	metadata = metadata_desde_literal(codigo_de_consola);
-
-	t_pcb *pcb = malloc(sizeof(t_pcb));
-	pcb->pid = 1;
-	pcb->pc = metadata->instruccion_inicio;
-	pcb->cant_paginas_codigo_stack = obtener_cantidad_paginas_codigo_stack(
-			codigo_de_consola);
-	pcb->estado = NEW;
-	pcb->contexto_actual = 0;
-	pcb->stack_position = strlen(codigo_de_consola);
-	pcb->stack_pointer = pcb->stack_position - sizeof(int);
-	pcb->etiquetas_size = metadata->etiquetas_size;
-	pcb->etiquetas = metadata->etiquetas;
-	pcb->instrucciones_size = metadata->instrucciones_size;
-	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;
-	pcb->indice_stack = malloc(sizeof(t_indice_stack));
-	pcb->indice_stack->cantidad_argumentos = 0;
-	pcb->indice_stack->cantidad_variables = 0;
-	pcb->indice_stack->posicion_variable_retorno = malloc(
-			sizeof(t_posicion_memoria));
-	pcb->indice_stack->posicion_variable_retorno->pagina = 0;
-	pcb->indice_stack->posicion_variable_retorno->offset = 0;
-	pcb->indice_stack->posicion_variable_retorno->size = 0;
-	pcb->indice_stack->posicion_retorno = 0;
-	pcb->stack_size = 1;
-
-	free(metadata->etiquetas);
-	free(metadata->instrucciones_serializado);
-	free(metadata);
-
-	return pcb;
-}
-
-int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola) {
-	int modulo = (strlen(codigo_de_consola) + 10) % tamanio_pagina;
-	int division = (strlen(codigo_de_consola) + 10) / tamanio_pagina;
-	if (modulo == 0) {
-		return division;
-	} else
-		return division + 1;
 }
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
@@ -418,25 +356,12 @@ void ejecuto_instrucciones() {
 			&& !matar_proceso && !excepcion_umc && !matar_cpu) {
 
 		leo_instruccion_desde_UMC(pcb_quantum->pcb);
-		// TODO Descomentar para probar con procesos
 		sem_wait(&s_codigo);
 
-		// TODO Descomentar para probar con procesos
 		char *instruccion_a_ejecutar = malloc(sizeof(char) * size_pagina);
 		memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina - 1);
 		instruccion_a_ejecutar[size_pagina - 1] = '\0';
-		// TODO Comentar para probar con procesos
-		/*
-		 char *instruccion_a_ejecutar =
-		 malloc(
-		 sizeof(char)
-		 * (deserializo_instruccion(pcb_quantum->pcb->pc)->offset));
-		 memcpy(instruccion_a_ejecutar,
-		 codigo + deserializo_instruccion(pcb_quantum->pcb->pc)->start,
-		 deserializo_instruccion(pcb_quantum->pcb->pc)->offset - 1);
-		 instruccion_a_ejecutar[deserializo_instruccion(pcb_quantum->pcb->pc)->offset
-		 - 1] = '\0';
-		 */
+
 		log_info(logger_manager, "Instruccion a ejecutar: %s",
 				instruccion_a_ejecutar);
 		analizadorLinea(strdup(instruccion_a_ejecutar), &functions,
@@ -475,8 +400,6 @@ void ejecuto_instrucciones() {
 	}
 
 	enviar_PCB(id_mensaje);
-	// TODO Comentar para probar con procesos
-	//sem_post(&s_cpu_finaliza);
 }
 
 t_intructions *deserializo_instruccion(int pc) {

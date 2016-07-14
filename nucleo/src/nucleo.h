@@ -50,13 +50,14 @@ typedef struct {
 	int cant_paginas_codigo_stack;
 	int estado;
 	int contexto_actual;
+	int stack_size_fisico; // Stack size de los registros que ocupan en mem fisica
 	int stack_position;
 	int stack_pointer;
 	t_size etiquetas_size; // Tamaño del mapa serializado de etiquetas
 	char* etiquetas;
 	t_size instrucciones_size;
 	t_intructions *instrucciones_serializadas;
-	int stack_size;
+	int stack_size; // Stack size de la estructura logica
 	t_indice_stack *indice_stack;
 } t_pcb;
 
@@ -171,9 +172,9 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu);
 void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
 		int socket_cpu);
 void finalizar_proceso_en_lista_proc_con_socket_cpu(t_pcb * pcb, int socket_cpu);
-void * queue_pop_pid(t_queue *self,int pid);
+void * queue_pop_pid(t_queue *self, int pid);
 void agregar_cpu_disponible(int socket_conexion);
 void asignar_pcb_a_cola_exec();
-void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb,int socket_cpu);
-void respuesta_matar(void * buffer,int socket_cpu);
+void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu);
+void respuesta_matar(void * buffer, int socket_cpu);
 #endif /* NUCLEO_H_ *///

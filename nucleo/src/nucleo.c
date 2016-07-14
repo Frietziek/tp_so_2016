@@ -484,21 +484,17 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	pcb->etiquetas = metadata->etiquetas;
 	pcb->instrucciones_size = metadata->instrucciones_size;
 	pcb->instrucciones_serializadas = metadata->instrucciones_serializado;
-	pcb->stack_size = configuracion->stack_size;
-	pcb->indice_stack = malloc(sizeof(t_indice_stack) * pcb->stack_size);
-	int stack = 0;
-	for (stack = 0; stack < pcb->stack_size; ++stack) {
-		t_indice_stack *indice_stack = pcb->indice_stack;
-		indice_stack += stack;
-		indice_stack->cantidad_argumentos = 0;
-		indice_stack->cantidad_variables = 0;
-		indice_stack->posicion_retorno = 0;
-		indice_stack->posicion_variable_retorno = malloc(
-				sizeof(t_posicion_memoria));
-		indice_stack->posicion_variable_retorno->pagina = 0;
-		indice_stack->posicion_variable_retorno->offset = 0;
-		indice_stack->posicion_variable_retorno->size = 0;
-	}
+	pcb->stack_size_fisico = configuracion->stack_size;
+	pcb->stack_size = 1;
+	pcb->indice_stack = malloc(sizeof(t_indice_stack));
+	pcb->indice_stack->cantidad_argumentos = 0;
+	pcb->indice_stack->cantidad_variables = 0;
+	pcb->indice_stack->posicion_retorno = 0;
+	pcb->indice_stack->posicion_variable_retorno = malloc(
+			sizeof(t_posicion_memoria));
+	pcb->indice_stack->posicion_variable_retorno->pagina = 0;
+	pcb->indice_stack->posicion_variable_retorno->offset = 0;
+	pcb->indice_stack->posicion_variable_retorno->size = 0;
 
 	return pcb;
 }
