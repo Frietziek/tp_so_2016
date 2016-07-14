@@ -612,6 +612,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 					log_info(log_umc,"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
 					//guardar_pagina_en_buffer(id_programa,socket_conexion,pagina);
 					buffer_programas[id_programa] = pagina;//guardo la pagina en un buffer
+
 					t_header *header_swap = malloc(sizeof(t_header));
 					header_swap->id_proceso_emisor = PROCESO_UMC;
 					header_swap->id_proceso_receptor = PROCESO_SWAP;
@@ -621,7 +622,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 					pagina_swap->id_programa = id_programa;
 					pagina_swap->pagina = pagina->pagina;
 					pagina_swap->offset = 0;
-					pagina_swap->tamanio = pagina->tamanio;
+					pagina_swap->tamanio = configuracion->marco_size;
 					pagina_swap->socket_pedido = socket_conexion;//es del cpu
 
 					t_buffer *payload_swap = serializar_pagina(pagina_swap);
@@ -646,6 +647,8 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 	header_cpu->id_proceso_receptor = PROCESO_CPU;
 	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
+
+
 	if(id_mensaje == RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR){
 		t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
 		deserializar_pagina_completa(buffer, pagina_recibida_de_swap);
@@ -653,9 +656,9 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		pid = pagina_recibida_de_swap->id_programa;
 		socket = pagina_recibida_de_swap->socket_pedido;
 
-		t_pagina_completa *pagina_buffer;
-		//copiar_pagina_escritura_desde_buffer(pid, pagina_recibida_de_swap->pagina,pagina_buffer);
-		pagina_buffer = buffer_programas[pid];
+		t_pagina_pedido_completa *pagina_buffer = buffer_programas[pid];
+		pagina_recibida_de_swap->offset = pagina_buffer->offset;
+		pagina_recibida_de_swap->tamanio = pagina_buffer->tamanio;
 
 		//Primero guardo en memoria la pagina como esta en swap y luego la sobreescribo con lo que manda la cpu
 		log_info(log_umc,"Se recibe del SWAP la Pagina:%d PID:%d",pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa);
@@ -667,8 +670,8 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		if(configuracion->entradas_tlb != 0){
 			guardar_en_TLB(pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa,tabla[pagina_recibida_de_swap->pagina].frame);//pongo la pagina en la cache TLB
 		}
-		int direccion_mp = retornar_direccion_mp(tabla[pagina_buffer->pagina].frame);
-		memcpy(direccion_mp + pagina_buffer->offset,pagina_buffer->valor,pagina_buffer->tamanio);
+		int direccion_mp = retornar_direccion_mp(tabla[pagina_recibida_de_swap->pagina].frame);
+		memcpy(direccion_mp + pagina_recibida_de_swap->offset,pagina_recibida_de_swap->valor,pagina_recibida_de_swap->tamanio);
 		tabla[pagina_recibida_de_swap->pagina].modificado = 1;
 
 		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
@@ -1077,6 +1080,7 @@ void guardar_en_TLB(int nro_pagina, int pid ,int marco){
 	pagina_tlb->pagina = nro_pagina;
 	pagina_tlb->pid = pid;
 	LRU(pagina_tlb);
+	log_info(log_umc,"Guardo en TLB - PID:%d  PAGINA:%d  MARCO:%d",pid,nro_pagina,marco);
 }
 
 void LRU(t_tlb * pagina_a_ubicar){
@@ -1199,6 +1203,7 @@ int guardar_en_mp(t_pagina_completa *pagina){
 	// Posibilidad 1: Tengo marcos libres y no llegue al limite de marcos por proceso
 	if(list_any_satisfy(lista_de_marcos,(void*)hay_marco_libre) && paginas_en_mp < configuracion->marco_x_proc){
 		numero_marco = obtener_marco();
+		log_info(log_umc,"Le asigno a PID:%d PAGINA:%d el MARCO:%d",pagina->id_programa,pagina->pagina,numero_marco);
 		tabla[pagina->pagina].frame = numero_marco;
 		tabla[pagina->pagina].presencia = 1;
 		tabla[pagina->pagina].uso = 1;
@@ -1213,6 +1218,7 @@ int guardar_en_mp(t_pagina_completa *pagina){
 	//  y Posibilidad 3: No tengo marcos libres y llegue al limite de marcos por procesos
 	else if (list_any_satisfy(lista_de_marcos,(void*)hay_marco_libre) && paginas_en_mp == configuracion->marco_x_proc){
 		numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
+		log_info(log_umc,"Le asigno a PID:%d PAGINA:%d el MARCO:%d",pagina->id_programa,pagina->pagina,numero_marco);
 		tabla[pagina->pagina].frame = numero_marco;
 		tabla[pagina->pagina].presencia = 1;
 		dir_mp = retornar_direccion_mp(numero_marco);
@@ -1228,6 +1234,7 @@ int guardar_en_mp(t_pagina_completa *pagina){
 		}
 		else{
 			numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
+			log_info(log_umc,"Le asigno a PID:%d PAGINA:%d el MARCO:%d",pagina->id_programa,pagina->pagina,numero_marco);
 			tabla[pagina->pagina].frame = numero_marco;
 			tabla[pagina->pagina].presencia = 1;
 			dir_mp = retornar_direccion_mp(numero_marco);
