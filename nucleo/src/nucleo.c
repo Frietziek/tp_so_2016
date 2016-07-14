@@ -667,83 +667,83 @@ void cargar_configuracion_nucleo(char *archivoConfig,
 		t_config_nucleo *configuracion_nucleo) {
 	t_config *configuracion = malloc(sizeof(t_config));
 	configuracion = config_create(archivoConfig);
-	if (config_has_property(configuracion, "DEF_PUERTO_PROG")) {
+	if (config_has_property(configuracion, "PUERTO_PROG")) {
 		configuracion_nucleo->puerto_prog = config_get_int_value(configuracion,
-				"DEF_PUERTO_PROG");
+				"PUERTO_PROG");
 	} else {
-		perror("error al cargar DEF_PUERTO_PROG");
+		perror("error al cargar PUERTO_PROG");
 	}
-	if (config_has_property(configuracion, "DEF_PUERTO_CPU")) {
+	if (config_has_property(configuracion, "PUERTO_CPU")) {
 		configuracion_nucleo->puerto_cpu = config_get_int_value(configuracion,
-				"DEF_PUERTO_CPU");
+				"PUERTO_CPU");
 	} else {
-		perror("error al cargar DEF_PUERTO_CPU");
+		perror("error al cargar PUERTO_CPU");
 	}
-	if (config_has_property(configuracion, "DEF_QUANTUM")) {
+	if (config_has_property(configuracion, "QUANTUM")) {
 		configuracion_nucleo->quantum = config_get_int_value(configuracion,
-				"DEF_QUANTUM");
+				"QUANTUM");
 	} else {
-		perror("error al cargar DEF_QUANTUM");
+		perror("error al cargar QUANTUM");
 	}
-	if (config_has_property(configuracion, "DEF_QUANTUM_SLEEP")) {
+	if (config_has_property(configuracion, "QUANTUM_SLEEP")) {
 		configuracion_nucleo->quantum_sleep = config_get_int_value(
-				configuracion, "DEF_QUANTUM_SLEEP");
+				configuracion, "QUANTUM_SLEEP");
 	} else {
-		perror("error al cargar DEF_QUANTUM_SLEEP");
+		perror("error al cargar QUANTUM_SLEEP");
 	}
 
-	if (config_has_property(configuracion, "DEF_IO_ID")) {
+	if (config_has_property(configuracion, "IO_IDS")) {
 		configuracion_nucleo->io_id = config_get_array_value(configuracion,
-				"DEF_IO_ID");
+				"IO_IDS");
 	} else {
-		perror("error al cargar DEF_IO_ID");
+		perror("error al cargar IO_IDS");
 	}
-	if (config_has_property(configuracion, "DEF_IO_SLEEP")) {
+	if (config_has_property(configuracion, "IO_SLEEP")) {
 		configuracion_nucleo->io_sleep = config_get_array_value(configuracion,
-				"DEF_IO_SLEEP");
+				"IO_SLEEP");
 	} else {
-		perror("error al cargar DEF_IO_SLEEP");
+		perror("error al cargar IO_SLEEP");
 	}
 
-	if (config_has_property(configuracion, "DEF_SEM_IDS")) {
+	if (config_has_property(configuracion, "SEM_IDS")) {
 		configuracion_nucleo->sem_id = config_get_array_value(configuracion,
-				"DEF_SEM_IDS");
+				"SEM_IDS");
 	} else {
-		perror("error al cargar DEF_SEM_IDS");
+		perror("error al cargar SEM_IDS");
 	}
 
-	if (config_has_property(configuracion, "DEF_SEM_INIT")) {
+	if (config_has_property(configuracion, "SEM_INIT")) {
 		configuracion_nucleo->sem_init = config_get_array_value(configuracion,
-				"DEF_SEM_INIT");
+				"SEM_INIT");
 	} else {
-		perror("error al cargar DEF_SEM_INIT");
+		perror("error al cargar SEM_INIT");
 	}
 
-	if (config_has_property(configuracion, "DEF_SHARED_VARS")) {
+	if (config_has_property(configuracion, "SHARED_VARS")) {
 		configuracion_nucleo->shared_vars = config_get_array_value(
-				configuracion, "DEF_SHARED_VARS");
+				configuracion, "SHARED_VARS");
 	} else {
-		perror("error al cargar DEF_SHARED_VARS");
+		perror("error al cargar SHARED_VARS");
 	}
 
-	if (config_has_property(configuracion, "DEF_IP_UMC")) {
+	if (config_has_property(configuracion, "IP_UMC")) {
 		configuracion_nucleo->ip_umc = config_get_string_value(configuracion,
-				"DEF_IP_UMC");
+				"IP_UMC");
 	} else {
-		perror("error al cargar DEF_IP_UMC");
+		perror("error al cargar IP_UMC");
 	}
 
-	if (config_has_property(configuracion, "DEF_PUERTO_UMC")) {
+	if (config_has_property(configuracion, "PUERTO_UMC")) {
 		configuracion_nucleo->puerto_umc = config_get_int_value(configuracion,
-				"DEF_PUERTO_UMC");
+				"PUERTO_UMC");
 	} else {
-		perror("error al cargar DEF_PUERTO_UMC");
+		perror("error al cargar PUERTO_UMC");
 	}
-	if (config_has_property(configuracion, "DEF_STACK_SIZE")) {
+	if (config_has_property(configuracion, "STACK_SIZE")) {
 		configuracion_nucleo->stack_size = config_get_int_value(configuracion,
-				"DEF_STACK_SIZE");
+				"STACK_SIZE");
 	} else {
-		perror("error al cargar DEF_STACK_SIZE");
+		perror("error al cargar STACK_SIZE");
 	}
 
 	free(configuracion);
