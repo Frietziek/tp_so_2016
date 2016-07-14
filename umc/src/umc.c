@@ -14,7 +14,7 @@ int socket_swap;
 int socket_nucleo;
 void *memoria_principal;
 t_lista_algoritmo * listas_algoritmo;
-t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_tabla_entradas,*lista_cpus;
+t_list *lista_de_marcos,*lista_paginas_tlb,*lista_tablas,*lista_tabla_entradas,*lista_cpus,*lista_procesos_activos;
 t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
@@ -351,6 +351,7 @@ void respuesta_iniciar_programa(void *buffer,int id_mensaje){
 
 	if(id_mensaje == RESPUESTA_INICIAR_PROGRAMA){
 		mandar_a_swap(programa->id_programa,0,MENSAJE_ESCRIBIR_PAGINA_NUEVA);//al ser nuevo escribe en la pagina cero
+		list_add(lista_procesos_activos,programa->id_programa);
 	}
 	else if(id_mensaje == ERROR_INICIAR_PROGRAMA){
 		t_header * header_nucleo = malloc(sizeof(t_header));
@@ -393,7 +394,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	}
 	//1° caso: esta en TLB
 	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
-
 		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
 		inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 
@@ -558,7 +558,6 @@ void escribir_pagina(void *buffer, int socket_conexion){
 
 		//1° caso: esta en TLB
 		if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
-
 			int direccion_mp = retornar_direccion_mp(marco);
 			memcpy(direccion_mp + pagina->offset,pagina->valor,pagina->tamanio);
 			marcar_modificada(id_programa,pagina->pagina);
@@ -761,7 +760,10 @@ void finalizar_programa(void *buffer,int id_mensaje) {
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,programa->id_programa);
-	tabla[0].pid = 0; //ver si hay alguna forma mejor
+	bool es_pid(int pid){
+		return (pid == programa->id_programa);
+	}
+	list_remove_by_condition(lista_procesos_activos,(void*)es_pid);
 
 	//saco de tlb paginas asociadas al proceso
 	flush_programa_tlb(programa->id_programa);
@@ -801,7 +803,7 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 
 	t_programa *programa = malloc(sizeof(t_programa_completo));
 	deserializar_programa(buffer, programa);
-	log_info("se finalizo el pid %d",programa->id_programa);
+	log_info(log_umc,"se finalizo el pid %d",programa->id_programa);
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
@@ -812,7 +814,7 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 	t_buffer *payload_nucleo = serializar_programa(programa);
 
 	header_nucleo->longitud_mensaje = payload_nucleo->longitud_buffer;
-	log_info(log_umc,"Se envia el codigo del nuevo programa a swap ...");
+	log_info(log_umc,"Se finaliza el programa");
 	if (enviar_buffer(socket_nucleo, header_nucleo, payload_nucleo)
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc,"Fallo al responder pedido CPU");
@@ -882,12 +884,14 @@ void cambiar_retardo() {
 }
 
 void generar_dump(int pid) {
+	bool es_pid(int pid_de_lista){
+		return (pid_de_lista == pid);
+	}
 
 	if (pid == 0){ // se pidio de todos los procesos
 		pid = 1;
 		while(pid < CANT_TABLAS_MAX){
-			t_fila_tabla_pagina * tabla =  (t_fila_tabla_pagina *) list_get(lista_tablas,pid);
-			if(tabla[0].pid != 0){ // si es 0 no esta ese proceso activo
+			if(list_any_satisfy(lista_procesos_activos,(void*)es_pid)){ // si es 0 no esta ese proceso activo
 				dump_tabla(pid);
 				dump_contenido(pid);
 			}
@@ -895,8 +899,10 @@ void generar_dump(int pid) {
 		}
 	}
 	else{ // se pidio de un proceso
-		dump_tabla(pid);
-		dump_contenido(pid);
+		if(list_any_satisfy(lista_procesos_activos,(void*)es_pid)){
+			dump_tabla(pid);
+			dump_contenido(pid);
+		}
 	}
 }
 
@@ -1129,6 +1135,7 @@ void crear_listas(){
 	lista_tablas = list_create();
 	lista_tabla_entradas = list_create();
 	lista_cpus = list_create();
+	lista_procesos_activos = list_create();
 	//lista_buffer_prog_completo = list_create();
 	t_fila_tabla_pagina * tabla_pagina = malloc(sizeof(t_fila_tabla_pagina));//meto paginas vacias para que me funcione el index por lista
 	tabla_pagina[0].pid = 0;
@@ -1273,11 +1280,12 @@ void marcar_todas_modificadas(){
 	bool es_true(t_tabla_cantidad_entradas *elemento){
 		return (elemento->pid == pid);
 	}
-	t_fila_tabla_pagina * tabla;
+	bool es_pid(int pid_de_lista){
+		return (pid_de_lista == pid);
+	}
 	t_tabla_cantidad_entradas * entradas;
 	while(pid < CANT_TABLAS_MAX){
-		tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,pid);
-		if(tabla[nro_pagina].pid != 0){ // si es 0 no esta ese proceso activo
+		if(list_any_satisfy(lista_procesos_activos,(void*)es_pid)){ // si es 0 no esta ese proceso activo
 			entradas = (t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,(void*)es_true);
 			while(nro_pagina < entradas->cant_paginas){
 				marcar_modificada(pid,nro_pagina);
