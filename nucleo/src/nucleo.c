@@ -12,6 +12,7 @@
 //TODO semaforo que le diga a la cpu que hay un proceso en ready
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <serializacion.h>
 #include <comunicaciones.h>
 #include <commons/collections/dictionary.h>
@@ -51,8 +52,11 @@ int main(void) {
 	logger_manager = log_create("nucleo.log", "NUCLEO", true, LOG_LEVEL_TRACE); // Creo archivo de log
 	log_trace(logger_manager, "Proceso Nucleo creado.");
 	pid_count = 1;
+
 	configuracion = malloc(sizeof(t_config_nucleo));
+	configuracion->ip_umc = malloc (30);
 	cargar_configuracion_nucleo("config.nucleo.ini", configuracion);
+	//log_trace(logger_manager, "\nSe cargaron las configuraciones con los siguientes valores: \nIP_UMC=%s\nPUERTO_UMC=%i\nPUERTO_PROG=%i\nPUERTO_CPU=%i\nQUANTUM=%i\nQUANTUM_SLEEP=%i\nSEM_IDS=%s\nSEM_INIT=%s\nIO_IDS=%s\nIO_SLEEP=%s\nSHARED_VARS=%s\nSTACK_SIZE=%i\n", configuracion->ip_umc, configuracion->puerto_umc, configuracion->puerto_prog, configuracion->puerto_cpu, configuracion->quantum, configuracion->quantum_sleep, "es un array, no se logea por tiempo", "idem", "idem", "idem", "idem", configuracion->stack_size); //Descomentar para desarrollo, o hacer que imprima los array y dejar descomentado
 
 	lista_procesos = list_create();
 	cola_ready = queue_create();
@@ -125,6 +129,7 @@ int main(void) {
 
 	log_trace(logger_manager, "Cerrando Nucleo");
 	//Libero antes de cerrar
+	free(configuracion->ip_umc);
 	free(configuracion);
 	free(configuracion_servidor_cpu);
 	free(configuracion_servidor_consola);
@@ -634,10 +639,10 @@ void enviar_header_completado(int socket, int proceso_receptor, int id_mensaje) 
 	free(header);
 }
 
-void cargar_configuracion_nucleo(char *archivoConfig,
-		t_config_nucleo *configuracion_nucleo) {
-	t_config *configuracion = malloc(sizeof(t_config));
-	configuracion = config_create(archivoConfig);
+void cargar_configuracion_nucleo(char *archivoConfig, t_config_nucleo *configuracion_nucleo) {
+
+	t_config *configuracion = config_create(archivoConfig);
+
 	if (config_has_property(configuracion, "PUERTO_PROG")) {
 		configuracion_nucleo->puerto_prog = config_get_int_value(configuracion,
 				"PUERTO_PROG");
@@ -698,8 +703,8 @@ void cargar_configuracion_nucleo(char *archivoConfig,
 	}
 
 	if (config_has_property(configuracion, "IP_UMC")) {
-		configuracion_nucleo->ip_umc = config_get_string_value(configuracion,
-				"IP_UMC");
+		strcpy(configuracion_nucleo->ip_umc , config_get_string_value(configuracion,"IP_UMC")); //Hago la copia para así despues usar config_destroy y que no explote todo
+		//configuracion_nucleo->ip_umc = config_get_string_value(configuracion,"IP_UMC");
 	} else {
 		perror("error al cargar IP_UMC");
 	}
@@ -717,7 +722,8 @@ void cargar_configuracion_nucleo(char *archivoConfig,
 		perror("error al cargar STACK_SIZE");
 	}
 
-	free(configuracion);
+	//free(configuracion);
+	config_destroy(configuracion);
 }
 
 void pedir_pagina_tamanio(int socket_umc) {
