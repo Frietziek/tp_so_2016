@@ -21,6 +21,7 @@ sem_t s_variable_stack; // Para cuando pido lectura de variable
 sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
 sem_t s_matar_cpu; // Para cuando llega SIGUSR1
 sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
+sem_t s_escribir_pagina; // Para cuando pido escribir una pagina en umc
 void *valor_pagina; // Contenido de pagina de UMC
 int size_pagina; // Tamanio de pagina de UMC
 int pagina_es_codigo; // 1 para codigo, 0 para valor int

@@ -104,7 +104,7 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
 	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",
 			buffer);
-
+	sem_wait(&s_escribir_pagina);
 	sem_post(&s_instruccion_finalizada);
 
 	free(p_pagina->valor);
@@ -248,7 +248,7 @@ void ansisop_retornar(t_valor_variable retorno) {
 	free(p_pagina);
 	free(buffer->contenido_buffer);
 	free(buffer);
-
+	sem_wait(&s_escribir_pagina);
 	sem_post(&s_instruccion_finalizada);
 }
 

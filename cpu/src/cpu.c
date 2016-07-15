@@ -79,6 +79,7 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_variable_stack, 0, 0); // Semaforo para pedido de lectura de variable en UMC
 	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
 	sem_init(&s_matar_cpu, 0, 0); // Semaforo para matar CPU con SIGUSR1
+	sem_init(&s_escribir_pagina, 0, 0);// Para cuando pido escribir una pagina en umc
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	// Inicio variable para instruccion wait de ansisop
@@ -174,6 +175,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
 		log_info(logger_manager, "Se escribio una pagina en UMC.");
+		sem_post(&s_escribir_pagina);
 		break;
 	case RESPUESTA_CAMBIO_PROCESO_ACTIVO:
 		log_info(logger_manager, "La UMC confirmo cambio de proceso.");
@@ -191,6 +193,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		log_error(logger_manager, "Error en escritura de pagina en UMC.");
 		envio_excepcion_nucleo(ERROR_ESCRIBIR_PAGINA,
 				"Error en escritura de pagina en UMC.");
+		sem_post(&s_escribir_pagina);
 		break;
 	default:
 		log_warning(logger_manager, "Comando no reconocido de UMC.");
