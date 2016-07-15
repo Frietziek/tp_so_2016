@@ -37,6 +37,7 @@ int main(void) {
 	/********************************  Configuraciones SWAP  ********************************/
 
 	config_swap = malloc(sizeof(t_config_swap));
+	config_swap->nombre_swap = malloc(30);
 	cargar_configuracion_swap("config.swap.ini",config_swap);
 	log_trace(loggerManager, "\nSe cargaron las configuraciones con los siguientes valores: \nPUERTO_ESCUCHA=%i \nNOMBRE_SWAP=%s\nCANTIDAD_PAGINAS=%i\nTAMANO_PAGINA=%i\nRETARDO_COMPACTACION=%i\nRETARDO_ACCESO=%i\n", config_swap->puerto_escucha, config_swap->nombre_swap, config_swap->cantidad_paginas, config_swap->tamano_pagina, config_swap->retardo_compactacion, config_swap->retardo_acceso);
 
@@ -58,7 +59,7 @@ int main(void) {
 
 	/******************************  Estructuras de control  ******************************/
 
-	paginas_bitmap = malloc(sizeof paginas_bitmap); //Este es el bitmap perse
+	//paginas_bitmap = malloc(sizeof paginas_bitmap); //No hace falta, el bitarray_create ya malloca
 	char paginas_array[(config_swap->cantidad_paginas)/8]; //Divido por 8 porque cada char tiene 8 bits (1 byte), creo que funciona asi la cosa
 	paginas_bitmap = bitarray_create(paginas_array, sizeof paginas_array); //Creo el bitmap
 
@@ -89,6 +90,7 @@ int main(void) {
 	/******************************  Liberacion de recursos  *******************************/
 	fclose(archivo_swap);
 	log_destroy(loggerManager);
+	free(config_swap->nombre_swap);
 	free(config_swap);
 	free(servidor_swap_config);
 	bitarray_destroy(paginas_bitmap);
@@ -157,8 +159,11 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_LEER_PAGINA_PARA_ESCRIBIR, buffer_pagina);
 
 			free (pagina);
+			free (pagina_completa_lectura->valor);
 			free (pagina_completa_lectura);
+			free (buffer_pagina->contenido_buffer);
 			free (buffer_pagina);
+			free (buffer_pagina_completa_lectura->contenido_buffer);
 			free (buffer_pagina_completa_lectura);
 
 			break;
@@ -186,7 +191,9 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 			else if (retorno_de_funcion == -1 && id_mensaje_recibido == MENSAJE_ESCRIBIR_PAGINA_NUEVA)
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_ESCRIBIR_PAGINA_NUEVA, buffer_pagina_completa_escritura);
 
+
 			free (pagina_completa_escritura);
+			free (buffer_pagina_completa_escritura->contenido_buffer);
 			free (buffer_pagina_completa_escritura);
 
 			break;
@@ -209,6 +216,7 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_INICIALIZAR_PROGRAMA, buffer_con_programa_nuevo);
 
 			free (programa_nuevo);
+			free (buffer_con_programa_nuevo->contenido_buffer);
 			free (buffer_con_programa_nuevo);
 
 			break;
@@ -232,6 +240,7 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 				enviar_mensaje_con_buffer_al_UMC(socket_conexion, ERROR_FINALIZAR_PROGRAMA, buffer_con_programa);
 
 			free (programa);
+			free(buffer_con_programa->contenido_buffer);
 			free(buffer_con_programa);
 
 			break;
