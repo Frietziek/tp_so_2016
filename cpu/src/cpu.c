@@ -33,6 +33,8 @@ int main(void) {
 
 	// Cargo configuraciones desde archivo ini
 	t_config_cpu *configuracion = malloc(sizeof(t_config_cpu));
+	configuracion->ip_nucleo = malloc(40);
+	configuracion->ip_umc = malloc(40);
 	carga_configuracion_cpu("config.cpu.ini", configuracion);
 	log_trace(logger_manager, "Proceso CPU creado.");
 
@@ -50,22 +52,22 @@ int main(void) {
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 	t_config *configuracion = config_create(archivo);
 	if (config_has_property(configuracion, "IP_NUCLEO")) {
-		configuracion_cpu->ip_nucleo = config_get_string_value(configuracion,
-				"IP_NUCLEO");
+		strcpy(configuracion_cpu->ip_nucleo,
+				config_get_string_value(configuracion, "IP_NUCLEO"));
 	}
 	if (config_has_property(configuracion, "PUERTO_NUCLEO")) {
 		configuracion_cpu->puerto_nucleo = config_get_int_value(configuracion,
 				"PUERTO_NUCLEO");
 	}
 	if (config_has_property(configuracion, "IP_UMC")) {
-		configuracion_cpu->ip_umc = config_get_string_value(configuracion,
-				"IP_UMC");
+		strcpy(configuracion_cpu->ip_umc,
+				config_get_string_value(configuracion, "IP_UMC"));
 	}
 	if (config_has_property(configuracion, "PUERTO_UMC")) {
 		configuracion_cpu->puerto_umc = config_get_int_value(configuracion,
 				"PUERTO_UMC");
 	}
-	free(configuracion);
+	config_destroy(configuracion);
 }
 
 void inicio_seniales_semaforos() {
@@ -79,7 +81,7 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_variable_stack, 0, 0); // Semaforo para pedido de lectura de variable en UMC
 	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
 	sem_init(&s_matar_cpu, 0, 0); // Semaforo para matar CPU con SIGUSR1
-	sem_init(&s_escribir_pagina, 0, 0);// Para cuando pido escribir una pagina en umc
+	sem_init(&s_escribir_pagina, 0, 0); // Para cuando pido escribir una pagina en umc
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	// Inicio variable para instruccion wait de ansisop
@@ -115,6 +117,8 @@ void cierro_cpu(t_config_cpu* configuracion) {
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb);
 	free(pcb_quantum);
+	free(configuracion->ip_nucleo);
+	free(configuracion->ip_umc);
 	free(configuracion);
 	if (socket_umc >= 0) {
 		close(socket_umc);
