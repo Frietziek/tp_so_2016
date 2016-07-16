@@ -152,6 +152,9 @@ void atender_seniales(int signum) {
 		if (cpu_ocupada == 1) {
 			sem_wait(&s_matar_cpu);
 		}
+		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+				MENSAJE_DESCONEXION_CPU,
+				"Fallo al enviar Desconexion al Nucleo.");
 		sem_post(&s_cpu_finaliza);
 		break;
 	default:
