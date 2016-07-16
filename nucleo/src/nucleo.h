@@ -84,7 +84,7 @@ typedef struct {
 
 typedef struct {
 	int retardo;
-	sem_t semaforo_contador_solicitudes;
+	int posicion_array_semaforo;
 	t_queue *solicitudes; //t_solicitud_entrada_salida_cpu
 } t_solicitudes_entrada_salida;
 
@@ -95,7 +95,8 @@ typedef struct {
 
 typedef struct {
 	int valor;
-	t_queue *solicitudes;      //contiene (int) socket de cpu
+	int posicion_semaforo_contador_solicitudes;
+	t_queue *solicitudes;      //contiene (int) pid de proceso
 } t_atributos_semaforo;
 
 typedef struct {
@@ -181,4 +182,6 @@ void agregar_cpu_disponible(int socket_conexion);
 void asignar_pcb_a_cola_exec();
 void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu);
 void respuesta_matar(void * buffer, int socket_cpu);
+void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos);
+void avisar_para_que_desbloquee(char *nombre_sem);
 #endif /* NUCLEO_H_ *///

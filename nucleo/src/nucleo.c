@@ -46,7 +46,7 @@ t_dictionary *solitudes_semaforo;
 
 pthread_t thread_exec;
 
-int atiendo_solicitudes_io;
+int atiendo_solicitudes;
 
 ////////////////////FUNCION PRINCIPAL///////////////////////////
 
@@ -55,7 +55,7 @@ int main(void) {
 	logger_manager = log_create("nucleo.log", "NUCLEO", true, LOG_LEVEL_TRACE); // Creo archivo de log
 	log_trace(logger_manager, "Proceso Nucleo creado.");
 	pid_count = 1;
-	atiendo_solicitudes_io = 1;
+	atiendo_solicitudes = 1;
 	configuracion = malloc(sizeof(t_config_nucleo));
 	configuracion->ip_umc = malloc(30);
 	cargar_configuracion_nucleo("config.nucleo.ini", configuracion);
@@ -128,6 +128,7 @@ int main(void) {
 	//FIN ATIENDO CPU
 
 	pthread_create(&thread_exec, NULL, (void*) asignar_pcb_a_cola_exec, NULL);
+
 	getchar();
 
 	log_trace(logger_manager, "Cerrando Nucleo");
@@ -630,16 +631,21 @@ void inicializar_variables_compartidas(char **shared_vars) {
 	sem_post(&mutex_variables_compartidas);
 }
 
-void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init) {
+void inicializar_solicitudes_semaforo(char **sem_id, char**sem_ini) {
 	int i = 0;
 	solitudes_semaforo = dictionary_create();
-	while (sem_id[i] != NULL || sem_init[i] != NULL) {
+	while (sem_id[i] != NULL || sem_ini[i] != NULL) {
+		pthread_t desbloq_pcb_semaforo;
 		t_atributos_semaforo *atributos = malloc(sizeof(t_atributos_semaforo));
-		atributos->valor = atoi(sem_init[i]);
+		atributos->valor = atoi(sem_ini[i]);
+		atributos->posicion_semaforo_contador_solicitudes = i;
+		sem_init(&(sem_semaforos[i]), 0, 0);
 		atributos->solicitudes = queue_create();
 		sem_wait(&mutex_solicitudes_semaforo);
 		dictionary_put(solitudes_semaforo, sem_id[i], atributos);
 		sem_post(&mutex_solicitudes_semaforo);
+		pthread_create(&desbloq_pcb_semaforo, NULL,
+				(void*) desbloquear_pcb_semaforo, atributos);
 		++i;
 
 	}
@@ -653,7 +659,8 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 		t_solicitudes_entrada_salida *io = malloc(
 				sizeof(t_solicitudes_entrada_salida));
 		io->retardo = atoi(io_sleep[i]);
-		sem_init(&(io->semaforo_contador_solicitudes), 0, 0);
+		io->posicion_array_semaforo = i;
+		sem_init(&sem_dispositivo[i], 0, 0);
 		io->solicitudes = queue_create();
 		dictionary_put(diccionario_entrada_salida, io_ids[i], io);
 		pthread_create(&hilo_io, NULL,
@@ -662,19 +669,45 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	}
 }
 
-void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
-	while (atiendo_solicitudes_io) {
+void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
+	while (atiendo_solicitudes) {
+		sem_wait(
+				&(sem_semaforos[atributos->posicion_semaforo_contador_solicitudes])); //avanzo si hay un proceso en la cola de solicitudes
+		t_pid *pid = queue_pop(atributos->solicitudes);
 
-		sem_wait(&(io->semaforo_contador_solicitudes)); //avanzo si hay un proceso en la cola de solicitudes
+		t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid->pid);
+
+		sem_wait(&mutex_cola_block);
+		queue_pop_pid(cola_block, pcb_a_ready->pid);
+		sem_post(&mutex_cola_block);
+
+		pcb_a_ready->estado = READY;
+
+		sem_wait(&mutex_cola_ready);
+		queue_push(cola_ready, pcb_a_ready);
+		log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+				pcb_a_ready->pid);
+		sem_post(&mutex_cola_ready);
+
+	}
+}
+
+void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
+	while (atiendo_solicitudes) {
+
+		sem_wait(&(sem_dispositivo[io->posicion_array_semaforo])); //avanzo si hay un proceso en la cola de solicitudes
 		t_solicitud_entrada_salida_cpu * solicitud = queue_pop(io->solicitudes);
 		//10* porque paso de milisegundo a microsegundo
 		log_info(logger_manager,
 				"Comienza io del socket cpu :%d ,con retardo de: %d",
 				solicitud->socket_cpu, io->retardo);
 		usleep(10 * io->retardo * solicitud->cantidad_operaciones);
+
+		sem_post(&(sem_dispositivo[io->posicion_array_semaforo]));
 		log_info(logger_manager,
 				"Termina io del socket cpu :%d ,con retardo de: %d",
 				solicitud->socket_cpu, io->retardo);
+
 		free(solicitud);
 
 	}
@@ -815,10 +848,11 @@ void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
 	solicitud_io->cantidad_operaciones = tiempo;
 	solicitud_io->socket_cpu = socket_cpu;
 	sem_wait(&mutex_diccionario_entrada_salida);
-	queue_push(
-			(((t_solicitudes_entrada_salida *) dictionary_get(
-					diccionario_entrada_salida, nombre_dispositivo))->solicitudes),
-			solicitud_io);
+
+	t_solicitudes_entrada_salida *solicitudes_es = dictionary_get(
+			diccionario_entrada_salida, nombre_dispositivo);
+
+	queue_push(solicitudes_es->solicitudes, solicitud_io);
 	sem_post(&mutex_diccionario_entrada_salida);
 	sacar_socket_cpu_de_tabla(socket_cpu);
 
@@ -842,18 +876,21 @@ void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 	t_valor_socket_cola_semaforos *socket = malloc(
 			sizeof(t_valor_socket_cola_semaforos));
 	socket->socket = socket_cpu;
+	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
 
 	sem_wait(&mutex_solicitudes_semaforo);
 
+	t_pid *pid = malloc(sizeof(t_pid));
+	pid->pid = pcb->pid;
+	//se bloquea el proceso, la cpu no se bloquea
 	queue_push(
 			((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
-					nombre_semaforo))->solicitudes, socket);
+					nombre_semaforo))->solicitudes, pid);
 	sem_post(&mutex_solicitudes_semaforo);
 
 	sacar_socket_cpu_de_tabla(socket_cpu);
 
 	sem_wait(&mutex_cola_block);
-	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
 	queue_push(cola_block, pcb);
 	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
 			pcb->pid);
@@ -960,6 +997,14 @@ int signal_semaforo(char *semaforo_nombre) {
 	return valor_semaforo;
 }
 
+void avisar_para_que_desbloquee(char *nombre_sem) {
+
+	t_atributos_semaforo* atributos = dictionary_get(solitudes_semaforo,
+			nombre_sem);
+	sem_post(
+			&(sem_semaforos[atributos->posicion_semaforo_contador_solicitudes]));
+}
+
 void atiendo_quantum(void *buffer, int socket_conexion) {
 // Recibo PCB
 	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
@@ -982,7 +1027,7 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 
 	log_info(logger_manager, "Agregue pid: %d a cola ready",
 			pcb_quantum->pcb->pid);
-	//asignar_pcb_a_cpu(socket_conexion);
+//asignar_pcb_a_cpu(socket_conexion);
 	free(pcb_out);
 }
 
@@ -990,7 +1035,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 // Recibo PCB
 	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	deserializar_pcb_quantum(buffer, pcb_quantum);
-	//finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_quantum->pcb,socket_cpu);
+//finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_quantum->pcb,socket_cpu);
 
 	sem_wait(&mutex_cola_exec);
 	t_pcb * pcb_out = queue_pop_pid(cola_exec, pcb_quantum->pcb->pid);
@@ -1003,7 +1048,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 	log_info(logger_manager, "PROCESO %d - Se agrega a la cola EXIT",
 			pcb_out->pid);
 	sem_post(&mutex_cola_exit);
-	//sem_post(&cant_exit);
+//sem_post(&cant_exit);
 
 // ENVIO TERMINAR AL UMC
 
@@ -1030,7 +1075,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 	free(buffer_finalizar);
 	free(header_finalizar_umc);
 
-	//asignar_pcb_a_cpu(socket_cpu);
+//asignar_pcb_a_cpu(socket_cpu);
 }
 
 void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,

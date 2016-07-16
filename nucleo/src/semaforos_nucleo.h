@@ -28,6 +28,8 @@ sem_t cant_exec;
 sem_t cant_exit;
 sem_t cant_new;
 sem_t cant_block;
+sem_t sem_dispositivo[];
+sem_t sem_semaforos[];
 
 
 #endif /* SEMAFOROS_NUCLEO_H_ */

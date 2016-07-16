@@ -227,7 +227,7 @@ void atiendo_wait(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	// distinto de 0, sigue con rafaga
+	// MAYOR a 0, sigue con rafaga
 	if (wait_semaforo(semaforo->nombre) > 0) {
 		t_header *h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
@@ -265,19 +265,24 @@ void atiendo_signal(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	signal_semaforo(semaforo->nombre);
+	if (signal_semaforo(semaforo->nombre) <= 0) {
 
-	t_header *h_semaforo = malloc(sizeof(t_header));
-	h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
-	h_semaforo->id_proceso_receptor = PROCESO_CPU;
-	h_semaforo->id_mensaje = RESPUESTA_SIGNAL;
-	h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
+		t_header *h_semaforo = malloc(sizeof(t_header));
+		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
+		h_semaforo->id_proceso_receptor = PROCESO_CPU;
+		h_semaforo->id_mensaje = RESPUESTA_SIGNAL;
+		h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
 
-	if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
-		perror("Fallo al responder Signal al CPU\n");
+		if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
+			perror("Fallo al responder Signal al CPU\n");
+		}
+	} else {
+
+		avisar_para_que_desbloquee(semaforo->nombre);
 	}
 
 	free(semaforo);
+
 }
 
 t_buffer *serializar_variable(t_variable *variable) {
