@@ -466,11 +466,11 @@ void leo_instruccion_desde_UMC(int pagina) {
 	p_pagina->tamanio = instruccion->offset;
 	if (calcula_pagina(instruccion->start + p_pagina->tamanio)
 			!= p_pagina->pagina) {
-		p_pagina->tamanio = tamanio_pagina - p_pagina->offset - 1;
+		p_pagina->tamanio = tamanio_pagina - p_pagina->offset;
 	}
 	if (pagina != 0) {
 		p_pagina->tamanio = instruccion->offset
-				- (tamanio_pagina - p_pagina->offset - 1);
+				- (tamanio_pagina - p_pagina->offset);
 		p_pagina->offset = 0;
 	}
 	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
