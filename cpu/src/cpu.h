@@ -31,10 +31,6 @@ typedef struct {
 	int puerto_umc;
 } t_config_cpu;
 
-int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
-
-t_pcb *crear_PCB(char *codigo_de_consola);
-
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 void inicio_seniales_semaforos();
 void cierro_cpu(t_config_cpu* configuracion);
@@ -60,5 +56,6 @@ int calcula_paginas_instruccion();
 t_intructions *deserializo_instruccion(int pc);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 void leo_instruccion_desde_UMC(int pagina);
+void libero_pcb();
 
 #endif /* CPU_H_ */

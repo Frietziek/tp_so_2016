@@ -30,6 +30,7 @@ int matar_proceso; // 1 para avisar que mato al proceso
 int fin_proceso; // 1 para avisar que termino el proceso
 int excepcion_umc; // 1 para avisar que hubo un problema con la UMC
 int matar_cpu; // 1 para avisar que llego SIGUSR1
+int cpu_ocupada; // 1 si tiene un PCB asignado
 
 // Codigo de prueba;
 char *codigo;

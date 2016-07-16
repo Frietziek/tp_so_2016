@@ -42,6 +42,8 @@ int main(void) {
 
 	socket_umc = conecto_con_umc(configuracion);
 
+	cpu_ocupada = 0;
+
 	sem_wait(&s_cpu_finaliza);
 
 	cierro_cpu(configuracion);
@@ -105,17 +107,7 @@ void cierro_cpu(t_config_cpu* configuracion) {
 	sem_destroy(&s_variable_compartida);
 	sem_destroy(&s_matar_cpu);
 	free(valor_pagina);
-	t_indice_stack *indice_stack = pcb_quantum->pcb->indice_stack;
-	int i_stack;
-	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
-		indice_stack += i_stack;
-		free(indice_stack->argumentos);
-		free(indice_stack->posicion_variable_retorno);
-		free(indice_stack->variables->posicion_memoria);
-		free(indice_stack->variables);
-	}
-	free(pcb_quantum->pcb->indice_stack);
-	free(pcb_quantum->pcb);
+	libero_pcb();
 	free(pcb_quantum);
 	free(configuracion->ip_nucleo);
 	free(configuracion->ip_umc);
@@ -157,7 +149,9 @@ void atender_seniales(int signum) {
 	case SIGUSR1:
 		log_trace(logger_manager, "Se recibio la senial SIGUSR1.");
 		matar_cpu = 1;
-		sem_wait(&s_matar_cpu);
+		if (cpu_ocupada == 1) {
+			sem_wait(&s_matar_cpu);
+		}
 		sem_post(&s_cpu_finaliza);
 		break;
 	default:
@@ -225,7 +219,7 @@ void respuesta_leer_pagina(void *buffer) {
 	log_info(logger_manager,
 			"Recibi pagina de umc, pagina: %i, offset: %i, tamanio: %i",
 			pagina->pagina, pagina->offset, pagina->tamanio);
-	valor_pagina = malloc(pagina->tamanio);
+	valor_pagina = realloc(valor_pagina, pagina->tamanio);
 	size_pagina = pagina->tamanio;
 	memcpy(valor_pagina, pagina->valor, pagina->tamanio);
 	if (pagina_es_codigo) {
@@ -327,6 +321,10 @@ void handshake_cpu_nucleo(int socket_servidor) {
 }
 
 void recibo_PCB(void *buffer) {
+	if (pcb_quantum->pcb != NULL) {
+		libero_pcb();
+	}
+	cpu_ocupada = 1;
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 	cambio_proceso_activo();
 	sem_wait(&s_cambio_proceso);
@@ -337,6 +335,7 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
+	cpu_ocupada = 0;
 	free(buffer->contenido_buffer);
 	free(buffer);
 }
@@ -365,8 +364,7 @@ void ejecuto_instrucciones() {
 		int tamanio_instruccion =
 				deserializo_instruccion(pcb_quantum->pcb->pc)->offset;
 
-		char *instruccion_a_ejecutar = malloc(
-				sizeof(char) * tamanio_instruccion);
+		char *instruccion = malloc(sizeof(char) * tamanio_instruccion);
 
 		int cantidad_paginas = calcula_paginas_instruccion();
 		log_info(logger_manager, "La instruccion se encuentra en %i pagina(s)",
@@ -376,17 +374,20 @@ void ejecuto_instrucciones() {
 		for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
 			leo_instruccion_desde_UMC(pagina);
 			sem_wait(&s_codigo);
-			memcpy(instruccion_a_ejecutar + posicion_instruccion, valor_pagina,
+			memcpy(instruccion + posicion_instruccion, valor_pagina,
 					size_pagina);
 			posicion_instruccion += size_pagina;
 		}
 
-		instruccion_a_ejecutar[tamanio_instruccion - 1] = '\0';
+		instruccion[tamanio_instruccion - 1] = '\0';
 
-		log_info(logger_manager, "Instruccion a ejecutar: %s",
-				instruccion_a_ejecutar);
-		analizadorLinea(strdup(instruccion_a_ejecutar), &functions,
-				&kernel_functions);
+		log_info(logger_manager, "Instruccion a ejecutar: %s", instruccion);
+
+		char *instruccion_a_ejecutar = strdup(instruccion);
+
+		free(instruccion);
+
+		analizadorLinea(instruccion_a_ejecutar, &functions, &kernel_functions);
 
 		free(instruccion_a_ejecutar);
 
@@ -482,4 +483,25 @@ void leo_instruccion_desde_UMC(int pagina) {
 	free(p_pagina);
 	free(buffer->contenido_buffer);
 	free(buffer);
+}
+
+void libero_pcb() {
+	t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
+	int i_stack;
+	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+		indice_stack += i_stack;
+		int i_variables;
+		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+				++i_variables) {
+			t_variables_stack* indice_variables = indice_stack->variables;
+			indice_variables += i_variables;
+			free(indice_variables->posicion_memoria);
+		}
+		free(indice_stack->posicion_variable_retorno);
+		free(indice_stack->variables);
+	}
+	free(pcb_quantum->pcb->instrucciones_serializadas);
+	free(pcb_quantum->pcb->indice_stack);
+	free(pcb_quantum->pcb->etiquetas);
+	free(pcb_quantum->pcb);
 }
