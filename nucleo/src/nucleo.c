@@ -520,6 +520,7 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	pcb->stack_size_fisico = configuracion->stack_size;
 	pcb->stack_size = 1;
 	pcb->indice_stack = malloc(sizeof(t_indice_stack));
+	pcb->indice_stack->cantidad_argumentos = 0;
 	pcb->indice_stack->cantidad_variables = 0;
 	pcb->indice_stack->posicion_retorno = 0;
 	pcb->indice_stack->posicion_variable_retorno = malloc(
