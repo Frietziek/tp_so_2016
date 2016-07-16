@@ -56,8 +56,9 @@ void recibo_PCB(void *buffer);
 void enviar_PCB(int id_mensaje);
 void cambio_proceso_activo();
 void ejecuto_instrucciones();
+int calcula_paginas_instruccion();
 t_intructions *deserializo_instruccion(int pc);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
-void leo_instruccion_desde_UMC(t_pcb *pcb);
+void leo_instruccion_desde_UMC(int pagina);
 
 #endif /* CPU_H_ */

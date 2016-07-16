@@ -362,12 +362,26 @@ void ejecuto_instrucciones() {
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
 			&& !matar_proceso && !excepcion_umc && !matar_cpu) {
 
-		leo_instruccion_desde_UMC(pcb_quantum->pcb);
-		sem_wait(&s_codigo);
+		int tamanio_instruccion =
+				deserializo_instruccion(pcb_quantum->pcb->pc)->offset;
 
-		char *instruccion_a_ejecutar = malloc(sizeof(char) * size_pagina);
-		memcpy(instruccion_a_ejecutar, valor_pagina, size_pagina - 1);
-		instruccion_a_ejecutar[size_pagina - 1] = '\0';
+		char *instruccion_a_ejecutar = malloc(
+				sizeof(char) * tamanio_instruccion);
+
+		int cantidad_paginas = calcula_paginas_instruccion();
+		log_info(logger_manager, "La instruccion se encuentra en %i pagina(s)",
+				cantidad_paginas);
+		int pagina;
+		int posicion_instruccion = 0;
+		for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
+			leo_instruccion_desde_UMC(pagina);
+			sem_wait(&s_codigo);
+			memcpy(instruccion_a_ejecutar + posicion_instruccion, valor_pagina,
+					size_pagina);
+			posicion_instruccion += size_pagina;
+		}
+
+		instruccion_a_ejecutar[tamanio_instruccion - 1] = '\0';
 
 		log_info(logger_manager, "Instruccion a ejecutar: %s",
 				instruccion_a_ejecutar);
@@ -409,6 +423,15 @@ void ejecuto_instrucciones() {
 	enviar_PCB(id_mensaje);
 }
 
+int calcula_paginas_instruccion() {
+	int pagina_start = calcula_pagina(
+			deserializo_instruccion(pcb_quantum->pcb->pc)->start);
+	int pagina_tamanio = calcula_pagina(
+			deserializo_instruccion(pcb_quantum->pcb->pc)->start
+					+ deserializo_instruccion(pcb_quantum->pcb->pc)->offset);
+	return pagina_tamanio - pagina_start + 1;
+}
+
 t_intructions *deserializo_instruccion(int pc) {
 	t_intructions *puntero_instruccion =
 			pcb_quantum->pcb->instrucciones_serializadas;
@@ -429,12 +452,23 @@ void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
 	free(buffer);
 }
 
-void leo_instruccion_desde_UMC(t_pcb *pcb) {
+void leo_instruccion_desde_UMC(int pagina) {
 
 	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
-	p_pagina->pagina = calcula_pagina(deserializo_instruccion(pcb->pc)->start);
-	p_pagina->offset = deserializo_instruccion(pcb->pc)->start;
-	p_pagina->tamanio = deserializo_instruccion(pcb->pc)->offset;
+	t_intructions *instruccion = deserializo_instruccion(pcb_quantum->pcb->pc);
+	p_pagina->pagina = calcula_pagina(
+			deserializo_instruccion(pcb_quantum->pcb->pc)->start) + pagina;
+	p_pagina->offset = calcula_offset(instruccion->start);
+	p_pagina->tamanio = instruccion->offset;
+	if (calcula_pagina(instruccion->start + p_pagina->tamanio)
+			!= p_pagina->pagina) {
+		p_pagina->tamanio = tamanio_pagina - p_pagina->offset - 1;
+	}
+	if (pagina != 0) {
+		p_pagina->tamanio = instruccion->offset
+				- (tamanio_pagina - p_pagina->offset - 1);
+		p_pagina->offset = 0;
+	}
 	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
 
 	pagina_es_codigo = 1;
