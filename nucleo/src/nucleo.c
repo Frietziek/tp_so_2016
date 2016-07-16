@@ -33,6 +33,7 @@ t_queue *cola_block;
 t_queue *cola_exec;
 t_queue *cola_new;
 t_queue *cola_exit;
+t_queue *cola_cpus; //se llena con t_cpu
 
 t_dictionary *diccionario_entrada_salida;
 int tamanio_pagina;

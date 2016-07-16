@@ -85,8 +85,6 @@ typedef struct {
 } t_semaforo;
 
 //////////// VARIABLES GLOBALES //////////////
-t_queue *cola_cpus; //se llena con t_cpu
-
 
 // Funciones para atender a CPU
 void atender_cpu(t_paquete *paquete, int socket_cpu,
