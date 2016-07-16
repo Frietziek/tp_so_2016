@@ -301,6 +301,34 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		matar_ejecucion(pcb_obtenido);
 		printf("Termino la ejecucion");
 		break;
+	case HANDSHAKE_CONSOLA:
+		if(paquete_buffer->header->id_proceso_emisor == PROCESO_CONSOLA){
+
+			log_trace(logger_manager,"Se recibio el handshake de la consola");
+
+			t_header *header = malloc(sizeof(t_header));
+			header->id_proceso_emisor = PROCESO_NUCLEO;
+			header->id_proceso_receptor = PROCESO_CONSOLA;
+
+			header->id_mensaje = MENSAJE_HANDSHAKE_RECIBIDO_CONSOLA;
+			header->longitud_mensaje = 0;
+
+			int cantidad_bytes_enviados = enviar_header(socket_consola, header);
+
+			if (cantidad_bytes_enviados < sizeof(t_header))
+				log_error(logger_manager,"Ocurrio un problema al enviar la respuesta del handshake a la consola");
+			else
+				log_trace(logger_manager,"Se realizó el envio de la respuesta del handshake de la consola correctamente");
+
+			free(header);
+
+		}
+		else{
+			log_trace(logger_manager,"Se recibio el handshake de un proceso no esperado");
+		}
+
+		break;
+
 	default:
 		printf("Mensaje no reconocido\n");
 		break;
@@ -492,7 +520,6 @@ t_pcb *crear_PCB(char *codigo_de_consola) {
 	pcb->stack_size_fisico = configuracion->stack_size;
 	pcb->stack_size = 1;
 	pcb->indice_stack = malloc(sizeof(t_indice_stack));
-	pcb->indice_stack->cantidad_argumentos = 0;
 	pcb->indice_stack->cantidad_variables = 0;
 	pcb->indice_stack->posicion_retorno = 0;
 	pcb->indice_stack->posicion_variable_retorno = malloc(

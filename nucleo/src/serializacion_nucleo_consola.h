@@ -14,8 +14,10 @@
 // Mensajes Consola - Nucleo
 #define INICIAR 0
 #define MATAR 2
+#define HANDSHAKE_CONSOLA 3
 
 // Mensajes Nucleo - Consola
+#define MENSAJE_HANDSHAKE_RECIBIDO_CONSOLA 13
 #define MENSAJE_IMPRIMIR 3
 #define MENSAJE_IMPRIMIR_TEXTO 4
 #define MENSAJE_ERROR_AL_INICIAR 10

@@ -34,6 +34,8 @@ int main(int argc, char **argv) {
 		log_trace(loggerManager, "Se establecio conexion con el nucleo, el socket es: %i", socket_nucleo);
 	else
 		log_error(loggerManager, "Ocurrio un problema al conectar con el nucleo (socket_nucleo: %i)", socket_nucleo);
+
+	enviar_handshake_al_nucleo(socket_nucleo);
 	/*--------------------------------------------------------------------------------------------------------------*/
 
 	signal(SIGINT, avisar_nucleo_de_terminacion_programa); //Control de CTRL + C
@@ -139,6 +141,10 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 
 	switch (id_mensaje) {
 
+	case RESPUESTA_HANDSHAKE:
+		log_trace(loggerManager, "[Mensaje nucleo] Handshake confirmado");
+		break;
+
 	case MENSAJE_IMPRIMIR:;
 		t_variable_valor * valor_imprimir = malloc(sizeof(t_variable_valor));
 		deserializar_variable_valor(paquete->payload, valor_imprimir);
@@ -178,5 +184,24 @@ void avisar_nucleo_de_terminacion_programa() {
 	consola_nucleo(socket_nucleo, MENSAJE_MATAR_PROGRAMA);
 	pid_t pid = getpid();
 	kill(pid, SIGTERM);
+}
+
+void enviar_handshake_al_nucleo(int socket_nucleo){
+	t_header *header = malloc(sizeof(t_header));
+	header->id_proceso_emisor = PROCESO_CONSOLA;
+	header->id_proceso_receptor = PROCESO_NUCLEO;
+
+	header->id_mensaje = HANDSHAKE_NUCLEO;
+	header->longitud_mensaje = 0;
+
+	int cantidad_bytes_enviados = enviar_header(socket_nucleo, header);
+
+	if (cantidad_bytes_enviados < sizeof(t_header))
+		log_error(loggerManager,"[Comunicacion nucleo] Ocurrió un problema al enviar el handshake al nucleo");
+	else
+		log_trace(loggerManager,"[Comunicacion nucleo] Se realizo el envio del handshake al nucleo correctamente");
+
+	free(header);
+
 }
 

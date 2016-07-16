@@ -37,5 +37,6 @@ void sig_handler(void);
 void enviar_codigo_al_nucleo (FILE *, int);
 void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void avisar_nucleo_de_terminacion_programa();
+void enviar_handshake_al_nucleo(int socket_nucleo);
 
 #endif /* SRC_CONSOLA_H_ */
