@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <serializacion.h>
 #include <comunicaciones.h>
 #include <commons/collections/dictionary.h>
@@ -45,6 +46,8 @@ t_dictionary *solitudes_semaforo;
 
 pthread_t thread_exec;
 
+int atiendo_solicitudes_io;
+
 ////////////////////FUNCION PRINCIPAL///////////////////////////
 
 int main(void) {
@@ -52,9 +55,9 @@ int main(void) {
 	logger_manager = log_create("nucleo.log", "NUCLEO", true, LOG_LEVEL_TRACE); // Creo archivo de log
 	log_trace(logger_manager, "Proceso Nucleo creado.");
 	pid_count = 1;
-
+	atiendo_solicitudes_io = 1;
 	configuracion = malloc(sizeof(t_config_nucleo));
-	configuracion->ip_umc = malloc (30);
+	configuracion->ip_umc = malloc(30);
 	cargar_configuracion_nucleo("config.nucleo.ini", configuracion);
 	//log_trace(logger_manager, "\nSe cargaron las configuraciones con los siguientes valores: \nIP_UMC=%s\nPUERTO_UMC=%i\nPUERTO_PROG=%i\nPUERTO_CPU=%i\nQUANTUM=%i\nQUANTUM_SLEEP=%i\nSEM_IDS=%s\nSEM_INIT=%s\nIO_IDS=%s\nIO_SLEEP=%s\nSHARED_VARS=%s\nSTACK_SIZE=%i\n", configuracion->ip_umc, configuracion->puerto_umc, configuracion->puerto_prog, configuracion->puerto_cpu, configuracion->quantum, configuracion->quantum_sleep, "es un array, no se logea por tiempo", "idem", "idem", "idem", "idem", configuracion->stack_size); //Descomentar para desarrollo, o hacer que imprima los array y dejar descomentado
 
@@ -231,7 +234,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 				pid_a_eliminar->pid);
 		int socket_consola = buscar_socket_consola_por_pid(pid_a_eliminar->pid);
 		sem_wait(&mutex_cola_new);
-		pcb_a_matar = queue_pop_pid(cola_new, pid_a_ready->pid); //remuevo el puntero al pcb de la cola new
+		pcb_a_matar = queue_pop_pid(cola_new, pid_a_eliminar->pid); //remuevo el puntero al pcb de la cola new
 		sem_post(&mutex_cola_new);
 		eliminar_proceso_de_lista_procesos_con_pid(pid_a_eliminar->pid);
 		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
@@ -239,19 +242,19 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		free(pid_a_eliminar);
 		free(pcb_a_matar);
 		break;
-	case ERROR_MATAR_PROGRAMA:
+	case ERROR_MATAR_PROGRAMA: //Se presume que si da error deberia estar en la cola new.
 		;
 		t_pid *pid_ = malloc(sizeof(t_pid));
 		deserializar_pid(paquete->payload, pid_);
-		//TODO ver en que queue esta el pcb
+		t_pcb *pcb_a_kill = buscar_pcb_por_pid(pid_->pid);
+		int socket_conso = buscar_socket_consola_por_pid(pid_->pid);
 		sem_wait(&mutex_cola_new);
-		queue_pop_pid(cola_new, pid_a_ready->pid); //remuevo el puntero al pcb de la cola new
+		queue_pop_pid(cola_new, pcb_a_kill->pid); //remuevo el puntero al pcb de la cola new
 		sem_post(&mutex_cola_new);
 		log_info(logger_manager, "Elimino el pcb creado con pid: %d",
 				pid_->pid);
-		finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_a_matar,
-				socket_conexion);
-		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
+		eliminar_proceso_de_lista_procesos_con_pid(pid_->pid);
+		enviar_header_completado(socket_conso, PROCESO_CONSOLA,
 		MENSAJE_ERROR_AL_MATAR);
 		free(pid_);
 		break;
@@ -302,9 +305,9 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		printf("Termino la ejecucion");
 		break;
 	case HANDSHAKE_CONSOLA:
-		if(paquete_buffer->header->id_proceso_emisor == PROCESO_CONSOLA){
+		if (paquete_buffer->header->id_proceso_emisor == PROCESO_CONSOLA) {
 
-			log_trace(logger_manager,"Se recibio el handshake de la consola");
+			log_trace(logger_manager, "Se recibio el handshake de la consola");
 
 			t_header *header = malloc(sizeof(t_header));
 			header->id_proceso_emisor = PROCESO_NUCLEO;
@@ -316,15 +319,17 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 			int cantidad_bytes_enviados = enviar_header(socket_consola, header);
 
 			if (cantidad_bytes_enviados < sizeof(t_header))
-				log_error(logger_manager,"Ocurrio un problema al enviar la respuesta del handshake a la consola");
+				log_error(logger_manager,
+						"Ocurrio un problema al enviar la respuesta del handshake a la consola");
 			else
-				log_trace(logger_manager,"Se realizó el envio de la respuesta del handshake de la consola correctamente");
+				log_trace(logger_manager,
+						"Se realizó el envio de la respuesta del handshake de la consola correctamente");
 
 			free(header);
 
-		}
-		else{
-			log_trace(logger_manager,"Se recibio el handshake de un proceso no esperado");
+		} else {
+			log_trace(logger_manager,
+					"Se recibio el handshake de un proceso no esperado");
 		}
 
 		break;
@@ -644,12 +649,34 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	diccionario_entrada_salida = dictionary_create();
 	int i = 0;
 	while (io_ids[i] != NULL) {
+		pthread_t hilo_io;
 		t_solicitudes_entrada_salida *io = malloc(
 				sizeof(t_solicitudes_entrada_salida));
 		io->retardo = atoi(io_sleep[i]);
+		sem_init(&(io->semaforo_contador_solicitudes), 0, 0);
 		io->solicitudes = queue_create();
 		dictionary_put(diccionario_entrada_salida, io_ids[i], io);
+		pthread_create(&hilo_io, NULL,
+				(void*) atender_solicitudes_entrada_salida, io);
 		++i;
+	}
+}
+
+void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
+	while (atiendo_solicitudes_io) {
+
+		sem_wait(&(io->semaforo_contador_solicitudes)); //avanzo si hay un proceso en la cola de solicitudes
+		t_solicitud_entrada_salida_cpu * solicitud = queue_pop(io->solicitudes);
+		//10* porque paso de milisegundo a microsegundo
+		log_info(logger_manager,
+				"Comienza io del socket cpu :%d ,con retardo de: %d",
+				solicitud->socket_cpu, io->retardo);
+		usleep(10 * io->retardo * solicitud->cantidad_operaciones);
+		log_info(logger_manager,
+				"Termina io del socket cpu :%d ,con retardo de: %d",
+				solicitud->socket_cpu, io->retardo);
+		free(solicitud);
+
 	}
 }
 
@@ -667,7 +694,8 @@ void enviar_header_completado(int socket, int proceso_receptor, int id_mensaje) 
 	free(header);
 }
 
-void cargar_configuracion_nucleo(char *archivoConfig, t_config_nucleo *configuracion_nucleo) {
+void cargar_configuracion_nucleo(char *archivoConfig,
+		t_config_nucleo *configuracion_nucleo) {
 
 	t_config *configuracion = config_create(archivoConfig);
 
@@ -731,7 +759,8 @@ void cargar_configuracion_nucleo(char *archivoConfig, t_config_nucleo *configura
 	}
 
 	if (config_has_property(configuracion, "IP_UMC")) {
-		strcpy(configuracion_nucleo->ip_umc , config_get_string_value(configuracion,"IP_UMC")); //Hago la copia para así despues usar config_destroy y que no explote todo
+		strcpy(configuracion_nucleo->ip_umc,
+				config_get_string_value(configuracion, "IP_UMC")); //Hago la copia para así despues usar config_destroy y que no explote todo
 		//configuracion_nucleo->ip_umc = config_get_string_value(configuracion,"IP_UMC");
 	} else {
 		perror("error al cargar IP_UMC");

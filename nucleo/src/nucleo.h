@@ -12,6 +12,7 @@
 #include <commons/collections/queue.h>
 #include <commons/log.h>
 #include <parser/metadata_program.h>
+#include <semaphore.h>
 
 #define NEW 0
 #define READY 1
@@ -83,6 +84,7 @@ typedef struct {
 
 typedef struct {
 	int retardo;
+	sem_t semaforo_contador_solicitudes;
 	t_queue *solicitudes; //t_solicitud_entrada_salida_cpu
 } t_solicitudes_entrada_salida;
 
@@ -146,6 +148,8 @@ void matar_ejecucion(t_pcb *pcb);
 int buscar_socket_cpu_por_pcb(t_pcb *pcb_a_finalizar);
 
 void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep);
+
+void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io);
 
 void inicializar_solicitudes_semaforo(char **sem_id, char**sem_init);
 

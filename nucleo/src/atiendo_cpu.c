@@ -227,8 +227,8 @@ void atiendo_wait(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	// Distinto de 0, sigue con rafaga
-	if (wait_semaforo(semaforo->nombre)) {
+	// distinto de 0, sigue con rafaga
+	if (wait_semaforo(semaforo->nombre) > 0) {
 		t_header *h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
