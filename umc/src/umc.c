@@ -391,7 +391,7 @@ void respuesta_iniciar_programa(void *buffer,int id_mensaje){
 
 
 void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion) {
-	t_pagina_pedido *pagina = malloc(sizeof(t_pagina));
+	t_pagina_pedido *pagina = malloc(sizeof(t_pagina_pedido));
 	deserializar_pagina_pedido(buffer, pagina);
 	bool es_cpu(t_cpu *elemento){
 		return (elemento->socket_cpu == socket_conexion);
@@ -407,7 +407,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	}
 	//1° caso: esta en TLB
 	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
-		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_pedido_completa));
 		inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,id_programa);
@@ -434,7 +434,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *)list_get(lista_tablas,id_programa);
 		if (tabla[pagina->pagina].presencia){
 
-			t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+			t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_pedido_completa));
 			inicializar_pagina_cpu(pagina_cpu,pagina, socket_conexion);
 			pagina_cpu->valor = malloc(pagina->tamanio);
 
@@ -499,7 +499,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 
 		log_info(log_umc,"Se recibe del SWAP la respuesta de lectura de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 
-		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_completa));
+		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_pedido_completa));
 
 
 		pagina_cpu->pagina = pagina->pagina;
@@ -531,7 +531,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		free(pagina_cpu);
 	}
 	else if(id_mensaje == ERROR_LEER_PAGINA){
-		t_pagina *pagina = malloc(sizeof(t_pagina_completa));
+		t_pagina *pagina = malloc(sizeof(t_pagina));
 		deserializar_pagina(buffer, pagina);
 
 		t_header * header_cpu = malloc(sizeof(t_header));
@@ -549,7 +549,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 }
 
 void escribir_pagina(void *buffer, int socket_conexion){
-	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_completa));
+	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
 	deserializar_pagina_pedido_completa(buffer, pagina);
 	bool es_cpu(t_cpu *elemento){
 		return (elemento->socket_cpu == socket_conexion);
@@ -680,7 +680,7 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		free(pagina_recibida_de_swap);
 	}
 	else if(id_mensaje == ERROR_LEER_PAGINA_PARA_ESCRIBIR){
-		t_pagina *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
+		t_pagina *pagina_recibida_de_swap = malloc(sizeof(t_pagina));
 		deserializar_pagina(buffer, pagina_recibida_de_swap);
 		pid = pagina_recibida_de_swap->id_programa;
 		socket = pagina_recibida_de_swap->socket_pedido;
@@ -817,7 +817,7 @@ void finalizar_programa(void *buffer,int id_mensaje) {
 
 void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 
-	t_programa *programa = malloc(sizeof(t_programa_completo));
+	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 	log_info(log_umc,"se finalizo el pid %d",programa->id_programa);
 	t_header *header_nucleo = malloc(sizeof(t_header));
@@ -1507,7 +1507,7 @@ void liberar_marcos(int pid){
 }*/
 
 void cambiar_proceso_activo(void * buffer, int socket){
-	t_programa *programa = malloc(sizeof(t_pagina_completa));
+	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 	t_header * header_cpu = malloc(sizeof(t_header));
 	header_cpu->id_proceso_emisor = PROCESO_UMC;
