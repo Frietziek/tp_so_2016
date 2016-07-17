@@ -398,7 +398,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus,(void*)es_cpu);
 	int id_programa = cpu->pid;
-	log_info(log_umc,"Solicitud de lectura de PID:%d PAGINA:%d",id_programa,pagina->pagina);
+	log_info(log_umc,"Solicitud de lectura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",id_programa,pagina->pagina,pagina->offset,pagina->tamanio);
 	int marco = 0;
 	if(configuracion->entradas_tlb != 0){
 		log_info(log_umc,"Accediendo a la caché TLB ...");
@@ -472,7 +472,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				pagina_swap->offset = 0;
 				pagina_swap->tamanio = configuracion->marco_size;
 				pagina_swap->socket_pedido = socket_conexion;
-
+				log_info(log_umc,"mando a swap a leer PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d ",pagina_swap->id_programa,pagina_swap->pagina,pagina_swap->offset,pagina_swap->tamanio);
 				t_buffer *payload_swap = serializar_pagina(pagina_swap);
 
 				header_swap->longitud_mensaje = payload_swap->longitud_buffer;
@@ -494,9 +494,9 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 	if(id_mensaje == RESPUESTA_LEER_PAGINA){
 		t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
 		deserializar_pagina_completa(buffer, pagina);
-
+		log_info(log_umc,"mando a swap a leer PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d ",pagina->id_programa,pagina->pagina,pagina->offset,pagina->tamanio);
 		t_pagina_pedido * pagina_pedido = buffer_programas[pagina->id_programa];
-
+		log_info(log_umc,"el codigo es %s",(char*)pagina->valor);
 		log_info(log_umc,"Se recibe del SWAP la respuesta de lectura de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
 
 		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_pedido_completa));
@@ -556,7 +556,8 @@ void escribir_pagina(void *buffer, int socket_conexion){
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus,(void*)es_cpu);
 	int id_programa = cpu->pid;
-	log_info(log_umc,"Solicitud de escritura de PID:%d PAGINA:%d",id_programa,pagina->pagina);
+	log_info(log_umc,"Solicitud de escritura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",id_programa,pagina->pagina,pagina->offset,pagina->tamanio);
+	sleep(3);
 	int marco = 0;
 	if(configuracion->entradas_tlb != 0){
 		log_info(log_umc,"Accediendo a la caché TLB ...");
@@ -569,6 +570,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 	header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
 	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
+	void *puntero_memoria = memoria_principal;
 		//1° caso: esta en TLB
 		if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 			int direccion_mp = retornar_direccion_mp(marco);
@@ -984,7 +986,7 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	}
 
 	//CLOCK MODIFICADO
-	if(string_equals_ignore_case(configuracion->algoritmo,"CLOCK_MODIFICADO")){
+	if(string_equals_ignore_case(configuracion->algoritmo,"CLOCK-M")){
 
 		// 1° caso: U = 0 y M = 0
 		int i = 0;
@@ -1060,6 +1062,39 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 		listas_algoritmo[pid].puntero = 0;
 		}
 	return pagina_a_ubicar->frame;
+	}
+	//Por si no machea el nombre, que use por defecto el CLOCK
+	else{
+		while (pagina_a_sustituir == NULL ){
+			pagina_a_sustituir = (t_fila_tabla_pagina *) list_get(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero);
+			if (pagina_a_sustituir->uso == 0) {
+				break;
+			}
+			else {
+				pagina_a_sustituir->uso = 0;
+				listas_algoritmo[pid].puntero++;
+				pagina_a_sustituir = NULL;
+				if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+					listas_algoritmo[pid].puntero = 0;
+					}
+			}
+		}
+		quitar_pagina_TLB(pagina_a_sustituir->frame);
+		pagina_a_ubicar->frame = pagina_a_sustituir->frame;
+		pagina_a_ubicar->uso = 1;
+		pagina_a_ubicar->modificado = 0;
+		pagina_a_sustituir->frame = 0;
+		pagina_a_sustituir->presencia = 0;
+		if (pagina_a_sustituir->modificado ){
+			mandar_a_swap(pagina_a_sustituir->pid,pagina_a_sustituir->numero_pagina,MENSAJE_ESCRIBIR_PAGINA);
+			pagina_a_sustituir->modificado = 0;
+		}
+		list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
+		listas_algoritmo[pid].puntero++;
+		if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
+			listas_algoritmo[pid].puntero = 0;
+			}
+		return pagina_a_ubicar->frame;
 	}
 }
 
@@ -1249,7 +1284,7 @@ t_marco * crear_marco(int start,int nro_marco){
 	t_marco * nuevo_marco = malloc(sizeof(t_marco));
 	nuevo_marco->libre = 1;
 	nuevo_marco->numero_marco = nro_marco;
-	nuevo_marco->direccion_mp = (int)memoria_principal + start;
+	nuevo_marco->direccion_mp = (int)memoria_principal + start; // direccion relativa
 	return nuevo_marco;
 }
 
@@ -1262,14 +1297,6 @@ void crear_marcos(){
 		start = start + configuracion->marco_size;
 		list_add(lista_de_marcos,nuevo_marco); // numero_marco = index_de_lista + 1
 	}
-	/*para pruebas:
-	char * string2 =  malloc(100);
-	string2 = "vamos a aprobar matando a quien sea xd\0";
-	memcpy(memoria_principal + configuracion->marco_size,string2,strlen(string2));//lo guardo en lo que seria el marco 2
-	int direccion = retornar_direccion_mp(2);
-	char * string = malloc(100);
-	memcpy(string,direccion+5,60);//quiero leer offset 5 y tamaño 60
-	printf("%s\n",string);*/
 }
 
 int retornar_direccion_mp(int un_marco){
@@ -1442,8 +1469,8 @@ void dump_contenido(int pid){
 			txt_write_in_stdout("\n");
 			direccion_mp = retornar_direccion_mp(tabla[nro_pagina].frame);
 			memcpy(pagina,direccion_mp,configuracion->marco_size);
-			txt_write_in_file(dump_file,pagina);
-			txt_write_in_stdout(pagina);
+			txt_write_in_file_all(dump_file,pagina);
+			txt_write_in_stdout_all(pagina);
 			txt_write_in_file(dump_file,"\n");
 			txt_write_in_stdout("\n");
 			free(string2);
@@ -1526,14 +1553,28 @@ void cambiar_proceso_activo(void * buffer, int socket){
 	free(programa);
 }
 
-/*void guardar_pagina_en_buffer(int id_programa,int socket_conexion,t_pagina_pedido_completa * pagina){
-	t_pagina_completa * pagina_completa = malloc(sizeof(t_pagina_completa));//la creo para guardarla
-	pagina_completa->id_programa = id_programa;
-	pagina_completa->offset = pagina->offset;
-	pagina_completa->socket_pedido = socket_conexion;
-	pagina_completa->pagina = pagina->pagina;
-	pagina_completa->tamanio = pagina->tamanio;
-	memcpy(pagina_completa->valor,pagina->valor,pagina->tamanio);
-	list_add(lista_buffer_escritura,pagina);//pongo en un buffer lo que se pide escribir .
-}*/
+void txt_write_in_file_all(FILE* file, char* bytes) {
+	int i = 0;
+	while(i < configuracion->marco_size){
+	if(bytes[i] == '\0'){
+		fprintf(file," ");
+	}else{
+		fprintf("%c",bytes[i]);
+	}
+	i++;
+	}
+	fflush(file);
+}
 
+void txt_write_in_stdout_all(char* string) {
+	int i = 0;
+	while(i < configuracion->marco_size){
+	if(string[i] == '\0'){
+		printf(" ");
+	}else{
+		printf("%c",string[i]);
+	}
+	i++;
+	}
+	fflush(stdout);
+}

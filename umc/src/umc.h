@@ -266,4 +266,8 @@ t_programa_completo * copiar_programa_completo_desde_buffer(int pid);
 
 void eliminar_pagina_completa_en_buffer(int pid);
 
+void txt_write_in_file_all(FILE* file, char* bytes);
+
+void txt_write_in_stdout_all(char* string);
+
 #endif /* SRC_UMC_H_ */
