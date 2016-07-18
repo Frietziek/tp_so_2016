@@ -19,7 +19,7 @@ t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
 pthread_t thread_consola;
-void * buffer_programas[CANT_TABLAS_MAX];
+void * buffer_programas[CANT_TABLAS_MAX];//se busca por pid
 static pthread_mutex_t mutex_lista_tabla_entradas = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_lista_paginas_tlb = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_lista_cpus = PTHREAD_MUTEX_INITIALIZER;
@@ -149,7 +149,7 @@ void * menu_principal() {
 		cambiar_retardo();
 		break;
 	case DUMP:
-		printf("Especificar el numero de proceso o cero para todos los procesos\n");
+		printf("Especificar el pid del proceso o presione 0 para todos los procesos\n");
 		scanf("%d", &comando);
 		generar_dump(comando);
 		break;
@@ -163,6 +163,9 @@ void * menu_principal() {
 				break;
 			case MEMORY:
 				marcar_todas_modificadas();
+				break;
+			default:
+				printf("Comando no reconocido\n");
 				break;
 		}
 		break;
@@ -328,7 +331,7 @@ void iniciar_programa(void* buffer) {
 		tabla_paginas[i].numero_pagina = i;
 		//list_add(listas_algoritmo[programa->id_programa].lista_paginas_mp,(tabla_paginas + i));
 	}
-	guardar_cant_entradas(programa->id_programa,programa->paginas_requeridas);
+	guardar_cant_entradas(programa->id_programa,programa->paginas_requeridas,strlen(programa->codigo));
 
 	list_replace(lista_tablas,programa->id_programa,tabla_paginas); // lista de tablas. El index va a coincidir con el pid
 	// ejemplo: t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas, 1); -> me retorna la tabla del programa con pid 1
@@ -408,6 +411,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		marco = buscar_pagina_tlb(id_programa,pagina->pagina);
 		if(marco != 0) {log_info(log_umc,"Pagina encontrada en la caché TLB. Marco: %d",marco);}
 	}
+
 	//1° caso: esta en TLB
 	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 		t_pagina_pedido_completa *pagina_cpu = malloc(sizeof(t_pagina_pedido_completa));
@@ -573,6 +577,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 	header_cpu->id_proceso_receptor = PROCESO_CPU;
 	header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
 	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
+
 
 		//1° caso: esta en TLB
 		if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
@@ -976,12 +981,13 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 		pagina_a_ubicar->frame = pagina_a_sustituir->frame;
 		pagina_a_ubicar->uso = 1;
 		pagina_a_ubicar->modificado = 0;
-		pagina_a_sustituir->frame = 0;
-		pagina_a_sustituir->presencia = 0;
+
 		if (pagina_a_sustituir->modificado ){
 			mandar_a_swap(pagina_a_sustituir->pid,pagina_a_sustituir->numero_pagina,MENSAJE_ESCRIBIR_PAGINA);
 			pagina_a_sustituir->modificado = 0;
 		}
+		pagina_a_sustituir->frame = 0;
+		pagina_a_sustituir->presencia = 0;
 		list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 		listas_algoritmo[pid].puntero++;
 		if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
@@ -1055,12 +1061,12 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar){
 	pagina_a_ubicar->frame = pagina_a_sustituir->frame;
 	pagina_a_ubicar->uso = 1;
 	pagina_a_ubicar->modificado = 0;
-	pagina_a_sustituir->frame = 0;
-	pagina_a_sustituir->presencia = 0;
 	if (pagina_a_sustituir->modificado ){
 		mandar_a_swap(pagina_a_sustituir->pid,pagina_a_sustituir->numero_pagina,MENSAJE_ESCRIBIR_PAGINA);
 		pagina_a_sustituir->modificado = 0;
 		}
+	pagina_a_sustituir->frame = 0;
+	pagina_a_sustituir->presencia = 0;
 	list_replace(listas_algoritmo[pid].lista_paginas_mp,listas_algoritmo[pid].puntero,pagina_a_ubicar);
 	listas_algoritmo[pid].puntero++;
 	if (listas_algoritmo[pid].puntero == list_size(listas_algoritmo[pid].lista_paginas_mp)) {
@@ -1375,11 +1381,13 @@ void mandar_a_swap(int pid,int pagina,int id_mensaje){
 		pagina_completa->valor = buffer_programas[pid];
 
 		pagina_completa->tamanio = strlen(buffer_programas[pid]);
+
+		log_info(log_umc,"Se envia el codigo del nuevo programa a swap ...");
 	}
 	else if(id_mensaje == MENSAJE_ESCRIBIR_PAGINA){
 		//busco en memoria el contenido de la pagina y se lo mando al swap
 		pagina_completa->tamanio = configuracion->marco_size;
-		pagina_completa->valor = malloc(sizeof(pagina_completa->tamanio));
+		pagina_completa->valor = malloc(pagina_completa->tamanio);
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,pid);
 		int dir_mp = retornar_direccion_mp(tabla[pagina].frame);
 		memcpy(pagina_completa->valor,(void*)dir_mp,configuracion->marco_size);
@@ -1387,7 +1395,7 @@ void mandar_a_swap(int pid,int pagina,int id_mensaje){
 	t_buffer *payload_swap = serializar_pagina_completa(pagina_completa);
 
 	header_swap->longitud_mensaje = payload_swap->longitud_buffer;
-	log_info(log_umc,"Se envia el codigo del nuevo programa a swap ...");
+
 	if (enviar_buffer(socket_swap, header_swap, payload_swap)
 			< sizeof(t_header) + payload_swap->longitud_buffer) {
 		log_error(log_umc,"Fallo al responder pedido CPU");
@@ -1473,8 +1481,8 @@ void dump_contenido(int pid){
 			txt_write_in_stdout("\n");
 			direccion_mp = retornar_direccion_mp(tabla[nro_pagina].frame);
 			memcpy(pagina,(void*)direccion_mp,configuracion->marco_size);
-			txt_write_in_file_all(dump_file,pagina);
-			txt_write_in_stdout_all(pagina);
+			txt_write_in_file_all(dump_file,pagina,pid,nro_pagina);
+			txt_write_in_stdout_all(pagina, pid,nro_pagina);
 			txt_write_in_file(dump_file,"\n");
 			txt_write_in_stdout("\n");
 			free(string2);
@@ -1488,10 +1496,11 @@ void dump_contenido(int pid){
 }
 
 
-void guardar_cant_entradas(int pid,int cant_pag){
+void guardar_cant_entradas(int pid,int cant_pag,int tamanio){
 	t_tabla_cantidad_entradas * tabla_cant = malloc(sizeof(t_tabla_cantidad_entradas));
 	tabla_cant->cant_paginas = cant_pag;
 	tabla_cant->pid = pid;
+	tabla_cant->tamanio_codigo = tamanio;
 	pthread_mutex_lock(&mutex_lista_tabla_entradas);
 	list_add(lista_tabla_entradas,tabla_cant);
 	pthread_mutex_unlock(&mutex_lista_tabla_entradas);
@@ -1557,31 +1566,66 @@ void cambiar_proceso_activo(void * buffer, int socket){
 	free(programa);
 }
 
-void txt_write_in_file_all(FILE* file, char* bytes) {
+void txt_write_in_file_all(FILE* file, char* bytes,int pid,int nro_pagina) {
+	bool es_true(t_tabla_cantidad_entradas *elemento){
+		return (elemento->pid == pid);
+	}
+	t_tabla_cantidad_entradas * entradas = (t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,(void*)es_true);
+
+	int offset_comienzo_stack = entradas->tamanio_codigo % configuracion->marco_size;
+	int pagina_comienzo_stack = entradas->tamanio_codigo / configuracion->marco_size;
+
 	int i = 0;
 	while(i < configuracion->marco_size){
 	if(bytes[i] == '\0'){
 		fprintf(file," ");
 	}else{
-		fprintf("%c",bytes[i]);
+		if(nro_pagina > pagina_comienzo_stack){ // si quiero ver los valores del stack, descomento y pongo valor=offset en que comienza el stack
+			fprintf(file,"%c",bytes[i]);
+		}
+		else if(nro_pagina == pagina_comienzo_stack){
+			if(i < offset_comienzo_stack){
+				fprintf(file,"%c",bytes[i]);
+			}else{
+				fprintf(file,"%d",bytes[i]);
+			}
+		}
+		else{ //nro_pagina < pagina_comienzo_stack
+			fprintf(file,"%c",bytes[i]);
+		}
 	}
 	i++;
 	}
 	fflush(file);
 }
 
-void txt_write_in_stdout_all(char* string) {
+void txt_write_in_stdout_all(char* string,int pid,int nro_pagina) {
+	bool es_true(t_tabla_cantidad_entradas *elemento){
+		return (elemento->pid == pid);
+	}
+	t_tabla_cantidad_entradas * entradas = (t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,(void*)es_true);
+
+	int offset_comienzo_stack = entradas->tamanio_codigo % configuracion->marco_size;
+	int pagina_comienzo_stack = entradas->tamanio_codigo / configuracion->marco_size;
+
 	int i = 0;
 	while(i < configuracion->marco_size){
 	if(string[i] == '\0'){
 		printf(" ");
 	}else{
-		//if(i > valor){ // si quiero ver los valores del stack, descomento y pongo valor=offset en que comienza el stack
-		//	printf("%d",string[i]);
-		//}
-		//else{
+		if(nro_pagina > pagina_comienzo_stack){ // si quiero ver los valores del stack, descomento y pongo valor=offset en que comienza el stack
 			printf("%c",string[i]);
-		//}
+		}
+		else if(nro_pagina == pagina_comienzo_stack){
+			if(i < offset_comienzo_stack){
+				printf("%c",string[i]);
+			}else{
+				printf("%d",string[i]);
+			}
+		}
+		else{ //nro_pagina < pagina_comienzo_stack
+			printf("%c",string[i]);
+		}
 	}
 	i++;
 	}

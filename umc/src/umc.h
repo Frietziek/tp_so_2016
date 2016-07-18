@@ -29,8 +29,8 @@
 #define RETARDO 1
 #define DUMP 2
 #define FLUSH 3
-#define TLB 4
-#define MEMORY 5
+#define TLB 1
+#define MEMORY 2
 
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0
@@ -127,6 +127,7 @@ typedef struct { //no lo estoy usando
 typedef struct {
 	int cant_paginas;
 	int pid;
+	int tamanio_codigo;
 } t_tabla_cantidad_entradas;
 
 typedef struct {
@@ -236,7 +237,7 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje);
 
 void test();
 
-void guardar_cant_entradas(int pid,int cant_pag);
+void guardar_cant_entradas(int pid,int cant_pag, int tamanio);
 
 void marcar_todas_modificadas();
 
@@ -266,8 +267,8 @@ t_programa_completo * copiar_programa_completo_desde_buffer(int pid);
 
 void eliminar_pagina_completa_en_buffer(int pid);
 
-void txt_write_in_file_all(FILE* file, char* bytes);
+void txt_write_in_file_all(FILE* file, char* bytes,int pid, int nro_pagina);
 
-void txt_write_in_stdout_all(char* string);
+void txt_write_in_stdout_all(char* string, int pid, int nro_pagina);
 
 #endif /* SRC_UMC_H_ */
