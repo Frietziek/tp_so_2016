@@ -441,10 +441,15 @@ t_pcb *buscar_pcb_por_socket_cpu(int socket_cpu) {
 	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
 		return (socket_cpu == proceso->socket_cpu);
 	}
-	t_pcb *pcb = (((t_fila_tabla_procesos*) list_find(lista_procesos,
-			(void*) busqueda_proceso_logica)))->pcb;
+	t_fila_tabla_procesos *fila = (((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica)));
+	if (fila != NULL) {
+		t_pcb *pcb = fila->pcb;
+		sem_post(&mutex_lista_procesos);
+		return pcb;
+	}
 	sem_post(&mutex_lista_procesos);
-	return pcb;
+	return NULL;
 }
 
 void enviar_error_al_iniciar_a_consola(int socket_consola) {
@@ -640,7 +645,8 @@ void inicializar_solicitudes_semaforo(char **sem_id, char**sem_ini) {
 		t_atributos_semaforo *atributos = malloc(sizeof(t_atributos_semaforo));
 		atributos->valor = atoi(sem_ini[i]);
 		atributos->posicion_semaforo_contador_solicitudes = i;
-		sem_init(&(sem_semaforos[i]), 0, 0);
+		sem_init(&sem_semaforos[i], 0, 0);
+//		sem_init(&(sem_semaforos[i]), 0, 0);
 		atributos->solicitudes = queue_create();
 		sem_wait(&mutex_solicitudes_semaforo);
 		dictionary_put(solitudes_semaforo, sem_id[i], atributos);
@@ -655,6 +661,7 @@ void inicializar_solicitudes_semaforo(char **sem_id, char**sem_ini) {
 void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	diccionario_entrada_salida = dictionary_create();
 	int i = 0;
+
 	while (io_ids[i] != NULL) {
 		pthread_t hilo_io;
 		t_solicitudes_entrada_salida *io = malloc(
@@ -855,13 +862,13 @@ void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
 
 	queue_push(solicitudes_es->solicitudes, solicitud_io);
 	sem_post(&mutex_diccionario_entrada_salida);
-	sacar_socket_cpu_de_tabla(socket_cpu);
 
 	sem_wait(&mutex_cola_block);
 	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
+	sacar_socket_cpu_de_tabla(socket_cpu);
 	queue_push(cola_block, pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
-			pcb->pid);
+//	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+//			pcb->pid);
 	sem_post(&mutex_cola_block);
 
 	sem_wait(&mutex_cola_exec);
@@ -915,8 +922,11 @@ void sacar_socket_cpu_de_tabla(int socket_cpu) {
 	}
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica)));
-	proceso->socket_cpu = NO_ASIGNADO;
+	if (proceso != NULL) { //todo revisar por que no lo esta sacando aca
+		proceso->socket_cpu = NO_ASIGNADO;
+	}
 	sem_post(&mutex_lista_procesos);
+
 }
 
 void envio_buffer_a_proceso(int socket_proceso, int proceso_receptor,
@@ -962,11 +972,9 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 
 	sem_wait(&mutex_cola_exec);
 	queue_push(cola_exec, pcb_a_exec);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola EXEC",
-			pcb_a_exec->pid);
+	//log_info(logger_manager, "PROCESO %i-Se agrega a la cola EXEC",pcb_a_exec->pid);
 	sem_post(&mutex_cola_exec);
 
-	cambiar_estado_proceso_por_pid(pcb_a_exec->pid, EXEC);
 	actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(pcb_a_exec, socket_cpu);
 	pcb_quantum_a_cpu->pcb = pcb_a_exec;
 
