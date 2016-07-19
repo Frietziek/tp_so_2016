@@ -250,7 +250,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_LEER_COMPARTIDA:
 		log_info(logger_manager, "Recibo variable compartida de Nucleo.");
-		sem_post(&s_variable_compartida);
+		respuesta_leer_compartida(paquete->payload);
 		break;
 	case RESPUESTA_ESCRIBIR_COMPARTIDA:
 		log_info(logger_manager, "Se escribio variable compartida en Nucleo.");
@@ -486,6 +486,15 @@ void leo_instruccion_desde_UMC(int pagina) {
 	free(p_pagina);
 	free(buffer->contenido_buffer);
 	free(buffer);
+}
+
+void respuesta_leer_compartida(void *buffer) {
+	t_variable_completa *compartida = malloc(sizeof(t_variable_completa));
+	deserializar_variable_completa(buffer, compartida);
+	valor_pagina = realloc(valor_pagina, sizeof(int));
+	valor_pagina = compartida->valor;
+	free(compartida);
+	sem_post(&s_variable_compartida);
 }
 
 void libero_pcb() {

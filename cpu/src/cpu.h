@@ -56,6 +56,7 @@ int calcula_paginas_instruccion();
 t_intructions *deserializo_instruccion(int pc);
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 void leo_instruccion_desde_UMC(int pagina);
+void respuesta_leer_compartida(void *buffer);
 void libero_pcb();
 
 #endif /* CPU_H_ */
