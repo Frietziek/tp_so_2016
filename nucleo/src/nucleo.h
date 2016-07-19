@@ -148,6 +148,8 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu);
 void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
 		char *codigo);
 
+void libero_pcb(t_pcb *pcb);
+
 void agregar_pcb_a_lista_procesos(t_pcb *pcb, int socket_consola);
 
 int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola);
@@ -195,5 +197,6 @@ void respuesta_matar(void * buffer, int socket_cpu);
 void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos);
 void avisar_para_que_desbloquee(char *nombre_sem);
 void monitorear_configuraciones();
-void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion, t_config_nucleo *configuracion_nucleo);
+void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion,
+		t_config_nucleo *configuracion_nucleo);
 #endif /* NUCLEO_H_ *///

@@ -64,10 +64,10 @@ int main(void) {
 	configuracion = malloc(sizeof(t_config_nucleo));
 	configuracion->ip_umc = malloc(30);
 	cargar_configuracion_nucleo(PATH_CONFIGURACIONES_NUCLEO, configuracion);
-	pthread_create(&thread_monitoreo_configuraciones, NULL, (void*) monitorear_configuraciones, NULL);
+	pthread_create(&thread_monitoreo_configuraciones, NULL,
+			(void*) monitorear_configuraciones, NULL);
 	//log_trace(logger_manager, "\nSe cargaron las configuraciones con los siguientes valores: \nIP_UMC=%s\nPUERTO_UMC=%i\nPUERTO_PROG=%i\nPUERTO_CPU=%i\nQUANTUM=%i\nQUANTUM_SLEEP=%i\nSEM_IDS=%s\nSEM_INIT=%s\nIO_IDS=%s\nIO_SLEEP=%s\nSHARED_VARS=%s\nSTACK_SIZE=%i\n", configuracion->ip_umc, configuracion->puerto_umc, configuracion->puerto_prog, configuracion->puerto_cpu, configuracion->quantum, configuracion->quantum_sleep, "es un array, no se logea por tiempo", "idem", "idem", "idem", "idem", configuracion->stack_size); //Descomentar para desarrollo, o hacer que imprima los array y dejar descomentado
 	//-------------------------------------------------------------------------------------//
-
 
 	lista_procesos = list_create();
 	cola_ready = queue_create();
@@ -218,7 +218,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_a_matar,
 				socket_conexion);
 		free(pid_a_matar);
-		free(pcb_a_matar);
+		libero_pcb(pcb_a_matar);
 		break;
 	case RESPUESTA_MATAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 		;
@@ -232,7 +232,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_a_matar,
 				socket_conexion);
 		free(pid_a_matar);
-		free(pcb_a_matar);
+		libero_pcb(pcb_a_matar);
 		break;
 	case ERROR_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 		;
@@ -249,7 +249,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
 		MENSAJE_ERROR_AL_INICIAR);
 		free(pid_a_eliminar);
-		free(pcb_a_matar);
+		libero_pcb(pcb_a_matar);
 		break;
 	case ERROR_MATAR_PROGRAMA: //Se presume que si da error deberia estar en la cola new.
 		;
@@ -305,6 +305,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 
 		enviar_programa_completo_a_umc(pcb->pid, pcb->cant_paginas_codigo_stack,
 				codigo_de_consola->texto);
+		free(codigo_de_consola->texto);
 		free(codigo_de_consola);
 		break;
 	case MATAR:
@@ -361,7 +362,7 @@ void respuesta_matar(void * buffer, int socket_cpu) {
 	agregar_cpu_disponible(socket_cpu);
 	sem_post(&cant_cpu);
 
-	free(pcb_a_matar);
+	libero_pcb(pcb_a_matar);
 }
 
 ////////////////////FUNCIONES AUXILIARES///////////////////////////
@@ -375,6 +376,7 @@ void eliminar_proceso_de_lista_procesos_con_pid(int pid) {
 	}
 
 	void process_info_destroy(t_fila_tabla_procesos *proceso) {
+		libero_pcb(proceso->pcb);
 		free(proceso);
 	}
 
@@ -490,6 +492,7 @@ void enviar_programa_completo_a_umc(int pid, int cant_paginas_codigo_stack,
 
 	free(programa);
 	free(header_prog_completo);
+	free(payload_programa_completo->contenido_buffer);
 	free(payload_programa_completo);
 
 }
@@ -577,19 +580,19 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			pcb_a_matar = queue_pop_pid(cola_ready, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_ready);
 			sem_wait(&cant_ready);
-			free(pcb_a_matar);
+			libero_pcb(pcb_a_matar);
 		}
 		if (pcb_a_finalizar->estado == NEW) {
 			sem_wait(&mutex_cola_new);
 			pcb_a_matar = queue_pop_pid(cola_new, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_new);
-			free(pcb_a_matar);
+			libero_pcb(pcb_a_matar);
 		}
 		if (pcb_a_finalizar->estado == BLOCK) {
 			sem_wait(&mutex_cola_block);
 			pcb_a_matar = queue_pop_pid(cola_block, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_block);
-			free(pcb_a_matar);
+			libero_pcb(pcb_a_matar);
 		}
 
 		// ENVIO TERMINAR AL UMC
@@ -997,6 +1000,8 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 	envio_buffer_a_proceso(socket_cpu, PROCESO_CPU, MENSAJE_PCB_NUCLEO,
 			"error al enviar pcb quantum a cpu", pcb_quantum_buffer);
 	log_info(logger_manager, "Se envio el Proceso a la CPU");
+	libero_pcb(pcb_quantum_a_cpu->pcb);
+	free(pcb_quantum_a_cpu);
 	free(pcb_quantum_buffer);
 }
 
@@ -1051,7 +1056,28 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 	log_info(logger_manager, "Agregue pid: %d a cola ready",
 			pcb_quantum->pcb->pid);
 //asignar_pcb_a_cpu(socket_conexion);
-	free(pcb_out);
+	libero_pcb(pcb_out);
+}
+
+void libero_pcb(t_pcb *pcb) {
+	t_indice_stack* indice_stack = pcb->indice_stack;
+	int i_stack;
+	for (i_stack = 0; i_stack < pcb->stack_size; ++i_stack) {
+		indice_stack += i_stack;
+		int i_variables;
+		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+				++i_variables) {
+			t_variables_stack* indice_variables = indice_stack->variables;
+			indice_variables += i_variables;
+			free(indice_variables->posicion_memoria);
+		}
+		free(indice_stack->posicion_variable_retorno);
+		free(indice_stack->variables);
+	}
+	free(pcb->instrucciones_serializadas);
+	free(pcb->indice_stack);
+	free(pcb->etiquetas);
+	free(pcb);
 }
 
 void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
@@ -1167,44 +1193,50 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 }
 
 // Monitorea los cambios en el archivo de configuración y actualiza t_config_nucleo cuando ocurra
-void monitorear_configuraciones(){
+void monitorear_configuraciones() {
 
-	log_trace(logger_manager, "[IONOTIFY] Inicializando minitoreo de archivo de configuraciones...");
+	log_trace(logger_manager,
+			"[IONOTIFY] Inicializando minitoreo de archivo de configuraciones...");
 
 	char buffer_eventos[IONOTIFY_BUFFER_EVENT_SIZE]; //Buffer de eventos
 
 	int fd_ionotify = inotify_init();
 
 	if (fd_ionotify < 0)
-		log_error(logger_manager, "[IONOTIFY] Ocurrio un problema al inicializar");
+		log_error(logger_manager,
+				"[IONOTIFY] Ocurrio un problema al inicializar");
 	else
 		log_trace(logger_manager, "[IONOTIFY] Inicializacion correcta.");
 
-	int fd_watch = inotify_add_watch(fd_ionotify, PATH_CONFIGURACIONES_NUCLEO, IN_MODIFY); //Se saca  | IN_CREATE | IN_DELETE | IN_MODIFY
+	int fd_watch = inotify_add_watch(fd_ionotify, PATH_CONFIGURACIONES_NUCLEO,
+	IN_MODIFY); //Se saca  | IN_CREATE | IN_DELETE | IN_MODIFY
 
+	while (1) {
 
-	while(1){
-
-		int cantidad_lectura_de_eventos = read(fd_ionotify, buffer_eventos, IONOTIFY_BUFFER_EVENT_SIZE); //Este read es una llamada bloqueante
+		int cantidad_lectura_de_eventos = read(fd_ionotify, buffer_eventos,
+		IONOTIFY_BUFFER_EVENT_SIZE); //Este read es una llamada bloqueante
 
 		if (cantidad_lectura_de_eventos < 0)
-			log_error(logger_manager, "[IONOTIFY] Ocurrio un problema al leer los eventos en el buffer");
+			log_error(logger_manager,
+					"[IONOTIFY] Ocurrio un problema al leer los eventos en el buffer");
 
 		int offset = 0;
 
 		while (offset < cantidad_lectura_de_eventos) {
 
-			struct inotify_event *evento = (struct inotify_event *) &buffer_eventos[offset]; //Obtengo el evento
+			struct inotify_event *evento =
+					(struct inotify_event *) &buffer_eventos[offset]; //Obtengo el evento
 
 			if (evento->mask & IN_MODIFY) {
 				//log_trace(logger_manager, "[IONOTIFY] El archivo de configuraciones fue modificado, actualizando datos...");
 
-				cargar_nuevas_configuraciones_del_nucleo(PATH_CONFIGURACIONES_NUCLEO, configuracion);
+				cargar_nuevas_configuraciones_del_nucleo(
+				PATH_CONFIGURACIONES_NUCLEO, configuracion);
 
 				//log_trace(logger_manager, "[IONOTIFY] Las configuraciones fueron actualizadas con exito!");
 				//log_trace(logger_manager, "[IONOTIFY] Ahora los valores son los siguientes: QUANTUM=%i, QUANTUM_SLEEP=%i" , configuracion->quantum, configuracion->quantum_sleep);
 			}
-			offset += sizeof (struct inotify_event) + evento->len;
+			offset += sizeof(struct inotify_event) + evento->len;
 		}
 	}
 
@@ -1216,26 +1248,33 @@ void monitorear_configuraciones(){
 }
 
 //IONOTIFY: Carga solo los parametros del .ini que deben poderse modificar en tiempo de ejecución según el enunciado (QUANTUM y QUANTUM_SLEEP)
-void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion, t_config_nucleo *configuracion_nucleo) {
+void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion,
+		t_config_nucleo *configuracion_nucleo) {
 
 	t_config *configuracion = config_create(archivo_configuracion);
 
-	if(config_has_property(configuracion, "QUANTUM")){
+	if (config_has_property(configuracion, "QUANTUM")) {
 		int nuevo_quantum = config_get_int_value(configuracion, "QUANTUM");
-		if (config_has_property(configuracion, "QUANTUM") && configuracion_nucleo->quantum != nuevo_quantum) {
-			log_trace(logger_manager, "[IONOTIFY] Se cambia el valor del QUANTUM de %i a %i" , configuracion_nucleo->quantum, nuevo_quantum);
+		if (config_has_property(configuracion, "QUANTUM")
+				&& configuracion_nucleo->quantum != nuevo_quantum) {
+			log_trace(logger_manager,
+					"[IONOTIFY] Se cambia el valor del QUANTUM de %i a %i",
+					configuracion_nucleo->quantum, nuevo_quantum);
 			configuracion_nucleo->quantum = nuevo_quantum;
 		}
 	}
 
-	if(config_has_property(configuracion, "QUANTUM_SLEEP")){
-		int nuevo_quantum_sleep = config_get_int_value(configuracion, "QUANTUM_SLEEP");
-		if (config_has_property(configuracion, "QUANTUM_SLEEP") && configuracion_nucleo->quantum_sleep != nuevo_quantum_sleep) {
-			log_trace(logger_manager, "[IONOTIFY] Se cambia el valor del QUANTUM_SLEEP de %i a %i" , configuracion_nucleo->quantum_sleep, nuevo_quantum_sleep);
+	if (config_has_property(configuracion, "QUANTUM_SLEEP")) {
+		int nuevo_quantum_sleep = config_get_int_value(configuracion,
+				"QUANTUM_SLEEP");
+		if (config_has_property(configuracion, "QUANTUM_SLEEP")
+				&& configuracion_nucleo->quantum_sleep != nuevo_quantum_sleep) {
+			log_trace(logger_manager,
+					"[IONOTIFY] Se cambia el valor del QUANTUM_SLEEP de %i a %i",
+					configuracion_nucleo->quantum_sleep, nuevo_quantum_sleep);
 			configuracion_nucleo->quantum_sleep = nuevo_quantum_sleep;
 		}
 	}
-
 
 	config_destroy(configuracion);
 }

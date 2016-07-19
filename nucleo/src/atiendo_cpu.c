@@ -98,15 +98,18 @@ void atiendo_obtener_compartida(void *buffer, int socket_conexion,
 
 	t_buffer *p_cpu = serializar_variable_completa(variable_completa);
 	h_cpu->longitud_mensaje = p_cpu->longitud_buffer;
-
-	if (enviar_buffer(socket_conexion, h_cpu, p_cpu)
-			< sizeof(h_cpu) + p_cpu->longitud_buffer) {
-		perror("Fallo al enviar Variable Compartida al CPU\n");
+	int envio = enviar_buffer(socket_conexion, h_cpu, p_cpu);
+	log_info(logger_manager, "Se enviaron %d bytes\n", envio);
+	if (envio < sizeof(h_cpu) + p_cpu->longitud_buffer) {
+		log_info(logger_manager,
+				"Fallo al enviar Variable Compartida al CPU\n");
 	}
 
+	free(variable->nombre);
 	free(variable);
 	free(variable_completa);
 	free(h_cpu);
+	free(p_cpu->contenido_buffer);
 	free(p_cpu);
 
 }
@@ -166,6 +169,7 @@ void atiendo_imprimir(void *buffer, int socket_conexion,
 
 	free(variable);
 	free(h_consola);
+	free(p_consola->contenido_buffer);
 	free(p_consola);
 	free(h_cpu);
 
@@ -203,6 +207,7 @@ void atiendo_imprimir_texto(void *buffer, int socket_conexion,
 
 	free(texto);
 	free(h_consola);
+	free(p_consola->contenido_buffer);
 	free(p_consola);
 	free(h_cpu);
 
@@ -663,3 +668,4 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 	}
 
 }
+
