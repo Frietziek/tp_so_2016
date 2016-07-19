@@ -210,6 +210,9 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		log_info(log_umc,"Cambio de proceso activo");
 		cambiar_proceso_activo(paquete->payload,socket_conexion);
 		break;
+	case MENSAJE_DESCONEXION_CPU:
+		finalizar_cpu(socket_conexion);
+		break;
 	default:
 		log_error(log_umc,"Id mensaje enviado por el CPU no reconocido: %d",paquete->header->id_mensaje);
 		break;
@@ -367,16 +370,17 @@ void respuesta_iniciar_programa(void *buffer,int id_mensaje){
 
 	t_programa_nuevo * programa = malloc(sizeof(t_programa_nuevo));
 	deserializar_programa_nuevo(buffer,programa);
+	t_programa * programa_id = malloc(sizeof(t_programa));
+	programa_id->id_programa = programa->id_programa;
 
 	if(id_mensaje == RESPUESTA_INICIAR_PROGRAMA){
 		mandar_a_swap(programa->id_programa,0,MENSAJE_ESCRIBIR_PAGINA_NUEVA);//al ser nuevo escribe en la pagina cero
-		list_add(lista_procesos_activos,programa->id_programa);
+		list_add(lista_procesos_activos,programa_id);
 	}
 	else if(id_mensaje == ERROR_INICIAR_PROGRAMA){
 		t_header * header_nucleo = malloc(sizeof(t_header));
 		header_nucleo->id_proceso_emisor = PROCESO_UMC;
 		header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-		t_programa * programa_id = malloc(sizeof(t_programa));
 		t_buffer * payload_nucleo = serializar_programa(programa_id);
 		header_nucleo->longitud_mensaje = payload_nucleo->longitud_buffer;
 		log_error(log_umc,"El SWAP fallo al reservar el nuevo programa PID:%d",programa_id->id_programa);
@@ -427,8 +431,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 
 		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
 
-		log_info(log_umc,"se mando al cpu la lectura solicitada");
-
 		free(pagina_cpu->valor);
 		free(pagina_cpu);
 		free(pagina);
@@ -453,8 +455,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				guardar_en_TLB(pagina_cpu->pagina,id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 			}
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,RESPUESTA_LEER_PAGINA);
-
-			log_info(log_umc,"se mando al cpu la lectura solicitada");
 
 			free(pagina_cpu->valor);
 			free(pagina_cpu);
@@ -532,7 +532,7 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		memcpy(pagina_cpu->valor,(void*)direccion_mp + pagina_cpu->offset,pagina_cpu->tamanio);
 
 		enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu, id_mensaje);
-		log_info(log_umc,"Se envía al CPU la lectura solicitada de PID:%d PAGINA:%d",pagina->id_programa,pagina->pagina);
+
 		free(pagina->valor);
 		free(pagina);
 		free(pagina_pedido);
@@ -543,21 +543,31 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		t_pagina *pagina = malloc(sizeof(t_pagina));
 		deserializar_pagina(buffer, pagina);
 
+		t_pagina_pedido * pagina_pedido = buffer_programas[pagina->id_programa];
+
 		t_header * header_cpu = malloc(sizeof(t_header));
 		header_cpu->id_proceso_emisor = PROCESO_UMC;
 		header_cpu->id_proceso_receptor = PROCESO_CPU;
 		header_cpu->id_mensaje = id_mensaje;
 		header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-		if (enviar_header(pagina->socket_pedido, header_cpu) < sizeof(header_cpu)) {
-			log_error(log_umc,"Error de comunicacion");
+		if(pagina->socket_pedido != NULL){
+			if (enviar_header(pagina->socket_pedido, header_cpu) < sizeof(header_cpu)) {
+				log_error(log_umc,"Error de comunicacion con CPU");
+			}else{
+				log_info(log_umc,"se mando al cpu la respuesta de lectura con error");
+			}
+		}else{
+			log_info(log_umc,"El cpu ya no se encuentra disponible");
 		}
 		log_info(log_umc,"hubo un error al leer la pagina");
 		free(pagina);
+		free(pagina_pedido);
 	}
 }
 
 void escribir_pagina(void *buffer, int socket_conexion){
+	generar_dump(0);
 	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
 	deserializar_pagina_pedido_completa(buffer, pagina);
 	bool es_cpu(t_cpu *elemento){
@@ -588,10 +598,17 @@ void escribir_pagina(void *buffer, int socket_conexion){
 			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,id_programa);
 			tabla[pagina->pagina].uso = 1;
 
-			if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
-				log_error(log_umc,"Error al finalizar programa");
+
+			if(socket_conexion != NULL){
+				if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
+					log_error(log_umc,"Error de comunicacion con CPU");
+				}else{
+					log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
+				}
+			}else{
+				log_info(log_umc,"El cpu ya no se encuentra disponible");
 			}
-			log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
+
 			free(header_cpu);
 			free(pagina);
 		//2° caso: esta en memoria
@@ -609,10 +626,17 @@ void escribir_pagina(void *buffer, int socket_conexion){
 				if(configuracion->entradas_tlb != 0){
 					guardar_en_TLB(pagina->pagina,id_programa,tabla[pagina->pagina].frame);//pongo la pagina en la cache TLB
 				}
-				if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
-					log_error(log_umc,"Error de comunicacion con el CPU");
+
+				if(socket_conexion != NULL){
+					if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
+						log_error(log_umc,"Error de comunicacion con CPU");
+					}else{
+						log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
+					}
+				}else{
+					log_info(log_umc,"El cpu ya no se encuentra disponible");
 				}
-				log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
+
 				free(header_cpu);
 				free(pagina);
 			}
@@ -620,7 +644,7 @@ void escribir_pagina(void *buffer, int socket_conexion){
 				else{
 					// Pido la pagina a Swap. La guardo en memoria y solo escribo en la memoria
 					log_info(log_umc,"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
-					//guardar_pagina_en_buffer(id_programa,socket_conexion,pagina);
+
 					buffer_programas[id_programa] = pagina;//guardo la pagina en un buffer
 
 					t_header *header_swap = malloc(sizeof(t_header));
@@ -657,7 +681,7 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 	header_cpu->id_proceso_receptor = PROCESO_CPU;
 	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-
+	t_pagina_pedido_completa *pagina_buffer;
 
 	if(id_mensaje == RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR){
 		t_pagina_completa *pagina_recibida_de_swap = malloc(sizeof(t_pagina_completa));
@@ -666,7 +690,7 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		pid = pagina_recibida_de_swap->id_programa;
 		socket = pagina_recibida_de_swap->socket_pedido;
 
-		t_pagina_pedido_completa *pagina_buffer = buffer_programas[pid];
+		pagina_buffer = buffer_programas[pid];
 		pagina_recibida_de_swap->offset = pagina_buffer->offset;
 		pagina_recibida_de_swap->tamanio = pagina_buffer->tamanio;
 
@@ -687,23 +711,37 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		tabla[pagina_recibida_de_swap->pagina].modificado = 1;
 
 		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
-		log_info(log_umc,"Se manda la respuesta al cpu de la escritura OK ");
-		free(pagina_buffer);
+
+
 		free(pagina_recibida_de_swap);
 	}
 	else if(id_mensaje == ERROR_LEER_PAGINA_PARA_ESCRIBIR){
+		log_info(log_umc,"Error al leer la pagina del swap, necesaria para escribir");
 		t_pagina *pagina_recibida_de_swap = malloc(sizeof(t_pagina));
 		deserializar_pagina(buffer, pagina_recibida_de_swap);
+
 		pid = pagina_recibida_de_swap->id_programa;
+		pagina_buffer = buffer_programas[pid];
+
 		socket = pagina_recibida_de_swap->socket_pedido;
 		log_error(log_umc,"Hubo un error al recibir del swap la PAGINA:%d PID:%d",pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa);
 		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
 		free(pagina_recibida_de_swap);
-		log_info(log_umc,"Se manda la respuesta al cpu de la escritura con ERROR ");
+
 	}
 	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
 			log_error(log_umc,"Error al enviar header a cpu");
 	}
+	if(socket != NULL){
+		if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
+			log_error(log_umc,"Error de comunicacion con CPU");
+		}else{
+			log_info(log_umc,"Se manda la respuesta al cpu de la escritura");
+		}
+	}else{
+		log_info(log_umc,"El cpu ya no se encuentra disponible");
+	}
+	free(pagina_buffer);
 	free(header_cpu);
 }
 
@@ -750,6 +788,7 @@ void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje){
 		log_error(log_umc,"El SWAP fallo al almacenar el nuevo programa PID:%d",programa_id->id_programa);
 		header_nucleo->id_mensaje = ERROR_INICIALIZAR_PROGRAMA;
 	}
+
 	if (enviar_buffer(socket_nucleo, header_nucleo, payload_nucleo)
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc,"Error de comunicacion con el Nucleo");
@@ -774,10 +813,17 @@ void enviar_pagina(int socket, int proceso_receptor, t_pagina_pedido_completa *p
 
 	header_cpu->longitud_mensaje = payload_cpu->longitud_buffer;
 
-	if (enviar_buffer(socket, header_cpu, payload_cpu)
-			< sizeof(t_header) + payload_cpu->longitud_buffer) {
-		log_error(log_umc,"Fallo al responder pedido CPU");
+	if(socket != NULL){
+		if (enviar_buffer(socket, header_cpu, payload_cpu)
+				< sizeof(t_header) + payload_cpu->longitud_buffer) {
+			log_error(log_umc,"Fallo al responder pedido CPU");
+		}else{
+			log_info(log_umc,"se mando al cpu la lectura solicitada");
+		}
+	}else{
+		log_info(log_umc,"El cpu ya no se encuentra disponible");
 	}
+
 
 	free(header_cpu);
 	free(payload_cpu);
@@ -788,10 +834,10 @@ void finalizar_programa(void *buffer,int id_mensaje) {
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,programa->id_programa);
-	bool es_pid(int pid){
-		return (pid == programa->id_programa);
+	bool es_pid(t_programa * programa_a_finalizar){
+		return (programa_a_finalizar->id_programa == programa->id_programa);
 	}
-	list_remove_by_condition(lista_procesos_activos,(void*)es_pid);
+	t_programa * programa_a_matar = list_remove_by_condition(lista_procesos_activos,(void*)es_pid);
 
 	//saco de tlb paginas asociadas al proceso
 	flush_programa_tlb(programa->id_programa);
@@ -800,7 +846,7 @@ void finalizar_programa(void *buffer,int id_mensaje) {
 	liberar_marcos(programa->id_programa);
 	//saco de memoria - pongo toda la pagina con \0 , hace falta?
 	//elimino la lista usada para los algoritmos
-	list_clean(listas_algoritmo[programa->id_programa].lista_paginas_mp);
+
 	list_destroy(listas_algoritmo[programa->id_programa].lista_paginas_mp);
 
 	t_header *header_swap = malloc(sizeof(t_header));
@@ -819,7 +865,9 @@ void finalizar_programa(void *buffer,int id_mensaje) {
 			< sizeof(header_swap) + payload_swap->longitud_buffer) {
 		log_error(log_umc,"Fallo al finalizar el programa");
 	}
+	log_info(log_umc,"Se mando al swap a eliminar el PROCESO:%d",programa_swap->id_programa);
 
+	free(programa_a_matar);
 	free(programa);
 	free(header_swap);
 	free(programa_swap);
@@ -831,18 +879,16 @@ void respuesta_finalizar_programa(void *buffer,int id_mensaje) {
 
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
-	log_info(log_umc,"se finalizo el pid %d",programa->id_programa);
+	log_info(log_umc,"El swap finalizo el PROCESO: %d",programa->id_programa);
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 	header_nucleo->id_mensaje = id_mensaje;
 
-
-
 	t_buffer *payload_nucleo = serializar_programa(programa);
 
 	header_nucleo->longitud_mensaje = payload_nucleo->longitud_buffer;
-	log_info(log_umc,"Se finaliza el programa");
+	log_info(log_umc,"Se manda al nucleo la confirmacion de la eliminacino del programa");
 	if (enviar_buffer(socket_nucleo, header_nucleo, payload_nucleo)
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc,"Fallo al responder pedido CPU");
@@ -858,7 +904,7 @@ void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
 		return (elemento->socket_cpu == socket_cpu);
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus,(void*)es_cpu);
-	if(cpu != NULL){
+	if(cpu != NULL){ // hago esto por las dudas de que tenga un mismo fd que otra anterior
 		pthread_mutex_lock(&mutex_lista_cpus);
 		list_remove_by_condition(lista_cpus,(void*)es_cpu);
 		pthread_mutex_unlock(&mutex_lista_cpus);
@@ -912,8 +958,8 @@ void cambiar_retardo() {
 }
 
 void generar_dump(int pid) {
-	bool es_pid(int pid_de_lista){
-		return (pid_de_lista == pid);
+	bool es_pid(t_programa * programa_a_finalizar){
+		return (programa_a_finalizar->id_programa == pid);
 	}
 
 	if (pid == 0){ // se pidio de todos los procesos
@@ -1338,8 +1384,8 @@ void marcar_todas_modificadas(){
 	bool es_true(t_tabla_cantidad_entradas *elemento){
 		return (elemento->pid == pid);
 	}
-	bool es_pid(int pid_de_lista){
-		return (pid_de_lista == pid);
+	bool es_pid(t_programa * programa_a_finalizar){
+		return (programa_a_finalizar->id_programa == pid);
 	}
 	t_tabla_cantidad_entradas * entradas;
 	while(pid < CANT_TABLAS_MAX){
@@ -1530,22 +1576,6 @@ void liberar_marcos(int pid){
 	}
 }
 
-/*void eliminar_programa_nuevo_en_buffer(int pid){
-	bool es_buffer(t_programa_completo *un_buffer){
-		return (un_buffer->id_programa == pid);
-	}
-	t_programa_completo * buffer_nuevo_programa = (t_programa_completo *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
-	free(buffer_nuevo_programa);
-}*/
-
-/*void eliminar_pagina_completa_en_buffer(int pid){
-	bool es_buffer(t_pagina_completa *un_buffer){
-		return (un_buffer->id_programa == pid);
-	}
-	t_pagina_completa * buffer_pag_completa = (t_programa_completo *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
-	free(buffer_pag_completa);
-}*/
-
 void cambiar_proceso_activo(void * buffer, int socket){
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
@@ -1630,4 +1660,18 @@ void txt_write_in_stdout_all(char* string,int pid,int nro_pagina) {
 	i++;
 	}
 	fflush(stdout);
+}
+
+void finalizar_cpu(int socket_cpu){
+
+	bool es_cpu(t_cpu *elemento){
+		return (elemento->socket_cpu == socket_cpu);
+	}
+	t_cpu * cpu = (t_cpu *) list_find(lista_cpus,(void*)es_cpu);
+	if(cpu != NULL){ // hago esto por las dudas de que tenga un mismo fd que otra anterior
+		pthread_mutex_lock(&mutex_lista_cpus);
+		list_remove_by_condition(lista_cpus,(void*)es_cpu);
+		pthread_mutex_unlock(&mutex_lista_cpus);
+		free(cpu);
+	}
 }
