@@ -13,6 +13,9 @@
 #include <commons/log.h>
 #include <parser/metadata_program.h>
 #include <semaphore.h>
+#include <sys/inotify.h>
+#include <errno.h>
+#include <sys/types.h>
 
 #define NEW 0
 #define READY 1
@@ -22,6 +25,13 @@
 
 #define NO_ASIGNADO 90 //estaba negativo y pinchaba al asignarse en un int, de ultima cambiar el tipo
 #define VALOR_INICIAL_VARIABLE_COMPARTIDA 0
+
+#define PATH_CONFIGURACIONES_NUCLEO "config.nucleo.ini"
+
+//------------ Constantes para ionotify-----------------//
+#define IONOTIFY_EVENT_SIZE (sizeof (struct inotify_event) + 30)
+#define IONOTIFY_BUFFER_EVENT_SIZE (30 * IONOTIFY_EVENT_SIZE)
+//-----------------------------------------------------//
 
 t_log *logger_manager;
 
@@ -184,4 +194,6 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 void respuesta_matar(void * buffer, int socket_cpu);
 void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos);
 void avisar_para_que_desbloquee(char *nombre_sem);
+void monitorear_configuraciones();
+void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion, t_config_nucleo *configuracion_nucleo);
 #endif /* NUCLEO_H_ *///

@@ -47,6 +47,8 @@ t_dictionary *solitudes_semaforo;
 
 pthread_t thread_exec;
 
+pthread_t thread_monitoreo_configuraciones; //En este thread se usa ionotify para monitorear el .ini y actualizar t_config_nucleo cuando sea necesario
+
 int atiendo_solicitudes;
 
 ////////////////////FUNCION PRINCIPAL///////////////////////////
@@ -57,10 +59,15 @@ int main(void) {
 	log_trace(logger_manager, "Proceso Nucleo creado.");
 	pid_count = 1;
 	atiendo_solicitudes = 1;
+
+	//---------------------------------- Configuraciones ----------------------------------//
 	configuracion = malloc(sizeof(t_config_nucleo));
 	configuracion->ip_umc = malloc(30);
-	cargar_configuracion_nucleo("config.nucleo.ini", configuracion);
+	cargar_configuracion_nucleo(PATH_CONFIGURACIONES_NUCLEO, configuracion);
+	pthread_create(&thread_monitoreo_configuraciones, NULL, (void*) monitorear_configuraciones, NULL);
 	//log_trace(logger_manager, "\nSe cargaron las configuraciones con los siguientes valores: \nIP_UMC=%s\nPUERTO_UMC=%i\nPUERTO_PROG=%i\nPUERTO_CPU=%i\nQUANTUM=%i\nQUANTUM_SLEEP=%i\nSEM_IDS=%s\nSEM_INIT=%s\nIO_IDS=%s\nIO_SLEEP=%s\nSHARED_VARS=%s\nSTACK_SIZE=%i\n", configuracion->ip_umc, configuracion->puerto_umc, configuracion->puerto_prog, configuracion->puerto_cpu, configuracion->quantum, configuracion->quantum_sleep, "es un array, no se logea por tiempo", "idem", "idem", "idem", "idem", configuracion->stack_size); //Descomentar para desarrollo, o hacer que imprima los array y dejar descomentado
+	//-------------------------------------------------------------------------------------//
+
 
 	lista_procesos = list_create();
 	cola_ready = queue_create();
@@ -1143,3 +1150,78 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 	sem_post(&mutex_lista_procesos);
 
 }
+
+// Monitorea los cambios en el archivo de configuración y actualiza t_config_nucleo cuando ocurra
+void monitorear_configuraciones(){
+
+	log_trace(logger_manager, "[IONOTIFY] Inicializando minitoreo de archivo de configuraciones...");
+
+	char buffer_eventos[IONOTIFY_BUFFER_EVENT_SIZE]; //Buffer de eventos
+
+	int fd_ionotify = inotify_init();
+
+	if (fd_ionotify < 0)
+		log_error(logger_manager, "[IONOTIFY] Ocurrio un problema al inicializar");
+	else
+		log_trace(logger_manager, "[IONOTIFY] Inicializacion correcta.");
+
+	int fd_watch = inotify_add_watch(fd_ionotify, PATH_CONFIGURACIONES_NUCLEO, IN_MODIFY); //Se saca  | IN_CREATE | IN_DELETE | IN_MODIFY
+
+
+	while(1){
+
+		int cantidad_lectura_de_eventos = read(fd_ionotify, buffer_eventos, IONOTIFY_BUFFER_EVENT_SIZE); //Este read es una llamada bloqueante
+
+		if (cantidad_lectura_de_eventos < 0)
+			log_error(logger_manager, "[IONOTIFY] Ocurrio un problema al leer los eventos en el buffer");
+
+		int offset = 0;
+
+		while (offset < cantidad_lectura_de_eventos) {
+
+			struct inotify_event *evento = (struct inotify_event *) &buffer_eventos[offset]; //Obtengo el evento
+
+			if (evento->mask & IN_MODIFY) {
+				//log_trace(logger_manager, "[IONOTIFY] El archivo de configuraciones fue modificado, actualizando datos...");
+
+				cargar_nuevas_configuraciones_del_nucleo(PATH_CONFIGURACIONES_NUCLEO, configuracion);
+
+				//log_trace(logger_manager, "[IONOTIFY] Las configuraciones fueron actualizadas con exito!");
+				//log_trace(logger_manager, "[IONOTIFY] Ahora los valores son los siguientes: QUANTUM=%i, QUANTUM_SLEEP=%i" , configuracion->quantum, configuracion->quantum_sleep);
+			}
+			offset += sizeof (struct inotify_event) + evento->len;
+		}
+	}
+
+	//------------ _Liberación de recursos IONOTIFY -----------//
+	inotify_rm_watch(fd_ionotify, fd_watch);
+	close(fd_ionotify);
+	//---------------------------------------------------------//
+
+}
+
+//IONOTIFY: Carga solo los parametros del .ini que deben poderse modificar en tiempo de ejecución según el enunciado (QUANTUM y QUANTUM_SLEEP)
+void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion, t_config_nucleo *configuracion_nucleo) {
+
+	t_config *configuracion = config_create(archivo_configuracion);
+
+	if(config_has_property(configuracion, "QUANTUM")){
+		int nuevo_quantum = config_get_int_value(configuracion, "QUANTUM");
+		if (config_has_property(configuracion, "QUANTUM") && configuracion_nucleo->quantum != nuevo_quantum) {
+			log_trace(logger_manager, "[IONOTIFY] Se cambia el valor del QUANTUM de %i a %i" , configuracion_nucleo->quantum, nuevo_quantum);
+			configuracion_nucleo->quantum = nuevo_quantum;
+		}
+	}
+
+	if(config_has_property(configuracion, "QUANTUM_SLEEP")){
+		int nuevo_quantum_sleep = config_get_int_value(configuracion, "QUANTUM_SLEEP");
+		if (config_has_property(configuracion, "QUANTUM_SLEEP") && configuracion_nucleo->quantum_sleep != nuevo_quantum_sleep) {
+			log_trace(logger_manager, "[IONOTIFY] Se cambia el valor del QUANTUM_SLEEP de %i a %i" , configuracion_nucleo->quantum_sleep, nuevo_quantum_sleep);
+			configuracion_nucleo->quantum_sleep = nuevo_quantum_sleep;
+		}
+	}
+
+
+	config_destroy(configuracion);
+}
+
