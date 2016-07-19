@@ -8,6 +8,7 @@
 #ifndef ATIENDO_CPU_H_
 #define ATIENDO_CPU_H_
 
+#include <comunicaciones.h>
 #include "serializacion.h"
 #include "serializacion_nucleo_cpu.h"
 #include "nucleo.h"
@@ -125,5 +126,9 @@ void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida);
 t_buffer *serializar_pcb(t_pcb *pcb);
 
 void deserializar_pcb(void *buffer, t_pcb *pcb);
+
+t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
+
+void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
 
 #endif /* ATIENDO_CPU_H_ */

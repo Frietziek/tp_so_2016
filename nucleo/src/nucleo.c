@@ -1000,7 +1000,6 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 	envio_buffer_a_proceso(socket_cpu, PROCESO_CPU, MENSAJE_PCB_NUCLEO,
 			"error al enviar pcb quantum a cpu", pcb_quantum_buffer);
 	log_info(logger_manager, "Se envio el Proceso a la CPU");
-	libero_pcb(pcb_quantum_a_cpu->pcb);
 	free(pcb_quantum_a_cpu);
 	free(pcb_quantum_buffer);
 }
@@ -1045,7 +1044,7 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 	sem_wait(&mutex_cola_ready);
 	queue_push(cola_ready, pcb_quantum->pcb);
 	log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
-			pcb_out->pid);
+			pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_ready);
 	sem_post(&cant_ready);
 
@@ -1072,7 +1071,7 @@ void libero_pcb(t_pcb *pcb) {
 			free(indice_variables->posicion_memoria);
 		}
 		free(indice_stack->posicion_variable_retorno);
-		free(indice_stack->variables);
+		//	free(indice_stack->variables);
 	}
 	free(pcb->instrucciones_serializadas);
 	free(pcb->indice_stack);
