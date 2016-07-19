@@ -628,17 +628,13 @@ void inicializar_variables_compartidas(char **shared_vars) {
 	sem_wait(&mutex_variables_compartidas);
 	variables_compartidas = dictionary_create();
 	int i = 0;
-	int j = 0;
 	while (shared_vars[i] != NULL) {
-		if (string_starts_with(shared_vars[i], "!")) {
-			t_valor_variable_compartida *valor_variable_compartida = malloc(
-					sizeof(t_valor_variable_compartida));
-			valor_variable_compartida->valor =
-			VALOR_INICIAL_VARIABLE_COMPARTIDA;
-			dictionary_put(variables_compartidas, shared_vars[j],
-					valor_variable_compartida);
-			++j;
-		}
+		t_valor_variable_compartida *valor_variable_compartida = malloc(
+				sizeof(t_valor_variable_compartida));
+		valor_variable_compartida->valor =
+		VALOR_INICIAL_VARIABLE_COMPARTIDA;
+		dictionary_put(variables_compartidas, shared_vars[i],
+				valor_variable_compartida);
 		++i;
 	}
 	sem_post(&mutex_variables_compartidas);
@@ -647,8 +643,13 @@ void inicializar_variables_compartidas(char **shared_vars) {
 void inicializar_solicitudes_semaforo(char **sem_id, char**sem_ini) {
 	int i = 0;
 	solitudes_semaforo = dictionary_create();
+
 	while (sem_id[i] != NULL || sem_ini[i] != NULL) {
-		pthread_t desbloq_pcb_semaforo;
+		++i;
+	}
+	pthread_t desbloq_pcb_semaforo[i];
+	i = 0;
+	while (sem_id[i] != NULL || sem_ini[i] != NULL) {
 		t_atributos_semaforo *atributos = malloc(sizeof(t_atributos_semaforo));
 		atributos->valor = atoi(sem_ini[i]);
 		atributos->posicion_semaforo_contador_solicitudes = i;
@@ -658,7 +659,7 @@ void inicializar_solicitudes_semaforo(char **sem_id, char**sem_ini) {
 		sem_wait(&mutex_solicitudes_semaforo);
 		dictionary_put(solitudes_semaforo, sem_id[i], atributos);
 		sem_post(&mutex_solicitudes_semaforo);
-		pthread_create(&desbloq_pcb_semaforo, NULL,
+		pthread_create(&desbloq_pcb_semaforo[i], NULL,
 				(void*) desbloquear_pcb_semaforo, atributos);
 		++i;
 
@@ -668,9 +669,12 @@ void inicializar_solicitudes_semaforo(char **sem_id, char**sem_ini) {
 void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 	diccionario_entrada_salida = dictionary_create();
 	int i = 0;
-
 	while (io_ids[i] != NULL) {
-		pthread_t hilo_io;
+		++i;
+	}
+	pthread_t hilo_io[i];
+	i = 0;
+	while (io_ids[i] != NULL) {
 		t_solicitudes_entrada_salida *io = malloc(
 				sizeof(t_solicitudes_entrada_salida));
 		io->retardo = atoi(io_sleep[i]);
@@ -678,7 +682,7 @@ void inicializar_colas_entrada_salida(char **io_ids, char **io_sleep) {
 		sem_init(&sem_dispositivo[i], 0, 0);
 		io->solicitudes = queue_create();
 		dictionary_put(diccionario_entrada_salida, io_ids[i], io);
-		pthread_create(&hilo_io, NULL,
+		pthread_create(&hilo_io[i], NULL,
 				(void*) atender_solicitudes_entrada_salida, io);
 		++i;
 	}
@@ -712,10 +716,11 @@ void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
 
 		sem_wait(&(sem_dispositivo[io->posicion_array_semaforo])); //avanzo si hay un proceso en la cola de solicitudes
 		t_solicitud_entrada_salida_cpu * solicitud = queue_pop(io->solicitudes);
-		//10* porque paso de milisegundo a microsegundo
+
 		log_info(logger_manager,
 				"Comienza io del socket cpu :%d ,con retardo de: %d",
 				solicitud->socket_cpu, io->retardo);
+		//10* porque paso de milisegundo a microsegundo
 		usleep(10 * io->retardo * solicitud->cantidad_operaciones);
 
 		sem_post(&(sem_dispositivo[io->posicion_array_semaforo]));
@@ -827,7 +832,7 @@ void cargar_configuracion_nucleo(char *archivoConfig,
 		perror("error al cargar STACK_SIZE");
 	}
 
-	//free(configuracion);
+//free(configuracion);
 	config_destroy(configuracion);
 }
 
@@ -851,8 +856,9 @@ int obtener_variable_compartida(char *nombre_variable_compartida) {
 
 void asignar_variable_compartida(char *nombre_variable_compartida, int valor) {
 	sem_wait(&mutex_variables_compartidas);
-	((t_valor_variable_compartida*) dictionary_get(variables_compartidas,
-			nombre_variable_compartida))->valor = valor;
+	t_valor_variable_compartida *var_comp = dictionary_get(
+			variables_compartidas, nombre_variable_compartida);
+	var_comp->valor = valor;
 	sem_post(&mutex_variables_compartidas);
 }
 
@@ -874,8 +880,8 @@ void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
 	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
 	sacar_socket_cpu_de_tabla(socket_cpu);
 	queue_push(cola_block, pcb);
-//	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
-//			pcb->pid);
+	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+			pcb->pid);
 	sem_post(&mutex_cola_block);
 
 	sem_wait(&mutex_cola_exec);
@@ -897,7 +903,7 @@ void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 
 	t_pid *pid = malloc(sizeof(t_pid));
 	pid->pid = pcb->pid;
-	//se bloquea el proceso, la cpu no se bloquea
+//se bloquea el proceso, la cpu no se bloquea
 	queue_push(
 			((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
 					nombre_semaforo))->solicitudes, pid);
@@ -979,7 +985,8 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 
 	sem_wait(&mutex_cola_exec);
 	queue_push(cola_exec, pcb_a_exec);
-	//log_info(logger_manager, "PROCESO %i-Se agrega a la cola EXEC",pcb_a_exec->pid);
+	log_info(logger_manager, "PROCESO %i-Se agrega a la cola EXEC",
+			pcb_a_exec->pid);
 	sem_post(&mutex_cola_exec);
 
 	actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(pcb_a_exec, socket_cpu);
@@ -1141,6 +1148,14 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 
 	sem_wait(&mutex_lista_procesos);
 	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
+		log_info(logger_manager, "El socket cpu del proceso es: %i",
+				proceso->socket_cpu);
+		log_info(logger_manager, "El socket consola del proceso es: %i",
+				proceso->socket_consola);
+		if (proceso->pcb != NULL) {
+			log_info(logger_manager, "El estado del pcb es: %i",
+					proceso->pcb->estado);
+		}
 		return (pcb->pid == proceso->pcb->pid);
 	}
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
