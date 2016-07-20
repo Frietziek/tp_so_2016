@@ -10,10 +10,7 @@
 int calcula_pagina(t_puntero instruccion) {
 	int modulo = (int) (instruccion) % tamanio_pagina;
 	int division = (int) (instruccion) / tamanio_pagina;
-	if (modulo == 0) {
-		++division;
-	}
-	return division;
+	return (modulo == 0) ? ++division : division;
 }
 
 int calcula_offset(t_puntero instruccion) {

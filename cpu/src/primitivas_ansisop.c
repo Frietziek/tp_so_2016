@@ -80,7 +80,7 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	// TODO Descomentar para probar con procesos
 	sem_wait(&s_variable_stack);
 
-	contenido_variable = *((int *)valor_pagina);
+	contenido_variable = *((int *) valor_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
@@ -133,7 +133,7 @@ t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) 
 
 	sem_wait(&s_variable_compartida);
 
-	contenido_variable = *((int *)valor_pagina);
+	contenido_variable = *((int *) valor_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
@@ -356,14 +356,13 @@ t_indice_stack* posiciono_indice_stack() {
 }
 
 t_variables_stack* posiciono_indice_variables(t_indice_stack* indice_stack) {
-	if (indice_stack->cantidad_variables == VACIO) {
-		indice_stack->variables = malloc(sizeof(t_variables_stack));
-	} else {
-		indice_stack->variables = (t_variables_stack*) realloc(
-				indice_stack->variables,
-				sizeof(t_variables_stack)
-						* (indice_stack->cantidad_variables + 1));
-	}
+	int cantidad_variables = indice_stack->cantidad_variables;
+	indice_stack->variables =
+			(cantidad_variables == VACIO) ?
+					malloc(sizeof(t_variables_stack)) :
+					(t_variables_stack*) realloc(indice_stack->variables,
+							sizeof(t_variables_stack)
+									* (cantidad_variables + 1));
 	t_variables_stack* indice_variables = indice_stack->variables;
 	indice_variables += indice_stack->cantidad_variables;
 	return indice_variables;

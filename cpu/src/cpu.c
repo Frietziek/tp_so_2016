@@ -153,8 +153,7 @@ void atender_seniales(int signum) {
 			sem_wait(&s_matar_cpu);
 		}
 		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
-				MENSAJE_DESCONEXION_CPU,
-				"Fallo al enviar Desconexion al Nucleo.");
+		MENSAJE_DESCONEXION_CPU, "Fallo al enviar Desconexion al Nucleo.");
 		sem_post(&s_cpu_finaliza);
 		break;
 	default:
@@ -428,19 +427,15 @@ void ejecuto_instrucciones() {
 }
 
 int calcula_paginas_instruccion() {
-	int pagina_start = calcula_pagina(
-			deserializo_instruccion(pcb_quantum->pcb->pc)->start);
+	t_intructions *instruccion = deserializo_instruccion(pcb_quantum->pcb->pc);
+	int pagina_start = calcula_pagina(instruccion->start);
 	int pagina_tamanio = calcula_pagina(
-			deserializo_instruccion(pcb_quantum->pcb->pc)->start
-					+ deserializo_instruccion(pcb_quantum->pcb->pc)->offset);
+			instruccion->start + instruccion->offset);
 	return pagina_tamanio - pagina_start + 1;
 }
 
 t_intructions *deserializo_instruccion(int pc) {
-	t_intructions *puntero_instruccion =
-			pcb_quantum->pcb->instrucciones_serializadas;
-	puntero_instruccion += pc;
-	return puntero_instruccion;
+	return pcb_quantum->pcb->instrucciones_serializadas + pc;
 }
 
 void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
@@ -460,19 +455,10 @@ void leo_instruccion_desde_UMC(int pagina) {
 
 	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
 	t_intructions *instruccion = deserializo_instruccion(pcb_quantum->pcb->pc);
-	p_pagina->pagina = calcula_pagina(
-			deserializo_instruccion(pcb_quantum->pcb->pc)->start) + pagina;
-	p_pagina->offset = calcula_offset(instruccion->start);
-	p_pagina->tamanio = instruccion->offset;
-	if (calcula_pagina(instruccion->start + p_pagina->tamanio)
-			!= p_pagina->pagina) {
-		p_pagina->tamanio = tamanio_pagina - p_pagina->offset;
-	}
-	if (pagina != 0) {
-		p_pagina->tamanio = instruccion->offset
-				- (tamanio_pagina - p_pagina->offset);
-		p_pagina->offset = 0;
-	}
+	p_pagina->pagina = calcula_pagina(instruccion->start) + pagina;
+	p_pagina->offset = calcula_offset_instruccion(instruccion->start, pagina);
+	p_pagina->tamanio = calcula_tamanio_instruccion(instruccion, p_pagina,
+			pagina);
 	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
 
 	pagina_es_codigo = 1;
@@ -492,7 +478,7 @@ void respuesta_leer_compartida(void *buffer) {
 	t_variable_completa *compartida = malloc(sizeof(t_variable_completa));
 	deserializar_variable_completa(buffer, compartida);
 	valor_pagina = realloc(valor_pagina, sizeof(int));
-	memcpy(valor_pagina, compartida->valor, sizeof(int));
+	memcpy(valor_pagina, (void*) compartida->valor, sizeof(int));
 	free(compartida);
 	sem_post(&s_variable_compartida);
 }
@@ -516,4 +502,25 @@ void libero_pcb() {
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);
 	free(pcb_quantum->pcb);
+}
+
+int calcula_offset_instruccion(t_puntero_instruccion start, int pagina) {
+	return (pagina == 0) ? calcula_offset(start) : 0;
+}
+
+int calcula_tamanio_instruccion(t_intructions *instruccion,
+		t_pagina_pedido *p_pagina, int pagina) {
+	int tamanio =
+			(instruccion_en_una_pagina(instruccion, p_pagina)) ?
+					instruccion->offset : tamanio_pagina - p_pagina->offset;
+	return (pagina == 0) ?
+			tamanio :
+			instruccion->offset
+					- (tamanio_pagina - calcula_offset(instruccion->start));
+}
+
+int instruccion_en_una_pagina(t_intructions *instruccion,
+		t_pagina_pedido *pagina) {
+	return (calcula_pagina(instruccion->start + instruccion->offset)
+			== pagina->pagina);
 }
