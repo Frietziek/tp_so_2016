@@ -567,7 +567,6 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 }
 
 void escribir_pagina(void *buffer, int socket_conexion){
-	generar_dump(0);
 	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
 	deserializar_pagina_pedido_completa(buffer, pagina);
 	bool es_cpu(t_cpu *elemento){
@@ -729,9 +728,7 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje){
 		free(pagina_recibida_de_swap);
 
 	}
-	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
-			log_error(log_umc,"Error al enviar header a cpu");
-	}
+
 	if(socket != NULL){
 		if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
 			log_error(log_umc,"Error de comunicacion con CPU");
