@@ -17,6 +17,7 @@
 #include <serializacion.h>
 #include <comunicaciones.h>
 #include <commons/collections/dictionary.h>
+#include <commons/collections/list.h>
 #include "nucleo.h"
 #include <commons/config.h>
 #include <commons/string.h>
@@ -178,7 +179,8 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		t_pagina_tamanio *pagina = malloc(sizeof(t_pagina_tamanio));
 		deserializar_pagina_tamanio(paquete->payload, pagina);
 		tamanio_pagina = pagina->tamanio;
-		printf("Se cargo el tamanio de la pagina: %i\n", tamanio_pagina);
+		log_info(logger_manager, "Se cargo el tamanio de la pagina: %i",
+				tamanio_pagina);
 		free(pagina);
 		break;
 	case RESPUESTA_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a poner en cola ready
@@ -274,13 +276,6 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 }
 
 void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
-
-	printf("proceso emisor: %d\n", paquete_buffer->header->id_proceso_emisor);
-	printf("proceso receptor: %d\n",
-			paquete_buffer->header->id_proceso_receptor);
-	printf("id mensaje: %d\n", paquete_buffer->header->id_mensaje);
-	printf("longitud payload: %d\n\n",
-			paquete_buffer->header->longitud_mensaje);
 
 	switch (paquete_buffer->header->id_mensaje) {
 	case INICIAR:

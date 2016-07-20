@@ -427,6 +427,7 @@ void ejecuto_instrucciones() {
 		matar_cpu = 0;
 	} else {
 		id_mensaje = MENSAJE_QUANTUM;
+		log_info(logger_manager, "Finaliza Quantum.");
 	}
 
 	enviar_PCB(id_mensaje);

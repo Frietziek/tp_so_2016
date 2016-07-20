@@ -36,7 +36,6 @@ t_puntero ansisop_definir_variable(t_nombre_variable variable) {
 }
 
 t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
-	log_info(logger_manager, "La posicion de la variable %c.", variable);
 
 	t_indice_stack* indice_stack = posiciono_indice_stack();
 
@@ -52,7 +51,8 @@ t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 					+ puntero_variable->posicion_memoria->offset;
 		}
 	}
-	log_info(logger_manager, "Es %i.", posicion_memoria);
+	log_info(logger_manager, "La posicion de la variable: %c es: %i.", variable,
+			posicion_memoria);
 	sem_post(&s_instruccion_finalizada);
 
 	return posicion_memoria;
@@ -77,7 +77,6 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	free(buffer->contenido_buffer);
 	free(buffer);
 
-	// TODO Descomentar para probar con procesos
 	sem_wait(&s_variable_stack);
 
 	contenido_variable = *((int *) valor_pagina);

@@ -28,7 +28,7 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		break;
 	case MENSAJE_IMPRIMIR:
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_IMPRIMIR");
-		atiendo_imprimir(paquete->payload, socket_cpu, configuracion);
+		atiendo_imprimir(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_IMPRIMIR_TEXTO:
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_IMPRIMIR_TEXTO");
@@ -73,8 +73,6 @@ void atiendo_handshake(void *buffer, int socket_conexion) {
 		perror("Fallo al enviar confirmacion Handshake\n");
 	}
 
-	// TODO Eliminar esta linea de test
-	//socket_cpu = socket_conexion;
 	agregar_cpu_disponible(socket_conexion);
 
 	free(header);
@@ -98,9 +96,8 @@ void atiendo_obtener_compartida(void *buffer, int socket_conexion,
 
 	t_buffer *p_cpu = serializar_variable_completa(variable_completa);
 	h_cpu->longitud_mensaje = p_cpu->longitud_buffer;
-	int envio = enviar_buffer(socket_conexion, h_cpu, p_cpu);
-	log_info(logger_manager, "Se enviaron %d bytes\n", envio);
-	if (envio < sizeof(h_cpu) + p_cpu->longitud_buffer) {
+	if (enviar_buffer(socket_conexion, h_cpu, p_cpu)
+			< sizeof(h_cpu) + p_cpu->longitud_buffer) {
 		log_info(logger_manager,
 				"Fallo al enviar Variable Compartida al CPU\n");
 	}
@@ -137,8 +134,7 @@ void atiendo_asignar_compartida(void *buffer, int socket_conexion,
 
 }
 
-void atiendo_imprimir(void *buffer, int socket_conexion,
-		t_config_nucleo *configuracion) {
+void atiendo_imprimir(void *buffer, int socket_conexion) {
 
 	t_variable_valor *variable = malloc(sizeof(t_valor_variable));
 	deserializar_variable_valor(buffer, variable);
@@ -151,11 +147,16 @@ void atiendo_imprimir(void *buffer, int socket_conexion,
 	t_buffer *p_consola = serializar_variable_valor(variable);
 	h_consola->longitud_mensaje = p_consola->longitud_buffer;
 
-	if (enviar_buffer(buscar_socket_consola_por_socket_cpu(socket_conexion),
-			h_consola, p_consola)
+	// TODO Revisar esta funcion, funciona en Eclipse, no por el script de compilacion
+	//int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
+
+	/*log_info(logger_manager, "Se imprime: %i a Consola: %i", variable->valor,
+			socket_consola);
+
+	if (enviar_buffer(socket_consola, h_consola, p_consola)
 			< sizeof(h_consola) + p_consola->longitud_buffer) {
 		perror("Fallo al enviar Imprimir a la Consola\n");
-	}
+	}*/
 
 	t_header *h_cpu = malloc(sizeof(t_header));
 	h_cpu->id_proceso_emisor = PROCESO_NUCLEO;

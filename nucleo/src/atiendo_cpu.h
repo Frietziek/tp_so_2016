@@ -95,8 +95,7 @@ void atiendo_obtener_compartida(void *buffer, int socket_conexion,
 		t_config_nucleo *configuracion);
 void atiendo_asignar_compartida(void *buffer, int socket_conexion,
 		t_config_nucleo *configuracion);
-void atiendo_imprimir(void *buffer, int socket_conexion,
-		t_config_nucleo *configuracion);
+void atiendo_imprimir(void *buffer, int socket_conexion);
 void atiendo_imprimir_texto(void *buffer, int socket_conexion,
 		t_config_nucleo *configuracion);
 void atiendo_entrada_salida(void *buffer, int socket_conexion,

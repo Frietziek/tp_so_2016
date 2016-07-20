@@ -1,5 +1,5 @@
 #! /bin/bash
 echo Compilando Nucleo...
-gcc -Wall -o nucleo_ejecutable src/nucleo.c src/atiendo_cpu.c src/serializacion_nucleo_consola.c src/serializacion_nucleo_cpu.c src/serializacion_nucleo_umc.c -lcomunicaciones -lserializacion -lpthread -lcommons -lparser-ansisop
+gcc -Wall -o nucleo_ejecutable src/atiendo_cpu.c src/nucleo.c src/serializacion_nucleo_consola.c src/serializacion_nucleo_cpu.c src/serializacion_nucleo_umc.c -lcomunicaciones -lserializacion -lpthread -lcommons -lparser-ansisop
 echo Levantando Nucleo...
-sudo ./nucleo_ejecutable
+./nucleo_ejecutable
