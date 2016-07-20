@@ -147,16 +147,15 @@ void atiendo_imprimir(void *buffer, int socket_conexion) {
 	t_buffer *p_consola = serializar_variable_valor(variable);
 	h_consola->longitud_mensaje = p_consola->longitud_buffer;
 
-	// TODO Revisar esta funcion, funciona en Eclipse, no por el script de compilacion
-	//int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
+	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
 
-	/*log_info(logger_manager, "Se imprime: %i a Consola: %i", variable->valor,
+	log_info(logger_manager, "Se imprime: %i a Consola: %i", variable->valor,
 			socket_consola);
 
 	if (enviar_buffer(socket_consola, h_consola, p_consola)
 			< sizeof(h_consola) + p_consola->longitud_buffer) {
 		perror("Fallo al enviar Imprimir a la Consola\n");
-	}*/
+	}
 
 	t_header *h_cpu = malloc(sizeof(t_header));
 	h_cpu->id_proceso_emisor = PROCESO_NUCLEO;

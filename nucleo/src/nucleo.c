@@ -969,7 +969,7 @@ void asignar_pcb_a_cola_exec() {
 		sem_post(&mutex_cola_cpu);
 
 		asignar_pcb_a_cpu(socket);
-		free(cpu);
+		//free(cpu);
 	}
 }
 
@@ -1040,17 +1040,17 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 	queue_push(cola_ready, pcb_quantum->pcb);
 	log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
 			pcb_quantum->pcb->pid);
-	sem_post(&mutex_cola_ready);
-	sem_post(&cant_ready);
-
 	agregar_cpu_disponible(socket_conexion);
 	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(pcb_quantum->pcb,
 			socket_conexion);
 
 	log_info(logger_manager, "Agregue pid: %d a cola ready",
 			pcb_quantum->pcb->pid);
-//asignar_pcb_a_cpu(socket_conexion);
 	libero_pcb(pcb_out);
+
+	sem_post(&mutex_cola_ready);
+	sem_post(&cant_ready);
+
 }
 
 void libero_pcb(t_pcb *pcb) {
