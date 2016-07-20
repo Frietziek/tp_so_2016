@@ -170,7 +170,6 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		respuesta_handshake_cpu_umc(paquete->payload);
 		break;
 	case RESPUESTA_LEER_PAGINA:
-		log_info(logger_manager, "Se leyo una pagina de UMC.");
 		respuesta_leer_pagina(paquete->payload);
 		break;
 	case RESPUESTA_ESCRIBIR_PAGINA:
@@ -219,7 +218,7 @@ void respuesta_leer_pagina(void *buffer) {
 	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
 	deserializar_pagina_pedido_completa(buffer, pagina);
 	log_info(logger_manager,
-			"Recibi pagina de umc, pagina: %i, offset: %i, tamanio: %i",
+			"Recibi de UMC la pagina: %i, offset: %i, tamanio: %i",
 			pagina->pagina, pagina->offset, pagina->tamanio);
 	valor_pagina = realloc(valor_pagina, pagina->tamanio);
 	size_pagina = pagina->tamanio;
@@ -330,7 +329,8 @@ void recibo_PCB(void *buffer) {
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 	cambio_proceso_activo();
 	sem_wait(&s_cambio_proceso);
-	ejecuto_instrucciones();
+	pthread_create(&hilo_instruccion, NULL, (void*) ejecuto_instrucciones,
+	NULL);
 }
 
 void enviar_PCB(int id_mensaje) {
@@ -363,12 +363,18 @@ void ejecuto_instrucciones() {
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
 			&& !matar_proceso && !excepcion_umc && !matar_cpu) {
 
-		int tamanio_instruccion =
-				deserializo_instruccion(pcb_quantum->pcb->pc)->offset;
+		t_intructions *instruccion_deserializada = deserializo_instruccion(
+				pcb_quantum->pcb->pc);
+
+		int tamanio_instruccion = instruccion_deserializada->offset;
 
 		char *instruccion = malloc(sizeof(char) * tamanio_instruccion);
 
 		int cantidad_paginas = calcula_paginas_instruccion();
+		log_info(logger_manager,
+				"La instruccion comienza en %i con tamanio de %i",
+				instruccion_deserializada->start,
+				instruccion_deserializada->offset);
 		log_info(logger_manager, "La instruccion se encuentra en %i pagina(s)",
 				cantidad_paginas);
 		int pagina;
@@ -424,6 +430,7 @@ void ejecuto_instrucciones() {
 	}
 
 	enviar_PCB(id_mensaje);
+	pthread_join(hilo_instruccion, NULL);
 }
 
 int calcula_paginas_instruccion() {
@@ -478,7 +485,7 @@ void respuesta_leer_compartida(void *buffer) {
 	t_variable_completa *compartida = malloc(sizeof(t_variable_completa));
 	deserializar_variable_completa(buffer, compartida);
 	valor_pagina = realloc(valor_pagina, sizeof(int));
-	memcpy(valor_pagina, (void*) compartida->valor, sizeof(int));
+	memcpy(valor_pagina, &(compartida->valor), sizeof(int));
 	free(compartida);
 	sem_post(&s_variable_compartida);
 }

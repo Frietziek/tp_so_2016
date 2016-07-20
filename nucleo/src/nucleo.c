@@ -415,10 +415,10 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
 		return (socket_cpu == proceso->socket_cpu);
 	}
-	int socket_cpu_encontrado = (((t_fila_tabla_procesos*) list_find(
-			lista_procesos, (void*) busqueda_proceso_logica)))->socket_cpu;
+	int socket_consola_encontrado = (((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica)))->socket_consola;
 
-	return socket_cpu_encontrado;
+	return socket_consola_encontrado;
 }
 
 void cambiar_estado_proceso_por_pid(int pid, int estado) {

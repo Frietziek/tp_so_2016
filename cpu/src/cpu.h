@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <stdlib.h> // EXIT_SUCCES y otros
+#include <pthread.h> // Para manejar la ejecucion de instrucciones
 #include <unistd.h> // Funcion close
 #include <commons/config.h> // Funciones para leer archivos ini
 #include <semaphore.h> // Semaforos s_pagina y s_cpu_corriendo
@@ -30,6 +31,8 @@ typedef struct {
 	char *ip_umc;
 	int puerto_umc;
 } t_config_cpu;
+
+pthread_t hilo_instruccion; // Thread para la ejecucion de las instrucciones
 
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 void inicio_seniales_semaforos();

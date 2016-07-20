@@ -127,10 +127,6 @@ typedef struct {
 	int socket_cpu;
 } t_cpu;
 
-// TODO Eliminar estas estructuras, solo son de prueba
-//int socket_cpu;
-//t_pcb *pcb_cpu;
-
 void inicializar_variables_compartidas(char **shared_vars);
 
 void cargar_configuracion_nucleo(char *archivo, t_config_nucleo *configuracion);
