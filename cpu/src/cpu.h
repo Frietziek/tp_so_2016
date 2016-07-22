@@ -32,8 +32,6 @@ typedef struct {
 	int puerto_umc;
 } t_config_cpu;
 
-pthread_t hilo_instruccion; // Thread para la ejecucion de las instrucciones
-
 void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion);
 void inicio_seniales_semaforos();
 void cierro_cpu(t_config_cpu* configuracion);

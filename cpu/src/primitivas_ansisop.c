@@ -180,8 +180,8 @@ void ansisop_ir_a_label(t_nombre_etiqueta etiqueta) {
 
 void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 		t_puntero donde_retornar) {
-	log_info(logger_manager, "Llamo etiqueta: %s y retorno en: %d.",
-			etiqueta, donde_retornar);
+	log_info(logger_manager, "Llamo etiqueta: %s y retorno en: %d.", etiqueta,
+			donde_retornar);
 
 	int puntero_etiqueta = metadata_buscar_etiqueta(etiqueta,
 			pcb_quantum->pcb->etiquetas, pcb_quantum->pcb->etiquetas_size);
@@ -286,7 +286,6 @@ void ansisop_imprimir_texto(char* texto) {
 }
 
 void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
-	pthread_t thread_ES;
 	log_info(logger_manager, "I/O con dispositivo: %s  y tiempo: %d.",
 			dispositivo, tiempo);
 
@@ -299,12 +298,12 @@ void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
 	entrada_salida = 1;
 	sem_post(&s_instruccion_finalizada);
 
-	pthread_create(&thread_ES,NULL,(void*)enviar_entrada_salida,buffer);
+	pthread_create(&thread_ES, NULL, (void*) enviar_entrada_salida, buffer);
 	free(p_entrada_salida);
 
 }
 
-void enviar_entrada_salida(t_buffer * buffer){
+void enviar_entrada_salida(t_buffer *buffer) {
 	sem_wait(&s_envio_pcb); //Puse esto porque del lado del nucleo se queda trabado si mando primero MENSAJE_ENTRADA_SALIDA antes que MENSAJE_ENTRADA_SALIDA_PCB
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
 	MENSAJE_ENTRADA_SALIDA, "Fallo al enviar I/O a Nucleo.", buffer);
