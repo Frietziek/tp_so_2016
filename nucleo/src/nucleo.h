@@ -101,6 +101,7 @@ typedef struct {
 typedef struct {
 	int socket_cpu;
 	int cantidad_operaciones;
+	int pid;
 } t_solicitud_entrada_salida_cpu;
 
 typedef struct {
@@ -170,8 +171,6 @@ void envio_buffer_a_proceso(int socket_proceso, int proceso_receptor,
 int obtener_variable_compartida(char *nombre_variable_compartida);
 void asignar_variable_compartida(char *nombre_variable_compartida, int valor);
 int devuelve_socket_consola(int socket_cpu);
-void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
-		int tiempo);
 void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu);
 void asignar_pcb_a_cpu(int socket_cpu);
 int wait_semaforo(char *semaforo_nombre);
@@ -195,4 +194,5 @@ void avisar_para_que_desbloquee(char *nombre_sem);
 void monitorear_configuraciones();
 void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion,
 		t_config_nucleo *configuracion_nucleo);
+void actualizar_estado_pcb(t_pcb *pcb, int estado);
 #endif /* NUCLEO_H_ *///

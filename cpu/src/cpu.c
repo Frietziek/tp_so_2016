@@ -84,6 +84,7 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
 	sem_init(&s_matar_cpu, 0, 0); // Semaforo para matar CPU con SIGUSR1
 	sem_init(&s_escribir_pagina, 0, 0); // Para cuando pido escribir una pagina en umc
+	sem_init(&s_envio_pcb, 0, 0); // Para cuando pido escribir una pagina en umc
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	// Inicio variable para instruccion wait de ansisop
@@ -94,6 +95,8 @@ void inicio_seniales_semaforos() {
 	excepcion_umc = 0;
 	// Inicio variable para matar CPU
 	matar_cpu = 0;
+	// Inicio variable para E/S
+	entrada_salida = 0;
 }
 
 void cierro_cpu(t_config_cpu* configuracion) {
@@ -337,7 +340,14 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
+	log_info(logger_manager,"Se envio el PCB al nucleo");
 	cpu_ocupada = 0;
+
+	if(id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB){
+		sem_post(&s_envio_pcb);
+		sem_post(&s_envio_pcb);
+	}
+
 	free(buffer->contenido_buffer);
 	free(buffer);
 }
@@ -361,7 +371,7 @@ void ejecuto_instrucciones() {
 	fin_proceso = 0;
 
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
-			&& !matar_proceso && !excepcion_umc && !matar_cpu) {
+			&& !matar_proceso && !excepcion_umc && !matar_cpu && !entrada_salida) {
 
 		t_intructions *instruccion_deserializada = deserializo_instruccion(
 				pcb_quantum->pcb->pc);
@@ -411,8 +421,11 @@ void ejecuto_instrucciones() {
 
 	int id_mensaje;
 
-	if (wait_nucleo) {
-		id_mensaje = MENSAJE_WAIT;
+	if (entrada_salida) {
+		id_mensaje = MENSAJE_ENTRADA_SALIDA_PCB;
+		entrada_salida = 0;
+	} else if (wait_nucleo) {
+		id_mensaje = MENSAJE_WAIT_PCB;
 		wait_nucleo = 0;
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;

@@ -37,4 +37,5 @@ void ansisop_finalizar();
 // Funciones usadas por primitivas
 t_indice_stack* posiciono_indice_stack();
 t_variables_stack* posiciono_indice_variables(t_indice_stack* indice_stack);
+void enviar_entrada_salida(t_buffer * buffer);
 #endif /* SRC_PRIMITIVAS_ANSISOP_H_ */

@@ -7,6 +7,9 @@
 
 #include "atiendo_cpu.h"
 
+extern t_queue *cola_block,*cola_exec,*cola_ready;
+
+
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
 
@@ -58,6 +61,14 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 	case RESPUESTA_MATAR:
 		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_MATAR");
 		respuesta_matar(paquete->payload, socket_cpu);
+		break;
+	case MENSAJE_ENTRADA_SALIDA_PCB:
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_ENTRADA_SALIDA_PCB");
+		atiendo_entrada_salida_pcb(paquete->payload, socket_cpu);
+		break;
+	case MENSAJE_WAIT_PCB:
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_WAIT_PCB");
+		atiendo_wait_pcb(paquete->payload, socket_cpu);//TODO falta hacer
 		break;
 	}
 }
@@ -218,12 +229,37 @@ void atiendo_entrada_salida(void *buffer, int socket_conexion,
 
 	t_entrada_salida *entrada_salida = malloc(sizeof(t_entrada_salida));
 	deserializar_entrada_salida(buffer, entrada_salida);
-	bloquear_pcb_dispositivo(socket_conexion,
-			entrada_salida->nombre_dispositivo, entrada_salida->tiempo);
-	asignar_pcb_a_cpu(socket_conexion);
 
-	free(entrada_salida);
+	sem_wait(&cant_block);
 
+	bloquear_pcb_dispositivo(socket_conexion, entrada_salida);
+	//asignar_pcb_a_cpu(socket_conexion);
+
+	//free(entrada_salida);
+
+}
+
+void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion) {
+
+	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
+	deserializar_pcb_quantum(buffer, pcb_quantum);
+
+	sem_wait(&mutex_cola_exec);
+	t_pcb * pcb_out = queue_pop_pid(cola_exec, pcb_quantum->pcb->pid);
+	sem_post(&mutex_cola_exec);
+
+	sem_wait(&mutex_cola_block);
+	queue_push(cola_block, pcb_quantum->pcb);
+	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+			pcb_quantum->pcb->pid);
+	agregar_cpu_disponible(socket_conexion);
+	sacar_socket_cpu_de_tabla(socket_conexion);
+	actualizar_estado_pcb(pcb_quantum->pcb, BLOCK);
+
+	sem_post(&mutex_cola_block);
+
+	sem_post(&cant_block);
+	free(pcb_out);
 }
 
 void atiendo_wait(void *buffer, int socket_conexion,
@@ -262,6 +298,10 @@ void atiendo_wait(void *buffer, int socket_conexion,
 	}
 
 	free(semaforo);
+}
+
+void atiendo_wait_pcb(void *buffer, int socket_conexion){
+
 }
 
 void atiendo_signal(void *buffer, int socket_conexion,

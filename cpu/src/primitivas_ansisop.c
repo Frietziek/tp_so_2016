@@ -286,20 +286,30 @@ void ansisop_imprimir_texto(char* texto) {
 }
 
 void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
+	pthread_t thread_ES;
 	log_info(logger_manager, "I/O con dispositivo: %s  y tiempo: %d.",
 			dispositivo, tiempo);
 
 	t_entrada_salida *p_entrada_salida = malloc(sizeof(t_entrada_salida));
 	p_entrada_salida->nombre_dispositivo = dispositivo;
 	p_entrada_salida->tiempo = tiempo;
+	p_entrada_salida->pid = pcb_quantum->pcb->pid;
 	t_buffer *buffer = serializar_entrada_salida(p_entrada_salida);
 
-	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
-	MENSAJE_ENTRADA_SALIDA, "Fallo al enviar I/O a Nucleo.", buffer);
-
+	entrada_salida = 1;
 	sem_post(&s_instruccion_finalizada);
 
+	pthread_create(&thread_ES,NULL,(void*)enviar_entrada_salida,buffer);
 	free(p_entrada_salida);
+
+}
+
+void enviar_entrada_salida(t_buffer * buffer){
+	sem_wait(&s_envio_pcb); //Puse esto porque del lado del nucleo se queda trabado si mando primero MENSAJE_ENTRADA_SALIDA antes que MENSAJE_ENTRADA_SALIDA_PCB
+	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+	MENSAJE_ENTRADA_SALIDA, "Fallo al enviar I/O a Nucleo.", buffer);
+	sem_wait(&s_envio_pcb);
+
 	free(buffer->contenido_buffer);
 	free(buffer);
 }

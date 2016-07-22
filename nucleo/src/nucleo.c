@@ -721,12 +721,21 @@ void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
 		//10* porque paso de milisegundo a microsegundo
 		usleep(10 * io->retardo * solicitud->cantidad_operaciones);
 
-		sem_post(&(sem_dispositivo[io->posicion_array_semaforo]));
+		//sem_post(&(sem_dispositivo[io->posicion_array_semaforo]));
 		log_info(logger_manager,
 				"Termina io del socket cpu :%d ,con retardo de: %d",
 				solicitud->socket_cpu, io->retardo);
 
 		free(solicitud);
+
+		sem_wait(&mutex_cola_block);
+		t_pcb * pcb_a_ready = queue_pop_pid(cola_block,solicitud->pid);
+		sem_post(&mutex_cola_block);
+
+		sem_wait(&mutex_cola_ready);
+		queue_push(cola_ready,pcb_a_ready);
+		//actualizar_estado_pcb(pcb_a_ready,READY);
+		sem_post(&mutex_cola_block);
 
 	}
 }
@@ -860,35 +869,23 @@ void asignar_variable_compartida(char *nombre_variable_compartida, int valor) {
 	sem_post(&mutex_variables_compartidas);
 }
 
-void bloquear_pcb_dispositivo(int socket_cpu, char *nombre_dispositivo,
-		int tiempo) {
+void bloquear_pcb_dispositivo(int socket_cpu, t_entrada_salida * entrada_salida){
 	t_solicitud_entrada_salida_cpu *solicitud_io = malloc(
 			sizeof(t_solicitud_entrada_salida_cpu));
-	solicitud_io->cantidad_operaciones = tiempo;
+	solicitud_io->cantidad_operaciones = entrada_salida->tiempo;
 	solicitud_io->socket_cpu = socket_cpu;
+	solicitud_io->pid = entrada_salida->pid;
 	sem_wait(&mutex_diccionario_entrada_salida);
 
 	t_solicitudes_entrada_salida *solicitudes_es = dictionary_get(
-			diccionario_entrada_salida, nombre_dispositivo);
+			diccionario_entrada_salida, entrada_salida->nombre_dispositivo);
 
 	queue_push(solicitudes_es->solicitudes, solicitud_io);
 	sem_post(&mutex_diccionario_entrada_salida);
 
-	sem_wait(&mutex_cola_block);
-	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
-	sacar_socket_cpu_de_tabla(socket_cpu);
-	queue_push(cola_block, pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
-			pcb->pid);
-	sem_post(&mutex_cola_block);
+	sem_post(&(sem_dispositivo[solicitudes_es->posicion_array_semaforo]));
 
-	sem_wait(&mutex_cola_exec);
-	bool busqueda_pcb(t_pcb *_pcb) {
-		return (pcb->pid == _pcb->pid);
-	}
-	list_remove_by_condition(cola_exec->elements, (void *) busqueda_pcb);
-	sem_post(&mutex_cola_exec);
-
+	free(entrada_salida);
 }
 
 void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
@@ -1121,6 +1118,19 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 //asignar_pcb_a_cpu(socket_cpu);
 }
 
+void actualizar_estado_pcb(t_pcb *pcb, int estado){ //para ready o block serviria
+	sem_wait(&mutex_lista_procesos);
+	bool busqueda_proceso_logica(t_fila_tabla_procesos * proceso) {
+		return (pcb->pid == proceso->pcb->pid);
+	}
+	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica)));
+	proceso->socket_cpu = NO_ASIGNADO;
+	proceso->pcb = pcb;
+	proceso->pcb->estado = estado;
+	sem_post(&mutex_lista_procesos);
+}
+
 void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
 		int socket_cpu) {
 
@@ -1136,6 +1146,8 @@ void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
 	sem_post(&mutex_lista_procesos);
 
 }
+
+
 
 void finalizar_proceso_en_lista_proc_con_socket_cpu(t_pcb * pcb, int socket_cpu) {
 

@@ -29,6 +29,8 @@
 #define MENSAJE_SIGNAL 7
 #define MENSAJE_QUANTUM 8
 #define MENSAJE_PROGRAMA_FINALIZADO 9
+#define MENSAJE_ENTRADA_SALIDA_PCB 35
+#define MENSAJE_WAIT_PCB 36
 // Respuestas OK
 #define RESPUESTA_OBTENER_VALOR_COMPARTIDA 11
 #define RESPUESTA_ASIGNAR_VARIABLE_COMPARTIDA 12
@@ -79,6 +81,7 @@ typedef struct {
 typedef struct {
 	char *nombre_dispositivo;
 	int tiempo;
+	int pid;
 } t_entrada_salida;
 //TODO cambiar por otro nombre para que no haya conflictos con el t_semaforo de nucleo.h
 typedef struct {
@@ -129,5 +132,11 @@ void deserializar_pcb(void *buffer, t_pcb *pcb);
 t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum);
 
 void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum);
+
+void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion);
+
+void atiendo_wait_pcb(void *buffer, int socket_conexion);
+
+void bloquear_pcb_dispositivo(int socket_cpu, t_entrada_salida * entrada_salida);
 
 #endif /* ATIENDO_CPU_H_ */

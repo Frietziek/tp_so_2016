@@ -22,6 +22,7 @@ sem_t s_variable_compartida; // Para cuando pido lectura de var compartida
 sem_t s_matar_cpu; // Para cuando llega SIGUSR1
 sem_t s_cpu_finaliza; // Cuando llega senial de finalizar cpu
 sem_t s_escribir_pagina; // Para cuando pido escribir una pagina en umc
+sem_t s_envio_pcb; // Para indicar que el pcb fue enviado
 void *valor_pagina; // Contenido de pagina de UMC
 int size_pagina; // Tamanio de pagina de UMC
 int pagina_es_codigo; // 1 para codigo, 0 para valor int
@@ -31,6 +32,7 @@ int fin_proceso; // 1 para avisar que termino el proceso
 int excepcion_umc; // 1 para avisar que hubo un problema con la UMC
 int matar_cpu; // 1 para avisar que llego SIGUSR1
 int cpu_ocupada; // 1 si tiene un PCB asignado
+int entrada_salida;// 1 si tiene que madar el pcb a Block
 
 // Codigo de prueba;
 char *codigo;

@@ -28,6 +28,7 @@ typedef struct {
 typedef struct {
 	char *nombre_dispositivo;
 	int tiempo;
+	int pid;
 } t_entrada_salida;
 typedef struct {
 	char *nombre;
