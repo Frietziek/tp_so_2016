@@ -433,6 +433,8 @@ void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida)
 			&(entrada_salida->nombre_dispositivo), &posicion_buffer);
 	escribir_atributo_desde_int_de_buffer(buffer, &(entrada_salida->tiempo),
 			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(entrada_salida->pid),
+			&posicion_buffer);
 
 }
 

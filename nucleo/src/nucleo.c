@@ -734,9 +734,11 @@ void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
 
 		sem_wait(&mutex_cola_ready);
 		queue_push(cola_ready,pcb_a_ready);
-		//actualizar_estado_pcb(pcb_a_ready,READY);
-		sem_post(&mutex_cola_block);
-
+		actualizar_estado_pcb(pcb_a_ready,READY);
+		sem_post(&mutex_cola_ready);
+		log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+				pcb_a_ready->pid);
+		sem_post(&cant_ready);
 	}
 }
 
