@@ -7,7 +7,7 @@
 
 #include "atiendo_cpu.h"
 
-extern t_queue *cola_block,*cola_exec,*cola_ready;
+extern t_queue *cola_block,*cola_exec;
 
 
 void atender_cpu(t_paquete *paquete, int socket_cpu,
