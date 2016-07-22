@@ -8,7 +8,6 @@
 #ifndef SRC_UMC_H_
 #define SRC_UMC_H_
 
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -100,11 +99,11 @@ typedef struct {
 	int pid;
 	int frame;
 	int presencia; // 0 -> no está en memoria / 1 -> si está en memoria
-	int modificado;// 0 -> no está modificado / 1 -> si está modificado
+	int modificado; // 0 -> no está modificado / 1 -> si está modificado
 	int uso; 		// usado por los algoritmos
 } t_fila_tabla_pagina;
 
-typedef struct{
+typedef struct {
 	//int numero_pagina;
 	//int pid;
 	bool libre;
@@ -123,7 +122,7 @@ typedef struct { //no lo estoy usando
 	int tamanio_buffer;
 	int id_programa;
 	int cant_paginas;
-}t_buffer_nuevo_programa;
+} t_buffer_nuevo_programa;
 
 typedef struct {
 	int cant_paginas;
@@ -163,17 +162,18 @@ void respuesta_handshake_umc_swap();
 
 void iniciar_programa(void* buffer);
 
-void respuesta_iniciar_programa(void *buffer,int id_mensaje);
+void respuesta_iniciar_programa(void *buffer, int id_mensaje);
 
 void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion);
 
-void respuesta_leer_pagina(void *buffer,int id_mensaje);
+void respuesta_leer_pagina(void *buffer, int id_mensaje);
 
-void enviar_pagina(int socket, int proceso_receptor, t_pagina_pedido_completa *pagina,int id_mensaje);
+void enviar_pagina(int socket, int proceso_receptor,
+		t_pagina_pedido_completa *pagina, int id_mensaje);
 
 void escribir_pagina(void *buffer, int socket_conexion);
 
-void finalizar_programa(void *buffer,int id_mensaje);
+void finalizar_programa(void *buffer, int id_mensaje);
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion);
 
@@ -188,9 +188,9 @@ void cambiar_retardo();
 
 void generar_dump();
 
-int buscar_pagina_tlb(int id_programa,int pagina);
+int buscar_pagina_tlb(int id_programa, int pagina);
 
-t_marco * buscar_pagina_mp(int id_programa,int pagina);
+t_marco * buscar_pagina_mp(int id_programa, int pagina);
 
 void crear_listas();
 
@@ -198,9 +198,11 @@ void crear_marcos();
 
 int retornar_direccion_mp(int marco);
 
-void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,t_pagina_pedido * una_pagina, int socket_conexion);
+void inicializar_pagina_cpu(t_pagina_pedido_completa * pagina_cpu,
+		t_pagina_pedido * una_pagina, int socket_conexion);
 
-void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,t_pagina_completa * una_pagina, int socket_conexion);
+void inicializar_pagina_completa_cpu(t_pagina_completa * pagina_cpu,
+		t_pagina_completa * una_pagina, int socket_conexion);
 
 void flush_tlb();
 
@@ -212,7 +214,7 @@ int cant_pag_x_proc(int pid);
 
 int obtener_marco();
 
-void guardar_en_TLB(int nro_pagina, int pid ,int marco);
+void guardar_en_TLB(int nro_pagina, int pid, int marco);
 
 void quitar_pagina_TLB(int marco);
 
@@ -220,29 +222,31 @@ void LRU(t_tlb * pagina_a_ubicar);
 
 int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar);
 
-void marcar_modificada(int pid,int pagina);
+void marcar_modificada(int pid, int pagina);
 
-void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa);
+void copiar_pagina_escritura_desde_buffer(int pid, int pagina,
+		t_pagina_completa * pag_completa);
 
-void copiar_programa_nuevo_desde_buffer(int pid, t_programa_completo * buffer_nuevo_programa);
+void copiar_programa_nuevo_desde_buffer(int pid,
+		t_programa_completo * buffer_nuevo_programa);
 
-void mandar_a_swap(int pid,int pagina,int id_mensaje);
+void mandar_a_swap(int pid, int pagina, int id_mensaje);
 
 void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje);
 
-void respuesta_escribir_pagina(void *buffer,int id_mensaje);
+void respuesta_escribir_pagina(void *buffer, int id_mensaje);
 
 void liberar_marcos(int pid);
 
-void respuesta_finalizar_programa(void *buffer,int id_mensaje);
+void respuesta_finalizar_programa(void *buffer, int id_mensaje);
 
 void test();
 
-void guardar_cant_entradas(int pid,int cant_pag, int tamanio);
+void guardar_cant_entradas(int pid, int cant_pag, int tamanio);
 
 void marcar_todas_modificadas();
 
-void respuesta_escribir_pagina_nueva(void *buffer,int id_mensaje);
+void respuesta_escribir_pagina_nueva(void *buffer, int id_mensaje);
 
 void dump_tabla(int pid);
 
@@ -258,18 +262,21 @@ void escribir_programa_test(void* buffer);
 
 void respuesta_leer_pagina_test(t_pagina_completa * pagina, int id_mensaje);
 
-t_marco * crear_marco(int start,int nro_marco);
+t_marco * crear_marco(int start, int nro_marco);
 
 void cambiar_proceso_activo(void * buffer, int socket);
 
-void guardar_pagina_en_buffer(int id_programa,int socket_conexion,t_pagina_pedido_completa * pagina);
+void guardar_pagina_en_buffer(int id_programa, int socket_conexion,
+		t_pagina_pedido_completa * pagina);
 
 t_programa_completo * copiar_programa_completo_desde_buffer(int pid);
 
 void eliminar_pagina_completa_en_buffer(int pid);
 
-void txt_write_in_file_all(FILE* file, char* bytes,int pid, int nro_pagina);
+void txt_write_in_file_all(FILE* file, char* bytes, int pid, int nro_pagina);
 
 void txt_write_in_stdout_all(char* string, int pid, int nro_pagina);
+
+void finalizar_cpu(int socket_cpu);
 
 #endif /* SRC_UMC_H_ */

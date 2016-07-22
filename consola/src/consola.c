@@ -9,8 +9,6 @@
  */
 
 #include "consola.h"
-#include <commons/log.h>
-#include <commons/string.h>
 
 int socket_nucleo;
 t_log *loggerManager;

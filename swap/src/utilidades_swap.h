@@ -8,6 +8,8 @@
 #ifndef UTILIDADES_SWAP_H_
 #define UTILIDADES_SWAP_H_
 
+#include <string.h>
+
 void cargar_configuracion_swap(char *archivo, t_config_swap *configuracion);
 int crear_archivo_swap(char *nombre_archivo, int tamano_archivo);
 void inicializar_bitmap(t_bitarray *bitmap);

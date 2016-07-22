@@ -8,14 +8,13 @@
 #include <serializacion.h>
 #include "serializacion_umc.h"
 
-t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa){
+t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa) {
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 
 	int cantidad_a_reservar = sizeof(programa->id_programa)
 			+ sizeof(programa->paginas_requeridas);
 
 	estructura_buffer->longitud_buffer = cantidad_a_reservar;
-
 	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
@@ -27,7 +26,7 @@ t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa){
 	return (estructura_buffer);
 }
 
-void deserializar_programa_nuevo(void *buffer, t_programa_nuevo *programa){
+void deserializar_programa_nuevo(void *buffer, t_programa_nuevo *programa) {
 	int posicion_buffer = 0;
 	escribir_atributo_desde_int_de_buffer(buffer, &(programa->id_programa),
 			&posicion_buffer);
@@ -44,7 +43,6 @@ t_buffer *serializar_programa_completo(t_programa_completo *programa) {
 			+ strlen(programa->codigo);
 
 	estructura_buffer->longitud_buffer = cantidad_a_reservar;
-
 	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
@@ -71,7 +69,8 @@ void deserializar_programa_completo(void *buffer, t_programa_completo *programa)
 
 }
 
-t_buffer *serializar_programa_para_escritura(t_programa_para_escritura *programa) {
+t_buffer *serializar_programa_para_escritura(
+		t_programa_para_escritura *programa) {
 
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 
@@ -80,7 +79,6 @@ t_buffer *serializar_programa_para_escritura(t_programa_para_escritura *programa
 			+ strlen(programa->contenido);
 
 	estructura_buffer->longitud_buffer = cantidad_a_reservar;
-
 	estructura_buffer->contenido_buffer = malloc(cantidad_a_reservar);
 
 	int posicion_buffer = 0;
@@ -94,7 +92,8 @@ t_buffer *serializar_programa_para_escritura(t_programa_para_escritura *programa
 	return (estructura_buffer);
 }
 
-void deserializar_programa_para_escritura(void *buffer, t_programa_para_escritura *programa){
+void deserializar_programa_para_escritura(void *buffer,
+		t_programa_para_escritura *programa) {
 
 	int posicion_buffer = 0;
 

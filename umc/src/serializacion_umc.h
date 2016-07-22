@@ -8,6 +8,9 @@
 #ifndef SERIALIZACION_UMC_H_
 #define SERIALIZACION_UMC_H_
 
+#include <stdlib.h>
+#include <string.h>
+
 typedef struct {
 	int id_programa;
 } t_programa;
@@ -81,13 +84,16 @@ void deserializar_pagina_tamanio(void *buffer, t_pagina_tamanio *pagina_tamanio)
 t_buffer *serializar_programa_nuevo(t_programa_nuevo *programa);
 void deserializar_programa_nuevo(void *buffer, t_programa_nuevo *programa);
 
-t_buffer *serializar_programa_para_escritura(t_programa_para_escritura *programa);
-void deserializar_programa_para_escritura(void *buffer, t_programa_para_escritura *programa);
+t_buffer *serializar_programa_para_escritura(
+		t_programa_para_escritura *programa);
+void deserializar_programa_para_escritura(void *buffer,
+		t_programa_para_escritura *programa);
 
 t_buffer *serializar_pagina_pedido(t_pagina_pedido *pagina);
 void deserializar_pagina_pedido(void *buffer, t_pagina_pedido *pagina);
 
 t_buffer *serializar_pagina_pedido_completa(t_pagina_pedido_completa *pagina);
-void deserializar_pagina_pedido_completa(void *buffer, t_pagina_pedido_completa *pagina);
+void deserializar_pagina_pedido_completa(void *buffer,
+		t_pagina_pedido_completa *pagina);
 
 #endif /* SERIALIZACION_UMC_H_ */

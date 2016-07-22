@@ -9,6 +9,9 @@
 #define SERIALIZACION_CONSOLA_NUCLEO_H_
 
 #include <serializacion.h>
+#include <stdlib.h>
+#include <string.h>
+#include <comunicaciones.h>
 
 // Funciones Consola - Nucleo
 #define MENSAJE_INICIAR_PROGRAMA 0

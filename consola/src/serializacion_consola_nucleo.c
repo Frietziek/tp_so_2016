@@ -4,9 +4,8 @@
  *  Created on: 5/6/2016
  *      Author: utnso
  */
+
 #include "serializacion_consola_nucleo.h"
-#include <commons/string.h>
-#include <serializacion.h>
 
 void consola_nucleo(int socket_nucleo, int opcion) {
 	t_header *header = malloc(sizeof(t_header));

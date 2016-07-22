@@ -9,11 +9,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h> // Funcion close
 #include <commons/config.h>
 #include <commons/string.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
 #include <signal.h>
+#include <commons/log.h>
+#include <commons/string.h>
 #include "serializacion_consola_nucleo.h"
 
 #define SRC_CONSOLA_H_
