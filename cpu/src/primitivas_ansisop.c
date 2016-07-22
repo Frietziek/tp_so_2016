@@ -196,7 +196,6 @@ void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 
 	indice_stack->cantidad_argumentos = 0;
 	indice_stack->cantidad_variables = 0;
-	indice_stack->argumentos = malloc(sizeof(t_posicion_memoria));
 	indice_stack->posicion_variable_retorno = malloc(
 			sizeof(t_posicion_memoria));
 	indice_stack->posicion_variable_retorno->pagina = calcula_pagina(
@@ -298,7 +297,7 @@ void ansisop_entrada_salida(t_nombre_dispositivo dispositivo, int tiempo) {
 	entrada_salida = 1;
 	sem_post(&s_instruccion_finalizada);
 
-	pthread_create(&thread_ES, NULL, (void*) enviar_entrada_salida, buffer);
+	pthread_create(&hilo_io, &attr_io, (void*) enviar_entrada_salida, buffer);
 	free(p_entrada_salida);
 
 }
@@ -311,6 +310,7 @@ void enviar_entrada_salida(t_buffer *buffer) {
 
 	free(buffer->contenido_buffer);
 	free(buffer);
+	pthread_attr_destroy(&attr_io);
 }
 
 void ansisop_wait(t_nombre_semaforo semaforo) {

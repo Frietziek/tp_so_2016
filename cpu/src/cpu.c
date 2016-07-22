@@ -86,6 +86,11 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_matar_cpu, 0, 0); // Semaforo para matar CPU con SIGUSR1
 	sem_init(&s_escribir_pagina, 0, 0); // Para cuando pido escribir una pagina en UMC
 	sem_init(&s_envio_pcb, 0, 0); // Para cuando envio el PCB al Nucleo
+	// Inicio atributos de hilos
+	pthread_attr_init(&attr_io);
+	pthread_attr_init(&attr_instruccion);
+	pthread_attr_setdetachstate(&attr_io, PTHREAD_CREATE_DETACHED);
+	pthread_attr_setdetachstate(&attr_instruccion, PTHREAD_CREATE_DETACHED);
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	// Inicio variable para instruccion wait de ansisop
@@ -125,9 +130,9 @@ void cierro_cpu(t_config_cpu* configuracion) {
 }
 
 int conecto_con_nucleo(t_config_cpu* configuracion) {
-	int socket_servidor;
-	if ((socket_servidor = conectar_servidor(configuracion->ip_nucleo,
-			configuracion->puerto_nucleo, &atender_nucleo)) > 0) {
+	int socket_servidor = conectar_servidor(configuracion->ip_nucleo,
+			configuracion->puerto_nucleo, &atender_nucleo);
+	if (socket_servidor > 0) {
 		log_trace(logger_manager, "CPU conectado con Nucleo.");
 		handshake_cpu_nucleo(socket_servidor);
 	} else {
@@ -137,9 +142,9 @@ int conecto_con_nucleo(t_config_cpu* configuracion) {
 }
 
 int conecto_con_umc(t_config_cpu* configuracion) {
-	int socket_servidor;
-	if ((socket_servidor = conectar_servidor(configuracion->ip_umc,
-			configuracion->puerto_umc, &atender_umc)) > 0) {
+	int socket_servidor = conectar_servidor(configuracion->ip_umc,
+			configuracion->puerto_umc, &atender_umc);
+	if (socket_servidor > 0) {
 		log_trace(logger_manager, "CPU conectado con UMC.");
 		handshake_cpu_umc(socket_servidor);
 	} else {
@@ -151,6 +156,8 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 void atender_seniales(int signum) {
 	switch (signum) {
 	case SIGINT:
+		sem_post(&s_cpu_finaliza);
+		break;
 	case SIGUSR1:
 		log_trace(logger_manager, "Se recibio senial de cierre de proceso.");
 		matar_cpu = 1;
@@ -333,8 +340,8 @@ void recibo_PCB(void *buffer) {
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 	cambio_proceso_activo();
 	sem_wait(&s_cambio_proceso);
-	pthread_create(&hilo_instruccion, NULL, (void*) ejecuto_instrucciones,
-	NULL);
+	pthread_create(&hilo_instruccion, &attr_instruccion,
+			(void*) ejecuto_instrucciones, NULL);
 }
 
 void enviar_PCB(int id_mensaje) {
@@ -368,9 +375,7 @@ void cambio_proceso_activo() {
 }
 
 void ejecuto_instrucciones() {
-
 	fin_proceso = 0;
-
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
 			&& !matar_proceso && !excepcion_umc && !matar_cpu && !entrada_salida) {
 
@@ -444,7 +449,7 @@ void ejecuto_instrucciones() {
 	}
 
 	enviar_PCB(id_mensaje);
-	pthread_join(hilo_instruccion, NULL);
+	pthread_attr_destroy(&attr_instruccion);
 }
 
 int calcula_paginas_instruccion() {
@@ -473,7 +478,6 @@ void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion) {
 }
 
 void leo_instruccion_desde_UMC(int pagina) {
-
 	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
 	t_intructions *instruccion = deserializo_instruccion(pcb_quantum->pcb->pc);
 	p_pagina->pagina = calcula_pagina(instruccion->start) + pagina;
@@ -499,6 +503,7 @@ void respuesta_leer_compartida(void *buffer) {
 	deserializar_variable_completa(buffer, compartida);
 	valor_pagina = realloc(valor_pagina, sizeof(int));
 	memcpy(valor_pagina, &(compartida->valor), sizeof(int));
+	free(compartida->nombre);
 	free(compartida);
 	sem_post(&s_variable_compartida);
 }

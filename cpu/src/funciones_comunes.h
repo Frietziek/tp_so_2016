@@ -35,8 +35,10 @@ int cpu_ocupada; // 1 si tiene un PCB asignado
 int entrada_salida;// 1 si tiene que mandar el PCB a Block
 
 // Hilos
-pthread_t thread_ES; // Thread para la ejecucion de instruccion de IO
+pthread_t hilo_io; // Thread para la ejecucion de instruccion de IO
 pthread_t hilo_instruccion; // Thread para la ejecucion de las instrucciones
+pthread_attr_t attr_io;
+pthread_attr_t attr_instruccion;
 
 // Sockets de los procesos a los cuales me conecto
 int socket_nucleo;
