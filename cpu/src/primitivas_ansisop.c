@@ -44,12 +44,12 @@ t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 	t_variables_stack *puntero_variable = indice_stack->variables;
 	for (pos_variable = 0; pos_variable < indice_stack->cantidad_variables;
 			++pos_variable) {
-		puntero_variable += pos_variable;
 		if (puntero_variable->id == variable) {
 			posicion_memoria = puntero_variable->posicion_memoria->pagina
 					* tamanio_pagina
 					+ puntero_variable->posicion_memoria->offset;
 		}
+		puntero_variable++;
 	}
 	log_info(logger_manager, "La posicion de la variable: %c es: %i.", variable,
 			posicion_memoria);
@@ -180,7 +180,7 @@ void ansisop_ir_a_label(t_nombre_etiqueta etiqueta) {
 
 void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 		t_puntero donde_retornar) {
-	log_info(logger_manager, "Llamar a etiqueta: %s con retorno en: %d.",
+	log_info(logger_manager, "Llamo etiqueta: %s y retorno en: %d.",
 			etiqueta, donde_retornar);
 
 	int puntero_etiqueta = metadata_buscar_etiqueta(etiqueta,

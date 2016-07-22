@@ -75,6 +75,7 @@ void carga_configuracion_cpu(char *archivo, t_config_cpu *configuracion_cpu) {
 void inicio_seniales_semaforos() {
 	// Funcion para atender seniales
 	signal(SIGUSR1, atender_seniales);
+	signal(SIGINT, atender_seniales);
 	// Inicio semaforos
 	sem_init(&s_cpu_finaliza, 0, 0); // Semaforo para la finalizacion de CPU
 	sem_init(&s_codigo, 0, 0); // Semaforo para pedido de lectura de codigo en UMC
@@ -83,8 +84,8 @@ void inicio_seniales_semaforos() {
 	sem_init(&s_variable_stack, 0, 0); // Semaforo para pedido de lectura de variable en UMC
 	sem_init(&s_variable_compartida, 0, 0); // Semaforo para pedido de lectura de var comp en Nucleo
 	sem_init(&s_matar_cpu, 0, 0); // Semaforo para matar CPU con SIGUSR1
-	sem_init(&s_escribir_pagina, 0, 0); // Para cuando pido escribir una pagina en umc
-	sem_init(&s_envio_pcb, 0, 0); // Para cuando pido escribir una pagina en umc
+	sem_init(&s_escribir_pagina, 0, 0); // Para cuando pido escribir una pagina en UMC
+	sem_init(&s_envio_pcb, 0, 0); // Para cuando envio el PCB al Nucleo
 	// Reservo memoria para Qunatum - PCB
 	pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	// Inicio variable para instruccion wait de ansisop
@@ -149,8 +150,9 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 
 void atender_seniales(int signum) {
 	switch (signum) {
+	case SIGINT:
 	case SIGUSR1:
-		log_trace(logger_manager, "Se recibio la senial SIGUSR1.");
+		log_trace(logger_manager, "Se recibio senial de cierre de proceso.");
 		matar_cpu = 1;
 		if (cpu_ocupada == 1) {
 			sem_wait(&s_matar_cpu);
@@ -220,8 +222,7 @@ void respuesta_handshake_cpu_umc(void *buffer) {
 void respuesta_leer_pagina(void *buffer) {
 	t_pagina_pedido_completa *pagina = malloc(sizeof(t_pagina_pedido_completa));
 	deserializar_pagina_pedido_completa(buffer, pagina);
-	log_info(logger_manager,
-			"Recibi de UMC la pagina: %i, offset: %i, tamanio: %i",
+	log_info(logger_manager, "Recibo de UMC pag %i offset %i tamanio %i",
 			pagina->pagina, pagina->offset, pagina->tamanio);
 	valor_pagina = realloc(valor_pagina, pagina->tamanio);
 	size_pagina = pagina->tamanio;
@@ -340,10 +341,10 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	log_info(logger_manager,"Se envio el PCB al nucleo");
+	log_info(logger_manager, "Se envio el PCB al nucleo");
 	cpu_ocupada = 0;
 
-	if(id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB){
+	if (id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB) {
 		sem_post(&s_envio_pcb);
 		sem_post(&s_envio_pcb);
 	}
@@ -381,11 +382,10 @@ void ejecuto_instrucciones() {
 		char *instruccion = malloc(sizeof(char) * tamanio_instruccion);
 
 		int cantidad_paginas = calcula_paginas_instruccion();
-		log_info(logger_manager,
-				"La instruccion comienza en %i con tamanio de %i",
+		log_info(logger_manager, "La instruccion empieza %i con tamanio %i",
 				instruccion_deserializada->start,
 				instruccion_deserializada->offset);
-		log_info(logger_manager, "La instruccion se encuentra en %i pagina(s)",
+		log_info(logger_manager, "La instruccion esta en %i pagina(s)",
 				cantidad_paginas);
 		int pagina;
 		int posicion_instruccion = 0;
@@ -483,8 +483,7 @@ void leo_instruccion_desde_UMC(int pagina) {
 	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
 
 	pagina_es_codigo = 1;
-	log_info(logger_manager,
-			"Envio pedido a UMC, pagina: %i, offset: %i, tamanio: %i",
+	log_info(logger_manager, "Pido a UMC pag %i offset %i tamanio %i",
 			p_pagina->pagina, p_pagina->offset, p_pagina->tamanio);
 
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
