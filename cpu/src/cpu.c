@@ -499,7 +499,6 @@ void respuesta_leer_compartida(void *buffer) {
 	deserializar_variable_completa(buffer, compartida);
 	valor_pagina = realloc(valor_pagina, sizeof(int));
 	memcpy(valor_pagina, &(compartida->valor), sizeof(int));
-	free(compartida->nombre);
 	free(compartida);
 	sem_post(&s_variable_compartida);
 }
