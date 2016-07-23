@@ -16,6 +16,7 @@
 #include <sys/inotify.h>
 #include <errno.h>
 #include <sys/types.h>
+#include "serializacion_nucleo_umc.h"
 
 #define NEW 0
 #define READY 1
@@ -172,6 +173,7 @@ int obtener_variable_compartida(char *nombre_variable_compartida);
 void asignar_variable_compartida(char *nombre_variable_compartida, int valor);
 int devuelve_socket_consola(int socket_cpu);
 void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu);
+int obtener_valor_semaforo(char *semaforo_nombre);
 void asignar_pcb_a_cpu(int socket_cpu);
 int wait_semaforo(char *semaforo_nombre);
 int signal_semaforo(char *semaforo_nombre);
@@ -194,5 +196,5 @@ void avisar_para_que_desbloquee(char *nombre_sem);
 void monitorear_configuraciones();
 void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion,
 		t_config_nucleo *configuracion_nucleo);
-void actualizar_estado_pcb(t_pcb *pcb, int estado);
+void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado);
 #endif /* NUCLEO_H_ *///

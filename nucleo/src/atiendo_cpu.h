@@ -86,9 +86,13 @@ typedef struct {
 //TODO cambiar por otro nombre para que no haya conflictos con el t_semaforo de nucleo.h
 typedef struct {
 	char *nombre;
+	int pid;
 } t_semaforo;
 
 //////////// VARIABLES GLOBALES //////////////
+t_dictionary *solitudes_semaforo;
+
+t_list *solicitudes_auxiliares_lista;
 
 // Funciones para atender a CPU
 void atender_cpu(t_paquete *paquete, int socket_cpu,
@@ -138,5 +142,7 @@ void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion);
 void atiendo_wait_pcb(void *buffer, int socket_conexion);
 
 void bloquear_pcb_dispositivo(int socket_cpu, t_entrada_salida * entrada_salida);
+
+t_semaforo *agregar_solicitud_semaforo_cola_sem(int pid);
 
 #endif /* ATIENDO_CPU_H_ */

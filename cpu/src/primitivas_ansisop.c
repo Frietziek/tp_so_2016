@@ -321,6 +321,7 @@ void ansisop_wait(t_nombre_semaforo semaforo) {
 
 	t_semaforo *p_semaforo = malloc(sizeof(t_semaforo));
 	p_semaforo->nombre = semaforo;
+	p_semaforo->pid = pcb_quantum->pcb->pid;
 	t_buffer *buffer = serializar_semaforo(p_semaforo);
 
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_WAIT,
