@@ -16,3 +16,13 @@ int calcula_pagina(t_puntero instruccion) {
 int calcula_offset(t_puntero instruccion) {
 	return (int) (instruccion) % tamanio_pagina;
 }
+
+int calcula_offset_instruccion(t_puntero_instruccion start, int pagina) {
+	return (pagina == 0) ? calcula_offset(start) : 0;
+}
+
+int instruccion_en_una_pagina(t_intructions *instruccion,
+		t_pagina_pedido *pagina) {
+	return (calcula_pagina(instruccion->start + instruccion->offset)
+			== pagina->pagina);
+}

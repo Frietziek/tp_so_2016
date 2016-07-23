@@ -60,26 +60,29 @@ t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 
 t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 	int contenido_variable = 0;
-	log_info(logger_manager, "Dereferencia de: %d ", direccion_variable);
+	void *contenido_variable_umc = malloc(sizeof(int));
 
-	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
-	p_pagina->pagina = calcula_pagina(direccion_variable);
-	p_pagina->offset = calcula_offset(direccion_variable);
-	p_pagina->tamanio = sizeof(int);
-	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
+	int cantidad_paginas = calcula_paginas_variable(direccion_variable);
 
-	pagina_es_codigo = 0;
+	log_info(logger_manager, "La variable empieza %i con tamanio %i",
+			direccion_variable, sizeof(int));
+	log_info(logger_manager, "La variable esta en %i pagina(s)",
+			cantidad_paginas);
+	int pagina;
+	int posicion_instruccion = 0;
 
-	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
-			"Fallo al enviar lectura de pagina a UMC.", buffer);
+	for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
+		leo_variable_desde_UMC(direccion_variable, pagina);
+		sem_wait(&s_variable_stack);
+		memcpy(contenido_variable_umc + posicion_instruccion, valor_pagina,
+				size_pagina);
+		posicion_instruccion += size_pagina;
+	}
 
-	free(p_pagina);
-	free(buffer->contenido_buffer);
-	free(buffer);
+	contenido_variable = *((int *) contenido_variable_umc);
 
-	sem_wait(&s_variable_stack);
+	free(contenido_variable_umc);
 
-	contenido_variable = *((int *) valor_pagina);
 	log_info(logger_manager, "Su valor es: %i.", contenido_variable);
 
 	sem_post(&s_instruccion_finalizada);
@@ -374,4 +377,46 @@ t_variables_stack* posiciono_indice_variables(t_indice_stack* indice_stack) {
 	t_variables_stack* indice_variables = indice_stack->variables;
 	indice_variables += indice_stack->cantidad_variables;
 	return indice_variables;
+}
+
+int calcula_paginas_variable(t_puntero direccion_variable) {
+	int pagina_start = calcula_pagina(direccion_variable);
+	int pagina_tamanio = calcula_pagina(direccion_variable + sizeof(int));
+	return pagina_tamanio - pagina_start + 1;
+}
+
+void leo_variable_desde_UMC(t_puntero direccion_variable, int pagina) {
+	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
+	p_pagina->pagina = calcula_pagina(direccion_variable) + pagina;
+	p_pagina->offset = calcula_offset_instruccion(direccion_variable, pagina);
+	p_pagina->tamanio = calcula_tamanio_variable(direccion_variable, p_pagina,
+			pagina);
+	t_buffer *buffer = serializar_pagina_pedido(p_pagina);
+
+	pagina_es_codigo = 0;
+
+	log_info(logger_manager, "Pido a UMC pag %i offset %i tamanio %i",
+			p_pagina->pagina, p_pagina->offset, p_pagina->tamanio);
+
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC, MENSAJE_LEER_PAGINA,
+			"Fallo al enviar lectura de pagina a UMC.", buffer);
+
+	free(p_pagina);
+	free(buffer->contenido_buffer);
+	free(buffer);
+}
+
+int calcula_tamanio_variable(t_puntero direccion_variable,
+		t_pagina_pedido *p_pagina, int pagina) {
+	int tamanio =
+			(variable_en_una_pagina(direccion_variable, p_pagina)) ?
+					sizeof(int) : tamanio_pagina - p_pagina->offset;
+	return (pagina == 0) ?
+			tamanio :
+			sizeof(int) - (tamanio_pagina - calcula_offset(direccion_variable));
+}
+
+int variable_en_una_pagina(t_puntero direccion_variable,
+		t_pagina_pedido *pagina) {
+	return (calcula_pagina(direccion_variable + sizeof(int)) == pagina->pagina);
 }

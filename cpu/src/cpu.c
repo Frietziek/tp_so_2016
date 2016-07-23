@@ -529,10 +529,6 @@ void libero_pcb() {
 	free(pcb_quantum->pcb);
 }
 
-int calcula_offset_instruccion(t_puntero_instruccion start, int pagina) {
-	return (pagina == 0) ? calcula_offset(start) : 0;
-}
-
 int calcula_tamanio_instruccion(t_intructions *instruccion,
 		t_pagina_pedido *p_pagina, int pagina) {
 	int tamanio =
@@ -542,10 +538,4 @@ int calcula_tamanio_instruccion(t_intructions *instruccion,
 			tamanio :
 			instruccion->offset
 					- (tamanio_pagina - calcula_offset(instruccion->start));
-}
-
-int instruccion_en_una_pagina(t_intructions *instruccion,
-		t_pagina_pedido *pagina) {
-	return (calcula_pagina(instruccion->start + instruccion->offset)
-			== pagina->pagina);
 }

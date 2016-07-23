@@ -59,10 +59,7 @@ void envio_excepcion_nucleo(int id_excepcion, char *mensaje_excepcion);
 void leo_instruccion_desde_UMC(int pagina);
 void respuesta_leer_compartida(void *buffer);
 void libero_pcb();
-int calcula_offset_instruccion(t_puntero_instruccion start, int pagina);
 int calcula_tamanio_instruccion(t_intructions *instruccion,
 		t_pagina_pedido *p_pagina, int pagina);
-int instruccion_en_una_pagina(t_intructions *instruccion,
-		t_pagina_pedido *pagina);
 
 #endif /* CPU_H_ */

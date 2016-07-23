@@ -38,4 +38,10 @@ void ansisop_finalizar();
 t_indice_stack* posiciono_indice_stack();
 t_variables_stack* posiciono_indice_variables(t_indice_stack* indice_stack);
 void enviar_entrada_salida(t_buffer * buffer);
+int calcula_paginas_variable(t_puntero direccion_variable);
+void leo_variable_desde_UMC(t_puntero direccion_variable, int pagina);
+int calcula_tamanio_variable(t_puntero direccion_variable,
+		t_pagina_pedido *p_pagina, int pagina);
+int variable_en_una_pagina(t_puntero direccion_variable,
+		t_pagina_pedido *pagina);
 #endif /* SRC_PRIMITIVAS_ANSISOP_H_ */

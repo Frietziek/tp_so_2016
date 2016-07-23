@@ -32,7 +32,7 @@ int fin_proceso; // 1 para avisar que termino el proceso
 int excepcion_umc; // 1 para avisar que hubo un problema con la UMC
 int matar_cpu; // 1 para avisar que llego SIGUSR1
 int cpu_ocupada; // 1 si tiene un PCB asignado
-int entrada_salida;// 1 si tiene que mandar el PCB a Block
+int entrada_salida; // 1 si tiene que mandar el PCB a Block
 
 // Hilos
 pthread_t hilo_io; // Thread para la ejecucion de instruccion de IO
@@ -55,5 +55,8 @@ t_pcb_quantum *pcb_quantum;
 
 int calcula_pagina(t_puntero_instruccion instruccion);
 int calcula_offset(t_puntero instruccion);
+int calcula_offset_instruccion(t_puntero_instruccion start, int pagina);
+int instruccion_en_una_pagina(t_intructions *instruccion,
+		t_pagina_pedido *pagina);
 
 #endif /* SEMAFORO_SOCKETS_CPU_H_ */
