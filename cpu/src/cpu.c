@@ -509,7 +509,7 @@ void respuesta_leer_compartida(void *buffer) {
 }
 
 void libero_pcb() {
-	t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
+	/*t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
 	int i_stack;
 	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
 		indice_stack += i_stack;
@@ -518,11 +518,11 @@ void libero_pcb() {
 				++i_variables) {
 			t_variables_stack* indice_variables = indice_stack->variables;
 			indice_variables += i_variables;
-			free(indice_variables->posicion_memoria);
+			//free(indice_variables->posicion_memoria);
 		}
 		free(indice_stack->posicion_variable_retorno);
 		free(indice_stack->variables);
-	}
+	}*/
 	free(pcb_quantum->pcb->instrucciones_serializadas);
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);
