@@ -32,6 +32,7 @@ typedef struct {
 } t_entrada_salida;
 typedef struct {
 	char *nombre;
+	int pid;
 } t_semaforo;
 typedef struct {
 	int pagina;

@@ -76,8 +76,7 @@ void deserializar_texto(void *buffer, t_texto *texto) {
 t_buffer *serializar_entrada_salida(t_entrada_salida *entrada_salida) {
 	int cantidad_a_reservar = sizeof(int)
 			+ strlen(entrada_salida->nombre_dispositivo)
-			+ sizeof(entrada_salida->tiempo)
-			+ sizeof(entrada_salida->pid);
+			+ sizeof(entrada_salida->tiempo) + sizeof(entrada_salida->pid);
 	void *buffer = malloc(cantidad_a_reservar);
 	int posicion_buffer = 0;
 	copiar_string_en_buffer(buffer, entrada_salida->nombre_dispositivo,
@@ -99,18 +98,22 @@ void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida)
 			&posicion_buffer);
 }
 t_buffer *serializar_semaforo(t_semaforo *semaforo) {
-	int cantidad_a_reservar = sizeof(int) + strlen(semaforo->nombre);
+	int cantidad_a_reservar = sizeof(int) + sizeof(int)
+			+ strlen(semaforo->nombre);
 	void *buffer = malloc(cantidad_a_reservar);
 	int posicion_buffer = 0;
 	copiar_string_en_buffer(buffer, semaforo->nombre, &posicion_buffer);
+	copiar_int_en_buffer(buffer, semaforo->pid, &posicion_buffer);
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 	estructura_buffer->contenido_buffer = buffer;
 	estructura_buffer->longitud_buffer = posicion_buffer;
 	return (estructura_buffer);
 }
-void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida) {
+void deserializar_semaforo(void *buffer, t_semaforo *semaforo) {
 	int posicion_buffer = 0;
-	escribir_atributo_desde_string_de_buffer(buffer, &(entrada_salida->nombre),
+	escribir_atributo_desde_string_de_buffer(buffer, &(semaforo->nombre),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(semaforo->pid),
 			&posicion_buffer);
 }
 // Funciones CPU - UMC

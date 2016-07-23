@@ -7,8 +7,7 @@
 
 #include "atiendo_cpu.h"
 
-extern t_queue *cola_block,*cola_exec;
-
+extern t_queue *cola_block, *cola_exec;
 
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
@@ -63,13 +62,17 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		respuesta_matar(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_ENTRADA_SALIDA_PCB:
-		log_info(logger_manager, "Se recibe del cpu: MENSAJE_ENTRADA_SALIDA_PCB");
+		log_info(logger_manager,
+				"Se recibe del cpu: MENSAJE_ENTRADA_SALIDA_PCB");
 		atiendo_entrada_salida_pcb(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_WAIT_PCB:
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_WAIT_PCB");
-		atiendo_wait_pcb(paquete->payload, socket_cpu);//TODO falta hacer
+		atiendo_wait_pcb(paquete->payload, socket_cpu); //TODO falta hacer
 		break;
+	case RESPUESTA_PCB:
+		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_PCB");
+		//bloquear_pcb_semaforo(int socket_cpu);
 	}
 }
 
@@ -233,9 +236,9 @@ void atiendo_entrada_salida(void *buffer, int socket_conexion,
 	sem_wait(&cant_block);
 
 	bloquear_pcb_dispositivo(socket_conexion, entrada_salida);
-	//asignar_pcb_a_cpu(socket_conexion);
+//asignar_pcb_a_cpu(socket_conexion);
 
-	//free(entrada_salida);
+//free(entrada_salida);
 
 }
 
@@ -253,24 +256,22 @@ void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion) {
 	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
 			pcb_quantum->pcb->pid);
 	agregar_cpu_disponible(socket_conexion);
-	sacar_socket_cpu_de_tabla(socket_conexion);
-	actualizar_estado_pcb(pcb_quantum->pcb, BLOCK);
+	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
 
 	sem_post(&mutex_cola_block);
 
 	sem_post(&cant_block);
-	free(pcb_out);
 }
 
 void atiendo_wait(void *buffer, int socket_conexion,
 		t_config_nucleo *configuracion) {
-
+	t_header *h_semaforo;
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	// MAYOR a 0, sigue con rafaga
-	if (wait_semaforo(semaforo->nombre) > 0) {
-		t_header *h_semaforo = malloc(sizeof(t_header));
+// MAYOR a 0, sigue con rafaga
+	if (obtener_valor_semaforo(semaforo->nombre) > 0) {
+		h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
 		h_semaforo->id_mensaje = RESPUESTA_SEGUI_RAFAGA;
@@ -279,28 +280,75 @@ void atiendo_wait(void *buffer, int socket_conexion,
 		if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
 			perror("Fallo al responder Seguir rafaga al CPU\n");
 		}
-
-		free(h_semaforo);
+		free(semaforo->nombre);
+		free(semaforo);
 	} else {
-		bloquear_pcb_semaforo(semaforo->nombre, socket_conexion);
-
-		t_header *h_semaforo = malloc(sizeof(t_header));
+		sem_wait(&mutex_solicitudes_auxiliares_lista);
+		list_add(solicitudes_auxiliares_lista, semaforo);
+		sem_post(&mutex_solicitudes_auxiliares_lista);
+		//bloquear_pcb_semaforo(semaforo->nombre, socket_conexion);
+		h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
 		h_semaforo->id_mensaje = RESPUESTA_WAIT;
 		h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
-
 		if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
 			perror("Fallo al responder Wait al CPU\n");
 		}
 
-		free(h_semaforo);
 	}
+	free(h_semaforo);
+}
 
+void atiendo_wait_pcb(void *buffer, int socket_conexion) {
+
+	t_pcb_quantum *pcb_quantum = malloc(sizeof(pcb_quantum));
+	deserializar_pcb_quantum(buffer, pcb_quantum);
+
+	sem_wait(&mutex_cola_exec);
+	queue_pop_pid(cola_exec, pcb_quantum->pcb->pid);
+
+	sem_post(&mutex_cola_exec);
+
+	sem_wait(&mutex_cola_block);
+	queue_push(cola_block, pcb_quantum->pcb);
+	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+			pcb_quantum->pcb->pid);
+	sem_post(&mutex_cola_block);
+	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
+	agregar_cpu_disponible(socket_conexion);
+
+	t_semaforo *semaforo = agregar_solicitud_semaforo_cola_sem(
+			pcb_quantum->pcb->pid);
+
+	t_atributos_semaforo *atributos_semaforo = dictionary_get(
+			solitudes_semaforo, semaforo->nombre);
+
+	t_pid *pid = malloc(sizeof(t_pid));
+	pid->pid = semaforo->pid;
+	queue_push(atributos_semaforo->solicitudes, pid);
+
+	atributos_semaforo->valor--;
+
+	sem_post(
+			&(sem_semaforos[atributos_semaforo->posicion_semaforo_contador_solicitudes]));
+
+	free(semaforo->nombre);
 	free(semaforo);
 }
 
-void atiendo_wait_pcb(void *buffer, int socket_conexion){
+t_semaforo *agregar_solicitud_semaforo_cola_sem(int pid) {
+
+	sem_wait(&mutex_solicitudes_auxiliares_lista);
+
+	bool busqueda_semaforo_logica(t_semaforo *semaforo) {
+		return (pid == semaforo->pid);
+	}
+	t_semaforo *semaforo_encontrado = (t_semaforo*) list_remove_by_condition(
+			solicitudes_auxiliares_lista, (void*) busqueda_semaforo_logica);
+
+	sem_post(&mutex_solicitudes_auxiliares_lista);
+	return semaforo_encontrado;
 
 }
 
@@ -325,7 +373,7 @@ void atiendo_signal(void *buffer, int socket_conexion,
 
 		avisar_para_que_desbloquee(semaforo->nombre);
 	}
-
+	free(semaforo->nombre);
 	free(semaforo);
 
 }
@@ -438,10 +486,11 @@ void deserializar_entrada_salida(void *buffer, t_entrada_salida *entrada_salida)
 
 }
 
-void deserializar_semaforo(void *buffer, t_semaforo *entrada_salida) {
+void deserializar_semaforo(void *buffer, t_semaforo *semaforo) {
 	int posicion_buffer = 0;
-
-	escribir_atributo_desde_string_de_buffer(buffer, &(entrada_salida->nombre),
+	escribir_atributo_desde_string_de_buffer(buffer, &(semaforo->nombre),
+			&posicion_buffer);
+	escribir_atributo_desde_int_de_buffer(buffer, &(semaforo->pid),
 			&posicion_buffer);
 
 }
