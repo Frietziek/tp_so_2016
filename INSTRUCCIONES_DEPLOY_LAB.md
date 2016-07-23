@@ -8,7 +8,7 @@
 3. Fijarse las IP's de las VM y ponerlas en los .ini's (en todos, incluyendo los 4 .ini que hay preparados para cada test)
 
 ###Durante el transcurso de los test's
-1. **Cambio de configuraciones:** Por defecto están puestos los .ini's del primer test, pero a medida que se avance con los otros hay que ir ejecutando los scripts de **copiar_configuraciones.sh** del test a ejecutar, ubicados en la carpeta tests dentro del root.
+1. **Cambio de configuraciones:** Por defecto están puestos los .ini's del primer test, pero a medida que se avance con los otros hay que ir ejecutando los scripts de **`./copiar_configuraciones.sh`** del test a ejecutar, ubicados en la carpeta tests dentro del root.
 
 2. **Compilar y ejecutar:** Levantar cada proceso yendo a su correspondiente carpeta y ejecutando **`./compilar_y_levantar_XXXXX.sh`**
 
