@@ -13,7 +13,7 @@
 int socket_nucleo;
 t_log *loggerManager;
 
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
 
 	loggerManager = log_create("consola.log", "CONSOLA", true, LOG_LEVEL_TRACE); //Se crea el log
 
@@ -23,24 +23,15 @@ int main(int argc, char **argv) {
 	configuracion_consola->nombre_script = malloc(40);
 
 	cargar_configuracion_consola("config.consola.ini", configuracion_consola);
-	log_trace(loggerManager,
-			"Se cargaron las configuraciones de la consola con los siguientes valores: \nIP_NUCLEO=%s \nPUERTO_NUCLEO=%i\nNOMBRE_SCRIPT=%s\n",
-			configuracion_consola->ip_nucleo,
-			configuracion_consola->puerto_nucleo,
-			configuracion_consola->nombre_script);
+	log_trace(loggerManager, "Se cargaron las configuraciones de la consola con los siguientes valores: \nIP_NUCLEO=%s \nPUERTO_NUCLEO=%i\nNOMBRE_SCRIPT=%s\n", configuracion_consola->ip_nucleo, configuracion_consola->puerto_nucleo, configuracion_consola->nombre_script);
 	/*--------------------------------------------------------------------------------------------------------------*/
 
 	/*--------------------------------------------- CONEXIÓN NUCLEO -----------------------------------------------*/
-	socket_nucleo = conectar_servidor(configuracion_consola->ip_nucleo,
-			configuracion_consola->puerto_nucleo, &atender_nucleo);
+	socket_nucleo = conectar_servidor(configuracion_consola->ip_nucleo, configuracion_consola->puerto_nucleo, &atender_nucleo);
 	if (socket_nucleo != -1)
-		log_trace(loggerManager,
-				"Se establecio conexion con el nucleo, el socket es: %i",
-				socket_nucleo);
+		log_trace(loggerManager, "Se establecio conexion con el nucleo, el socket es: %i", socket_nucleo);
 	else
-		log_error(loggerManager,
-				"Ocurrio un problema al conectar con el nucleo (socket_nucleo: %i)",
-				socket_nucleo);
+		log_error(loggerManager, "Ocurrio un problema al conectar con el nucleo (socket_nucleo: %i)", socket_nucleo);
 
 	enviar_handshake_al_nucleo(socket_nucleo);
 	/*--------------------------------------------------------------------------------------------------------------*/
@@ -48,17 +39,18 @@ int main(int argc, char **argv) {
 	signal(SIGINT, avisar_nucleo_de_terminacion_programa); //Control de CTRL + C
 
 	/*--------------------------------------------- SCRIPT ANSISOP -----------------------------------------------*/
-	char* path_del_script = string_from_format("../scripts-ansisop/scripts/%s",
-			configuracion_consola->nombre_script);
+	char* path_del_script;
+	if(argv[2] != NULL && argc >= 3) //Osea, si se ejecuto mediante el shebang
+		path_del_script = argv[2]; //TODO: Testear shebang
+	else
+		path_del_script = string_from_format("../scripts-ansisop/scripts/%s", configuracion_consola->nombre_script);
+
 	FILE *archivo_script = fopen(path_del_script, "r");
 
 	if (archivo_script == NULL)
-		log_error(loggerManager, "El archivo de script no existe (path: %s)",
-				path_del_script);
+		log_error(loggerManager, "El archivo de script no existe (path: %s)", path_del_script);
 	else
-		log_trace(loggerManager,
-				"El archivo de script existe y se ha abierto correctamente (path: %s)",
-				path_del_script);
+		log_trace(loggerManager, "El archivo de script existe y se ha abierto correctamente (path: %s)", path_del_script);
 
 	free(path_del_script);
 
@@ -84,23 +76,20 @@ void cargar_configuracion_consola(char *archivo,
 	t_config *configuracion = config_create(archivo);
 
 	if (config_has_property(configuracion, "PUERTO_NUCLEO")) {
-		configuracion_consola->puerto_nucleo = config_get_int_value(
-				configuracion, "PUERTO_NUCLEO");
+		configuracion_consola->puerto_nucleo = config_get_int_value(configuracion, "PUERTO_NUCLEO");
 	} else {
 		configuracion_consola->puerto_nucleo = DEF_PUERTO_NUCLEO;
 	}
 
 	if (config_has_property(configuracion, "IP_NUCLEO")) {
-		strcpy(configuracion_consola->ip_nucleo,
-				config_get_string_value(configuracion, "IP_NUCLEO"));
+		strcpy(configuracion_consola->ip_nucleo, config_get_string_value(configuracion, "IP_NUCLEO"));
 		//configuracion_consola->ip_nucleo = config_get_string_value(configuracion, "IP_NUCLEO");
 	} else {
 		configuracion_consola->ip_nucleo = DEF_IP_NUCLEO;
 	}
 
 	if (config_has_property(configuracion, "NOMBRE_SCRIPT")) {
-		strcpy(configuracion_consola->nombre_script,
-				config_get_string_value(configuracion, "NOMBRE_SCRIPT"));
+		strcpy(configuracion_consola->nombre_script, config_get_string_value(configuracion, "NOMBRE_SCRIPT"));
 		//configuracion_consola->nombre_script = config_get_string_value(configuracion, "NOMBRE_SCRIPT");
 	} else {
 		configuracion_consola->nombre_script = DEF_NOMBRE_SCRIPT;
@@ -110,8 +99,7 @@ void cargar_configuracion_consola(char *archivo,
 }
 
 void enviar_codigo_al_nucleo(FILE * archivo, int socket_nucleo) {
-	log_trace(loggerManager,
-			"Se esta procediento a enviar el codigo fuente al nucleo...");
+	log_trace(loggerManager, "Se esta procediento a enviar el codigo fuente al nucleo...");
 	t_header *header = malloc(sizeof(t_header));
 
 	char *Aux_Archivo[100];
@@ -130,8 +118,7 @@ void enviar_codigo_al_nucleo(FILE * archivo, int socket_nucleo) {
 		strcat(buffer->texto, Aux_Archivo);
 	}
 
-	log_trace(loggerManager, "El codigo fuente del script a enviar es: \n%s \n",
-			buffer->texto);
+	log_trace(loggerManager, "El codigo fuente del script a enviar es: \n%s \n", buffer->texto);
 
 	t_buffer *p_buffer = serializar_imprimir_texto(buffer);
 
@@ -140,8 +127,7 @@ void enviar_codigo_al_nucleo(FILE * archivo, int socket_nucleo) {
 	header->id_mensaje = MENSAJE_INICIAR_PROGRAMA;
 	header->longitud_mensaje = p_buffer->longitud_buffer;
 
-	if (enviar_buffer(socket_nucleo, header, p_buffer)
-			< sizeof(t_header) + p_buffer->longitud_buffer) {
+	if (enviar_buffer(socket_nucleo, header, p_buffer) < sizeof(t_header) + p_buffer->longitud_buffer) {
 		perror("Fallo enviar buffer");
 	}
 
@@ -167,8 +153,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		t_variable_valor * valor_imprimir = malloc(sizeof(t_variable_valor));
 		deserializar_variable_valor(paquete->payload, valor_imprimir);
 		consola_nucleo(socket_nucleo, RESPUESTA_IMPRIMIR);
-		log_trace(loggerManager, "[Mensaje nucleo] MENSAJE_IMPRIMIR: %i",
-				valor_imprimir->valor);
+		log_trace(loggerManager, "[Mensaje nucleo] MENSAJE_IMPRIMIR: %i", valor_imprimir->valor);
 		free(valor_imprimir);
 		break;
 
@@ -177,15 +162,13 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		t_texto * texto_imprimir = malloc(sizeof(t_texto));
 		deserializar_texto(paquete->payload, texto_imprimir);
 		consola_nucleo(socket_nucleo, RESPUESTA_IMPRIMIR_TEXTO);
-		log_trace(loggerManager, "[Mensaje nucleo] MENSAJE_IMPRIMIR_TEXTO: %s",
-				texto_imprimir->texto);
+		log_trace(loggerManager, "[Mensaje nucleo] MENSAJE_IMPRIMIR_TEXTO: %s", texto_imprimir->texto);
 		free(texto_imprimir->texto);
 		free(texto_imprimir);
 		break;
 
 	case MENSAJE_PROGRAMA_FINALIZADO:
-		log_trace(loggerManager,
-				"[Mensaje nucleo] El nucleo solicita finalizar el programa");
+		log_trace(loggerManager, "[Mensaje nucleo] El nucleo solicita finalizar el programa");
 		consola_nucleo(socket_nucleo, RESPUESTA_PROGRAMA_FINALIZADO);
 		getchar(); //Pausa antes de cerrar la consola
 		exit(1);
@@ -200,8 +183,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 
 //TODO: Revisar bien esta función, antes le enviaba el mensaje MENSAJE_INICIAR_PROGRAMA al nucleo, me hacían ruido bastantes cosas, borré cosas que me parecían estaban de más ojo
 void avisar_nucleo_de_terminacion_programa() {
-	log_trace(loggerManager,
-			"Se ha presionado CTRL + C, se esta dando el aviso correspondiente al nucleo");
+	log_trace(loggerManager, "Se ha presionado CTRL + C, se esta dando el aviso correspondiente al nucleo");
 
 	signal(SIGINT, SIG_IGN); //TODO: Esto está de más? Por las dudas por ahora se deja
 	consola_nucleo(socket_nucleo, MENSAJE_MATAR_PROGRAMA);
@@ -220,13 +202,10 @@ void enviar_handshake_al_nucleo(int socket_nucleo) {
 	int cantidad_bytes_enviados = enviar_header(socket_nucleo, header);
 
 	if (cantidad_bytes_enviados < sizeof(t_header))
-		log_error(loggerManager,
-				"[Comunicacion nucleo] Ocurrió un problema al enviar el handshake al nucleo");
+		log_error(loggerManager, "[Comunicacion nucleo] Ocurrió un problema al enviar el handshake al nucleo");
 	else
-		log_trace(loggerManager,
-				"[Comunicacion nucleo] Se realizo el envio del handshake al nucleo correctamente");
+		log_trace(loggerManager, "[Comunicacion nucleo] Se realizo el envio del handshake al nucleo correctamente");
 
 	free(header);
 
 }
-
