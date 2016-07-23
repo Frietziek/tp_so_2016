@@ -22,7 +22,15 @@ int main(int argc, char *argv[]) {
 	configuracion_consola->ip_nucleo = malloc(40);
 	configuracion_consola->nombre_script = malloc(40);
 
-	cargar_configuracion_consola("config.consola.ini", configuracion_consola);
+	char *path_configuracion;
+
+	if(argv[1] != NULL) //Osea, si se ejecuto mediante el shebang
+		path_configuracion = "/usr/bin/config.consola.ini";
+	else
+		path_configuracion = "config.consola.ini";
+
+
+	cargar_configuracion_consola(path_configuracion, configuracion_consola);
 	log_trace(loggerManager, "Se cargaron las configuraciones de la consola con los siguientes valores: \nIP_NUCLEO=%s \nPUERTO_NUCLEO=%i\nNOMBRE_SCRIPT=%s\n", configuracion_consola->ip_nucleo, configuracion_consola->puerto_nucleo, configuracion_consola->nombre_script);
 	/*--------------------------------------------------------------------------------------------------------------*/
 
@@ -40,8 +48,9 @@ int main(int argc, char *argv[]) {
 
 	/*--------------------------------------------- SCRIPT ANSISOP -----------------------------------------------*/
 	char* path_del_script;
-	if(argv[2] != NULL && argc >= 3) //Osea, si se ejecuto mediante el shebang
-		path_del_script = argv[2]; //TODO: Testear shebang
+
+	if(argv[1] != NULL) //Osea, si se ejecuto mediante el shebang
+		path_del_script = argv[1];
 	else
 		path_del_script = string_from_format("../scripts-ansisop/scripts/%s", configuracion_consola->nombre_script);
 
@@ -52,9 +61,10 @@ int main(int argc, char *argv[]) {
 	else
 		log_trace(loggerManager, "El archivo de script existe y se ha abierto correctamente (path: %s)", path_del_script);
 
-	free(path_del_script);
-
 	enviar_codigo_al_nucleo(archivo_script, socket_nucleo);
+
+	if(argv[1] == NULL)
+		free(path_del_script);
 	/*-------------------------------------------------------------------------------------------------------------*/
 
 	getchar(); //pausa
