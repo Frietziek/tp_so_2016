@@ -275,7 +275,9 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_WAIT:
 		log_info(logger_manager, "Recibi wait y envio PCB a Nucleo.");
-		enviar_PCB(RESPUESTA_PCB);
+		//enviar_PCB(RESPUESTA_PCB);
+		sem_post(&s_instruccion_finalizada);
+		wait_nucleo = 1;
 		break;
 	case RESPUESTA_SEGUI_RAFAGA:
 		log_info(logger_manager, "Continuo con mi rafaga actual.");
@@ -424,14 +426,14 @@ void ejecuto_instrucciones() {
 		--pcb_quantum->quantum;
 	}
 
-	int id_mensaje;
+	int id_mensaje = 0;
 
 	if (entrada_salida) {
 		id_mensaje = MENSAJE_ENTRADA_SALIDA_PCB;
 		entrada_salida = 0;
 	} else if (wait_nucleo) {
-		id_mensaje = MENSAJE_WAIT_PCB;
 		wait_nucleo = 0;
+		id_mensaje = MENSAJE_WAIT_PCB;
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;
 		matar_proceso = 0;
@@ -448,7 +450,9 @@ void ejecuto_instrucciones() {
 		log_info(logger_manager, "Finaliza Quantum.");
 	}
 
-	enviar_PCB(id_mensaje);
+	if (id_mensaje != 0) {
+		enviar_PCB(id_mensaje);
+	}
 	pthread_attr_destroy(&attr_instruccion);
 }
 
@@ -509,7 +513,7 @@ void respuesta_leer_compartida(void *buffer) {
 }
 
 void libero_pcb() {
-	/*t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
+	t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
 	int i_stack;
 	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
 		indice_stack += i_stack;
@@ -521,8 +525,9 @@ void libero_pcb() {
 			//free(indice_variables->posicion_memoria);
 		}
 		free(indice_stack->posicion_variable_retorno);
-		free(indice_stack->variables);
-	}*/
+		//free(indice_stack->variables);
+	}
+
 	free(pcb_quantum->pcb->instrucciones_serializadas);
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);

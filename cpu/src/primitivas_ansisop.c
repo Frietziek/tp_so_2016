@@ -327,9 +327,9 @@ void ansisop_wait(t_nombre_semaforo semaforo) {
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_WAIT,
 			"Fallo al enviar wait al Nucleo.", buffer);
 
-	wait_nucleo = 1;
+	//wait_nucleo = 1;
 
-	sem_post(&s_instruccion_finalizada);
+	//sem_post(&s_instruccion_finalizada);
 
 	free(p_semaforo);
 	free(buffer->contenido_buffer);

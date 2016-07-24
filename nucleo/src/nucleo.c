@@ -1024,12 +1024,15 @@ int obtener_valor_semaforo(char *semaforo_nombre) {
 }
 
 int signal_semaforo(char *semaforo_nombre) {
+
 	sem_wait(&mutex_solicitudes_semaforo);
 	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
 			semaforo_nombre))->valor)++;
 	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
 			solitudes_semaforo, semaforo_nombre))->valor);
 	sem_post(&mutex_solicitudes_semaforo);
+	log_info(logger_manager, "el valor del semaforo  %s es: %d\n",
+			semaforo_nombre, valor_semaforo);
 	return valor_semaforo;
 }
 
@@ -1037,7 +1040,7 @@ void avisar_para_que_desbloquee(char *nombre_sem) {
 
 	t_atributos_semaforo* atributos = dictionary_get(solitudes_semaforo,
 			nombre_sem);
-	sem_post(
+	sem_wait(
 			&(sem_semaforos[atributos->posicion_semaforo_contador_solicitudes]));
 }
 

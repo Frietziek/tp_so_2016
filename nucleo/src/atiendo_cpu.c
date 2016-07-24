@@ -70,9 +70,7 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_WAIT_PCB");
 		atiendo_wait_pcb(paquete->payload, socket_cpu); //TODO falta hacer
 		break;
-	case RESPUESTA_PCB:
-		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_PCB");
-		//bloquear_pcb_semaforo(int socket_cpu);
+
 	}
 }
 
@@ -271,6 +269,13 @@ void atiendo_wait(void *buffer, int socket_conexion,
 
 // MAYOR a 0, sigue con rafaga
 	if (obtener_valor_semaforo(semaforo->nombre) > 0) {
+
+		t_atributos_semaforo *atributos_semaforo = dictionary_get(
+				solitudes_semaforo, semaforo->nombre);
+
+		atributos_semaforo->valor--;
+		log_info(logger_manager, "el valor del semaforo  %s es: %d\n",
+				semaforo->nombre, atributos_semaforo->valor);
 		h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
@@ -286,7 +291,7 @@ void atiendo_wait(void *buffer, int socket_conexion,
 		sem_wait(&mutex_solicitudes_auxiliares_lista);
 		list_add(solicitudes_auxiliares_lista, semaforo);
 		sem_post(&mutex_solicitudes_auxiliares_lista);
-		//bloquear_pcb_semaforo(semaforo->nombre, socket_conexion);
+
 		h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
@@ -326,12 +331,14 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 
 	t_pid *pid = malloc(sizeof(t_pid));
 	pid->pid = semaforo->pid;
+
+	sem_wait(&mutex_solicitudes_semaforo);
 	queue_push(atributos_semaforo->solicitudes, pid);
-
 	atributos_semaforo->valor--;
+	sem_post(&mutex_solicitudes_semaforo);
 
-	sem_post(
-			&(sem_semaforos[atributos_semaforo->posicion_semaforo_contador_solicitudes]));
+	log_info(logger_manager, "el valor del semaforo  %s es: %d\n",
+			semaforo->nombre, atributos_semaforo->valor);
 
 	free(semaforo->nombre);
 	free(semaforo);
@@ -358,7 +365,7 @@ void atiendo_signal(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	if (signal_semaforo(semaforo->nombre) <= 0) {
+	if (signal_semaforo(semaforo->nombre) > 0) {
 
 		t_header *h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
