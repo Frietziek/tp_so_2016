@@ -978,7 +978,7 @@ void respuesta_finalizar_programa(void *buffer, int id_mensaje) {
 
 	header_nucleo->longitud_mensaje = payload_nucleo->longitud_buffer;
 	log_info(log_umc,
-			"Se manda al nucleo la confirmacion de la eliminacino del programa");
+			"Se manda al nucleo la confirmacion de la eliminacion del programa");
 	if (enviar_buffer(socket_nucleo, header_nucleo, payload_nucleo)
 			< sizeof(t_header) + payload_nucleo->longitud_buffer) {
 		log_error(log_umc, "Fallo al responder pedido CPU");
@@ -1737,8 +1737,8 @@ void liberar_marcos(int pid) {
 					(void*) es_marco);
 			marco->libre = 1;
 			log_info(log_umc, "Se libera el marco %d", marco->numero_marco);
-			nro_pagina++;
 		}
+		nro_pagina++;
 	}
 }
 
@@ -1840,10 +1840,12 @@ void finalizar_cpu(int socket_cpu) {
 		return (elemento->socket_cpu == socket_cpu);
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
+	flush_programa_tlb(cpu->pid);
 	if (cpu != NULL) { // hago esto por las dudas de que tenga un mismo fd que otra anterior
 		pthread_mutex_lock(&mutex_lista_cpus);
 		list_remove_by_condition(lista_cpus, (void*) es_cpu);
 		pthread_mutex_unlock(&mutex_lista_cpus);
 		free(cpu);
 	}
+
 }

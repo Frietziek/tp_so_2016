@@ -339,7 +339,12 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		}
 
 		break;
-
+	case RESPUESTA_IMPRIMIR:
+		log_info(logger_manager,"La consola imprimió el valor satisfactoriamente");
+		break;
+	case RESPUESTA_IMPRIMIR_TEXTO:
+		log_info(logger_manager,"La consola imprimió el texto satisfactoriamente");
+		break;
 	default:
 		printf("Mensaje no reconocido\n");
 		break;
