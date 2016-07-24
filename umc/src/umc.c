@@ -1757,6 +1757,7 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 		return (elemento->socket_cpu == socket);
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
+	flush_programa_tlb(cpu->pid);
 	cpu->pid = programa->id_programa;
 	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
 		log_error(log_umc, "Error de comunicacion");
