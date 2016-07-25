@@ -70,7 +70,9 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_WAIT_PCB");
 		atiendo_wait_pcb(paquete->payload, socket_cpu); //TODO falta hacer
 		break;
-
+	case RESPUESTA_PCB:
+		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_PCB");
+		//bloquear_pcb_semaforo(int socket_cpu);
 	}
 }
 
@@ -256,6 +258,8 @@ void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion) {
 	agregar_cpu_disponible(socket_conexion);
 	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
 
+	libero_pcb(pcb_out);
+
 	sem_post(&mutex_cola_block);
 
 	sem_post(&cant_block);
@@ -267,20 +271,16 @@ void atiendo_wait(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-// MAYOR a 0, sigue con rafaga
-	if (obtener_valor_semaforo(semaforo->nombre) > 0) {
-
-		t_atributos_semaforo *atributos_semaforo = dictionary_get(
-				solitudes_semaforo, semaforo->nombre);
-
-		atributos_semaforo->valor--;
-		log_info(logger_manager, "el valor del semaforo  %s es: %d\n",
-				semaforo->nombre, atributos_semaforo->valor);
+	// MAYOR a 0, sigue con rafaga
+	int valor_semaforo = obtener_valor_semaforo(semaforo->nombre);
+	if ( valor_semaforo > 0) {
 		h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
 		h_semaforo->id_mensaje = RESPUESTA_SEGUI_RAFAGA;
 		h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
+
+		decrementar_semaforo(semaforo->nombre);
 
 		if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
 			perror("Fallo al responder Seguir rafaga al CPU\n");
@@ -291,12 +291,14 @@ void atiendo_wait(void *buffer, int socket_conexion,
 		sem_wait(&mutex_solicitudes_auxiliares_lista);
 		list_add(solicitudes_auxiliares_lista, semaforo);
 		sem_post(&mutex_solicitudes_auxiliares_lista);
-
+		//bloquear_pcb_semaforo(semaforo->nombre, socket_conexion);
 		h_semaforo = malloc(sizeof(t_header));
 		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
 		h_semaforo->id_proceso_receptor = PROCESO_CPU;
 		h_semaforo->id_mensaje = RESPUESTA_WAIT;
 		h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
+
+
 		if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
 			perror("Fallo al responder Wait al CPU\n");
 		}
@@ -323,7 +325,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
 	agregar_cpu_disponible(socket_conexion);
 
-	t_semaforo *semaforo = agregar_solicitud_semaforo_cola_sem(
+	t_semaforo *semaforo = agregar_solicitud_semaforo_cola_sem(  // para obtener cual era el semaforo a hacer wait por el pcb
 			pcb_quantum->pcb->pid);
 
 	t_atributos_semaforo *atributos_semaforo = dictionary_get(
@@ -331,14 +333,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 
 	t_pid *pid = malloc(sizeof(t_pid));
 	pid->pid = semaforo->pid;
-
-	sem_wait(&mutex_solicitudes_semaforo);
 	queue_push(atributos_semaforo->solicitudes, pid);
-	atributos_semaforo->valor--;
-	sem_post(&mutex_solicitudes_semaforo);
-
-	log_info(logger_manager, "el valor del semaforo  %s es: %d\n",
-			semaforo->nombre, atributos_semaforo->valor);
 
 	free(semaforo->nombre);
 	free(semaforo);
@@ -365,21 +360,28 @@ void atiendo_signal(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	if (signal_semaforo(semaforo->nombre) > 0) {
+	aumentar_semaforo(semaforo->nombre);
+	int valor_semaforo = obtener_valor_semaforo(semaforo->nombre);
 
-		t_header *h_semaforo = malloc(sizeof(t_header));
-		h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
-		h_semaforo->id_proceso_receptor = PROCESO_CPU;
-		h_semaforo->id_mensaje = RESPUESTA_SIGNAL;
-		h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
-
-		if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
-			perror("Fallo al responder Signal al CPU\n");
-		}
+	/*if (valor_semaforo <= 0) {
+		//TODO no tengo que hacer nada. creo ...
 	} else {
-
+		avisar_para_que_desbloquee(semaforo->nombre);
+	}*/
+	if (valor_semaforo > 0){
 		avisar_para_que_desbloquee(semaforo->nombre);
 	}
+
+	t_header *h_semaforo = malloc(sizeof(t_header));
+	h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;
+	h_semaforo->id_proceso_receptor = PROCESO_CPU;
+	h_semaforo->id_mensaje = RESPUESTA_SIGNAL;
+	h_semaforo->longitud_mensaje = PAYLOAD_VACIO;
+
+	if (enviar_header(socket_conexion, h_semaforo) < sizeof(h_semaforo)) {
+		perror("Fallo al responder Signal al CPU\n");
+	}
+
 	free(semaforo->nombre);
 	free(semaforo);
 
@@ -765,5 +767,28 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 		}
 	}
 
+}
+
+void decrementar_semaforo(char *semaforo_nombre){
+	sem_wait(&mutex_solicitudes_semaforo);
+
+	t_atributos_semaforo * attr_sem = (t_atributos_semaforo*) dictionary_get(
+			solitudes_semaforo, semaforo_nombre);
+	attr_sem->valor--;
+	int valor_semaforo = obtener_valor_semaforo(semaforo_nombre);
+	sem_post(&mutex_solicitudes_semaforo);
+	log_info(logger_manager,"Nuevo valor del semaforo %s= %d",semaforo_nombre,valor_semaforo);
+}
+
+void aumentar_semaforo(char *semaforo_nombre){
+	sem_wait(&mutex_solicitudes_semaforo);
+
+	t_atributos_semaforo * attr_sem = (t_atributos_semaforo*) dictionary_get(
+			solitudes_semaforo, semaforo_nombre);
+	attr_sem->valor++;
+	int valor_semaforo = obtener_valor_semaforo(semaforo_nombre);
+
+	sem_post(&mutex_solicitudes_semaforo);
+	log_info(logger_manager,"Nuevo valor del semaforo %s= %d",semaforo_nombre,valor_semaforo);
 }
 

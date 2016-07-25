@@ -696,21 +696,28 @@ void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
 	while (atiendo_solicitudes) {
 		sem_wait(
 				&(sem_semaforos[atributos->posicion_semaforo_contador_solicitudes])); //avanzo si hay un proceso en la cola de solicitudes
-		t_pid *pid = queue_pop(atributos->solicitudes);
 
-		t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid->pid);
 
-		sem_wait(&mutex_cola_block);
-		queue_pop_pid(cola_block, pcb_a_ready->pid);
-		sem_post(&mutex_cola_block);
+		if(queue_size(atributos->solicitudes) > 0){
 
-		pcb_a_ready->estado = READY;
+			t_pid *pid = queue_pop(atributos->solicitudes);
 
-		sem_wait(&mutex_cola_ready);
-		queue_push(cola_ready, pcb_a_ready);
-		log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
-				pcb_a_ready->pid);
-		sem_post(&mutex_cola_ready);
+			//t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid->pid);
+
+			sem_wait(&mutex_cola_block);
+			t_pcb * pcb_a_ready = queue_pop_pid(cola_block, pid->pid);
+			sem_post(&mutex_cola_block);
+
+			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_ready, READY);
+
+			sem_wait(&mutex_cola_ready);
+			queue_push(cola_ready, pcb_a_ready);
+			log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+					pcb_a_ready->pid);
+			sem_post(&mutex_cola_ready);
+
+			sem_post(&cant_ready);
+		}
 
 	}
 }
@@ -1015,24 +1022,21 @@ int wait_semaforo(char *semaforo_nombre) {
 }
 
 int obtener_valor_semaforo(char *semaforo_nombre) {
-	sem_wait(&mutex_solicitudes_semaforo);
 
 	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
 			solitudes_semaforo, semaforo_nombre))->valor);
-	sem_post(&mutex_solicitudes_semaforo);
+
 	return valor_semaforo;
 }
 
 int signal_semaforo(char *semaforo_nombre) {
 
-	sem_wait(&mutex_solicitudes_semaforo);
+	aumentar_semaforo(semaforo_nombre);
 	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
 			semaforo_nombre))->valor)++;
 	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
 			solitudes_semaforo, semaforo_nombre))->valor);
-	sem_post(&mutex_solicitudes_semaforo);
-	log_info(logger_manager, "el valor del semaforo  %s es: %d\n",
-			semaforo_nombre, valor_semaforo);
+
 	return valor_semaforo;
 }
 
@@ -1040,7 +1044,7 @@ void avisar_para_que_desbloquee(char *nombre_sem) {
 
 	t_atributos_semaforo* atributos = dictionary_get(solitudes_semaforo,
 			nombre_sem);
-	sem_wait(
+	sem_post(
 			&(sem_semaforos[atributos->posicion_semaforo_contador_solicitudes]));
 }
 
@@ -1146,7 +1150,7 @@ void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado) { //para re
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica)));
 	proceso->socket_cpu = NO_ASIGNADO;
-	libero_pcb(proceso->pcb);
+	//libero_pcb(proceso->pcb);
 	proceso->pcb = pcb;
 	proceso->pcb->estado = estado;
 	sem_post(&mutex_lista_procesos);

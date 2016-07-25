@@ -275,12 +275,11 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_WAIT:
 		log_info(logger_manager, "Recibi wait y envio PCB a Nucleo.");
-		//enviar_PCB(RESPUESTA_PCB);
 		sem_post(&s_instruccion_finalizada);
-		wait_nucleo = 1;
 		break;
 	case RESPUESTA_SEGUI_RAFAGA:
 		log_info(logger_manager, "Continuo con mi rafaga actual.");
+		wait_nucleo = 0;
 		sem_post(&s_instruccion_finalizada);
 		break;
 	case RESPUESTA_SIGNAL:
@@ -350,7 +349,7 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	log_info(logger_manager, "Se envio el PCB al nucleo");
+	log_info(logger_manager, "Se envio el PCB al nucleo: ");
 	cpu_ocupada = 0;
 
 	if (id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB) {
@@ -426,33 +425,37 @@ void ejecuto_instrucciones() {
 		--pcb_quantum->quantum;
 	}
 
-	int id_mensaje = 0;
+	int id_mensaje;
 
 	if (entrada_salida) {
 		id_mensaje = MENSAJE_ENTRADA_SALIDA_PCB;
+		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_ENTRADA_SALIDA_PCB");
 		entrada_salida = 0;
 	} else if (wait_nucleo) {
-		wait_nucleo = 0;
 		id_mensaje = MENSAJE_WAIT_PCB;
+		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_WAIT_PCB");
+		wait_nucleo = 0;
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;
+		log_info(logger_manager,"Se envia PCB al nucleo por RESPUESTA_MATAR");
 		matar_proceso = 0;
 	} else if (fin_proceso) {
 		id_mensaje = MENSAJE_PROGRAMA_FINALIZADO;
+		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_PROGRAMA_FINALIZADO");
 	} else if (excepcion_umc) {
 		id_mensaje = MENSAJE_EXCEPCION_UMC;
+		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_EXCEPCION_UMC");
 		excepcion_umc = 0;
 	} else if (matar_cpu) {
 		id_mensaje = MENSAJE_MATAR_CPU;
+		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_MATAR_CPU");
 		matar_cpu = 0;
 	} else {
 		id_mensaje = MENSAJE_QUANTUM;
 		log_info(logger_manager, "Finaliza Quantum.");
 	}
 
-	if (id_mensaje != 0) {
-		enviar_PCB(id_mensaje);
-	}
+	enviar_PCB(id_mensaje);
 	pthread_attr_destroy(&attr_instruccion);
 }
 
@@ -513,7 +516,7 @@ void respuesta_leer_compartida(void *buffer) {
 }
 
 void libero_pcb() {
-	t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
+	/*t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
 	int i_stack;
 	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
 		indice_stack += i_stack;
@@ -525,9 +528,8 @@ void libero_pcb() {
 			//free(indice_variables->posicion_memoria);
 		}
 		free(indice_stack->posicion_variable_retorno);
-		//free(indice_stack->variables);
-	}
-
+		free(indice_stack->variables);
+	}*/
 	free(pcb_quantum->pcb->instrucciones_serializadas);
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);

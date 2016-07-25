@@ -145,4 +145,8 @@ void bloquear_pcb_dispositivo(int socket_cpu, t_entrada_salida * entrada_salida)
 
 t_semaforo *agregar_solicitud_semaforo_cola_sem(int pid);
 
+void decrementar_semaforo(char *semaforo_nombre);
+
+void aumentar_semaforo(char *semaforo_nombre);
+
 #endif /* ATIENDO_CPU_H_ */
