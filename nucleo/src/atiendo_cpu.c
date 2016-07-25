@@ -312,7 +312,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 
 	sem_wait(&mutex_cola_exec);
-	queue_pop_pid(cola_exec, pcb_quantum->pcb->pid);
+	t_pcb * pcb_out = queue_pop_pid(cola_exec, pcb_quantum->pcb->pid);
 
 	sem_post(&mutex_cola_exec);
 
@@ -322,6 +322,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 			pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_block);
 	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
+	libero_pcb(pcb_out);
 	agregar_cpu_disponible(socket_conexion);
 
 	t_semaforo *semaforo = agregar_solicitud_semaforo_cola_sem( // para obtener cual era el semaforo a hacer wait por el pcb

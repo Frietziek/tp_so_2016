@@ -1151,7 +1151,6 @@ void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado) { //para re
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica)));
 	proceso->socket_cpu = NO_ASIGNADO;
-	//libero_pcb(proceso->pcb);
 	proceso->pcb = pcb;
 	proceso->pcb->estado = estado;
 	sem_post(&mutex_lista_procesos);
