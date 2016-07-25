@@ -511,14 +511,12 @@ void agregar_pcb_a_lista_procesos(t_pcb *pcb, int socket_consola) {
 }
 
 int obtener_cantidad_paginas_codigo_stack(char *codigo_de_consola) {
-	int modulo = (strlen(codigo_de_consola)
-			+ configuracion->stack_size * sizeof(int)) % tamanio_pagina;
-	int division = (strlen(codigo_de_consola)
-			+ configuracion->stack_size * sizeof(int)) / tamanio_pagina;
+	int modulo = strlen(codigo_de_consola) % tamanio_pagina;
+	int division = strlen(codigo_de_consola) / tamanio_pagina;
 	if (modulo == 0) {
-		return division;
+		return division + configuracion->stack_size;
 	} else
-		return division + 1;
+		return division + 1 + configuracion->stack_size;
 }
 
 t_pcb *crear_PCB(char *codigo_de_consola) {
