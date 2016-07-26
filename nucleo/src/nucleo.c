@@ -90,11 +90,13 @@ int main(void) {
 	sem_init(&mutex_solicitudes_semaforo, 0, 1);
 	sem_init(&mutex_tabla_procesos, 0, 1);
 	sem_init(&mutex_cola_cpu, 0, 1);
+	sem_init(&mutex_cola_solicitudes, 0, 1);
 	sem_init(&cant_cpu, 0, 0);
 	sem_init(&cant_ready, 0, 0);
 	sem_init(&cant_exec, 0, 0);
 	sem_init(&cant_exit, 0, 0);
 	sem_init(&cant_block, 0, 0);
+
 
 	log_trace(logger_manager, "Inicializando colas entrada salida");
 	inicializar_colas_entrada_salida(configuracion->io_id,
@@ -699,7 +701,9 @@ void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
 
 		if (queue_size(atributos->solicitudes) > 0) {
 
+			sem_wait(&mutex_cola_solicitudes);
 			t_pid *pid = queue_pop(atributos->solicitudes);
+			sem_post(&mutex_cola_solicitudes);
 
 			//t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid->pid);
 
@@ -902,7 +906,7 @@ void bloquear_pcb_dispositivo(int socket_cpu, t_entrada_salida * entrada_salida)
 	free(entrada_salida);
 }
 
-void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
+/*void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 	t_valor_socket_cola_semaforos *socket = malloc(
 			sizeof(t_valor_socket_cola_semaforos));
 	socket->socket = socket_cpu;
@@ -934,7 +938,7 @@ void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
 	sem_post(&mutex_cola_block);
 
 	free(socket);
-}
+}*/
 
 void sacar_socket_cpu_de_tabla(int socket_cpu) {
 
@@ -1028,7 +1032,7 @@ int obtener_valor_semaforo(char *semaforo_nombre) {
 	return valor_semaforo;
 }
 
-int signal_semaforo(char *semaforo_nombre) {
+/*int signal_semaforo(char *semaforo_nombre) {
 
 	aumentar_semaforo(semaforo_nombre);
 	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
@@ -1037,7 +1041,7 @@ int signal_semaforo(char *semaforo_nombre) {
 			solitudes_semaforo, semaforo_nombre))->valor);
 
 	return valor_semaforo;
-}
+}*/
 
 void avisar_para_que_desbloquee(char *nombre_sem) {
 
@@ -1201,18 +1205,18 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 
 	sem_wait(&mutex_lista_procesos);
 	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
-		log_info(logger_manager, "El socket cpu del proceso es: %i",
-				proceso->socket_cpu);
-		log_info(logger_manager, "El socket consola del proceso es: %i",
-				proceso->socket_consola);
-		if (proceso->pcb != NULL) {
-			log_info(logger_manager, "El estado del pcb es: %i",
-					proceso->pcb->estado);
-		}
 		return (pcb->pid == proceso->pcb->pid);
 	}
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica)));
+	log_info(logger_manager, "PID: %d El socket cpu del proceso es: %i", pcb->pid,
+			proceso->socket_cpu);
+	log_info(logger_manager, "PID: %d El socket consola del proceso es: %i", pcb->pid,
+			proceso->socket_consola);
+	if (proceso->pcb != NULL) {
+		log_info(logger_manager, "PID: %d El estado del pcb es: %i", pcb->pid,
+				proceso->pcb->estado);
+	}
 	proceso->socket_cpu = socket_cpu;
 	proceso->pcb->estado = EXEC;
 	sem_post(&mutex_lista_procesos);
