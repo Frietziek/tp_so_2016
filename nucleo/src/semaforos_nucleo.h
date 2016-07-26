@@ -22,6 +22,7 @@ sem_t mutex_diccionario_entrada_salida;
 sem_t mutex_solicitudes_semaforo;
 sem_t mutex_tabla_procesos;
 sem_t mutex_cola_cpu;
+sem_t mutex_cola_solicitudes;
 sem_t cant_cpu;
 sem_t cant_ready;
 sem_t cant_exec;

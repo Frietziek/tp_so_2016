@@ -253,7 +253,7 @@ void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion) {
 
 	sem_wait(&mutex_cola_block);
 	queue_push(cola_block, pcb_quantum->pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+	log_info(logger_manager, "E/S - PROCESO %d - Se agrega a la cola BLOCK",
 			pcb_quantum->pcb->pid);
 	agregar_cpu_disponible(socket_conexion);
 	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
@@ -318,7 +318,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 
 	sem_wait(&mutex_cola_block);
 	queue_push(cola_block, pcb_quantum->pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+	log_info(logger_manager, "WAIT - PROCESO %d - Se agrega a la cola BLOCK",
 			pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_block);
 	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
@@ -328,12 +328,18 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 	t_semaforo *semaforo = agregar_solicitud_semaforo_cola_sem( // para obtener cual era el semaforo a hacer wait por el pcb
 			pcb_quantum->pcb->pid);
 
-	t_atributos_semaforo *atributos_semaforo = dictionary_get(
+	sem_wait(&mutex_solicitudes_semaforo);
+	t_atributos_semaforo *atributos_semaforo = (t_atributos_semaforo*) dictionary_get(
 			solitudes_semaforo, semaforo->nombre);
+	sem_post(&mutex_solicitudes_semaforo);
 
 	t_pid *pid = malloc(sizeof(t_pid));
 	pid->pid = semaforo->pid;
+
+	sem_wait(&mutex_cola_solicitudes);
 	queue_push(atributos_semaforo->solicitudes, pid);
+	sem_post(&mutex_cola_solicitudes);
+
 
 	decrementar_semaforo(semaforo->nombre);
 
@@ -773,9 +779,10 @@ void decrementar_semaforo(char *semaforo_nombre) {
 			solitudes_semaforo, semaforo_nombre);
 	attr_sem->valor--;
 	int valor_semaforo = obtener_valor_semaforo(semaforo_nombre);
-	sem_post(&mutex_solicitudes_semaforo);
 	log_info(logger_manager, "Nuevo valor del semaforo %s= %d", semaforo_nombre,
 			valor_semaforo);
+	sem_post(&mutex_solicitudes_semaforo);
+
 }
 
 void aumentar_semaforo(char *semaforo_nombre) {
@@ -785,9 +792,9 @@ void aumentar_semaforo(char *semaforo_nombre) {
 			solitudes_semaforo, semaforo_nombre);
 	attr_sem->valor++;
 	int valor_semaforo = obtener_valor_semaforo(semaforo_nombre);
-
-	sem_post(&mutex_solicitudes_semaforo);
 	log_info(logger_manager, "Nuevo valor del semaforo %s= %d", semaforo_nombre,
 			valor_semaforo);
+	sem_post(&mutex_solicitudes_semaforo);
+
 }
 

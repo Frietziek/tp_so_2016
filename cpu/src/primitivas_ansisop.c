@@ -324,10 +324,12 @@ void ansisop_wait(t_nombre_semaforo semaforo) {
 	p_semaforo->pid = pcb_quantum->pcb->pid;
 	t_buffer *buffer = serializar_semaforo(p_semaforo);
 
+	wait_nucleo = 1;
+
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_WAIT,
 			"Fallo al enviar wait al Nucleo.", buffer);
 
-	wait_nucleo = 1;
+
 
 	free(p_semaforo);
 	free(buffer->contenido_buffer);
