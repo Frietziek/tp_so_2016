@@ -31,6 +31,7 @@
 #define MENSAJE_PROGRAMA_FINALIZADO 9
 #define MENSAJE_ENTRADA_SALIDA_PCB 35
 #define MENSAJE_WAIT_PCB 36
+#define MENSAJE_DESCONEXION_CPU 50
 // Respuestas OK
 #define RESPUESTA_OBTENER_VALOR_COMPARTIDA 11
 #define RESPUESTA_ASIGNAR_VARIABLE_COMPARTIDA 12
@@ -148,5 +149,9 @@ t_semaforo *agregar_solicitud_semaforo_cola_sem(int pid);
 void decrementar_semaforo(char *semaforo_nombre);
 
 void aumentar_semaforo(char *semaforo_nombre);
+
+void atiendo_desconexion_cpu(int socket_cpu);
+
+t_cpu * queue_pop_cpu(t_queue * cola_cpus, int socket_cpu);
 
 #endif /* ATIENDO_CPU_H_ */

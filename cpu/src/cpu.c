@@ -155,7 +155,7 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 
 void atender_seniales(int signum) {
 	switch (signum) {
-	case SIGINT:
+	case SIGINT://control C
 		sem_post(&s_cpu_finaliza);
 		break;
 	case SIGUSR1:

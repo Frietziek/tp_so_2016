@@ -1198,6 +1198,14 @@ void * queue_pop_pid(t_queue *self, int pid) {
 			(void*) busqueda_proceso_logica);
 }
 
+t_cpu * queue_pop_cpu(t_queue *self, int socket_cpu) {
+	bool busqueda_proceso_logica(t_cpu * cpu) {
+		return (socket_cpu == cpu->socket_cpu);
+	}
+	return list_remove_by_condition(self->elements,
+			(void*) busqueda_proceso_logica);
+}
+
 void agregar_cpu_disponible(int socket_conexion) {
 	t_cpu * cpu_nueva = malloc(sizeof(t_cpu));
 	cpu_nueva->socket_cpu = socket_conexion;

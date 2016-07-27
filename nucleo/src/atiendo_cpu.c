@@ -7,7 +7,7 @@
 
 #include "atiendo_cpu.h"
 
-extern t_queue *cola_block, *cola_exec;
+extern t_queue *cola_block, *cola_exec, *cola_cpus;
 
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
@@ -73,7 +73,22 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 	case RESPUESTA_PCB:
 		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_PCB");
 		//bloquear_pcb_semaforo(int socket_cpu);
+		break;
+	case MENSAJE_DESCONEXION_CPU:
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
+		atiendo_desconexion_cpu(socket_cpu);
+		break;
 	}
+}
+
+void atiendo_desconexion_cpu(socket_cpu){
+
+	sem_wait(&mutex_cola_cpu);
+	t_cpu * cpu_a_sacar = queue_pop_cpu(cola_cpus, socket_cpu);
+	log_info(logger_manager, "Se libera un cpu para su uso");
+	sem_post(&mutex_cola_cpu);
+
+	free(cpu_a_sacar);
 }
 
 void atiendo_handshake(void *buffer, int socket_conexion) {
