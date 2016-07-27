@@ -348,6 +348,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		log_info(logger_manager,
 				"La consola imprimió el texto satisfactoriamente");
 		break;
+		//todo faltan varios mensajes de error de consola,
 	default:
 		printf("Mensaje no reconocido\n");
 		break;

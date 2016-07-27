@@ -157,6 +157,8 @@ void atender_seniales(int signum) {
 	switch (signum) {
 	case SIGINT://control C
 		//TODO mandar mensaje a nucleo para sacar sacar de la cola exec, eliminarlo de la tabla, mandar msje a umc para limpiar todo lo de ese pid, y mandar a consola a que termino de forma no amigable
+		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+				MENSAJE_SIGINT, "Fallo al enviar Desconexion al Nucleo.");
 		sem_post(&s_cpu_finaliza);
 		break;
 	case SIGUSR1:

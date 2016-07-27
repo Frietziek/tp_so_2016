@@ -7,7 +7,8 @@
 
 #include "atiendo_cpu.h"
 
-extern t_queue *cola_block, *cola_exec, *cola_cpus;
+extern t_queue *cola_block, *cola_exec, *cola_cpus, *cola_ready;
+extern int socket_umc;
 
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
@@ -80,15 +81,118 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 	case MENSAJE_MATAR_CPU:
 		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
+	case MENSAJE_SIGINT:
+		atender_sigint(socket_cpu,
+				buscar_socket_consola_por_socket_cpu(socket_cpu));
+		break;
 	}
 }
+//TODO sacar de la cola (tambien hay que buscarlo al igual que en atiendo_desconexion_cpu, puede estar en block o exec)
+//mandar msje a umc para limpiar lo de ese pid, mandar a consola a que termino de forma no amigable y eliminar la fila de la tabla,
+//todo falta hacer test de esto
+void atender_sigint(int socket_cpu, int socket_consola) {
 
-void atiendo_desconexion_cpu(void *buffer,int socket_cpu){
+	//Se va a terminar el proceso porque el pcb quedo inconsistente
+
+	t_pcb *pcb_a_eliminar = buscar_pcb_por_socket_cpu(socket_cpu);
+
+	t_pid *eliminar = malloc(sizeof(t_pid));
+
+	eliminar->pid = pcb_a_eliminar->pid;
+
+	t_buffer *buffer_eliminar = serializar_pid(eliminar);
+
+	// ENVIO TERMINAR AL UMC
+
+	t_header *header_eliminar_umc = malloc(sizeof(t_header));
+
+	header_eliminar_umc->id_proceso_emisor = PROCESO_NUCLEO;
+	header_eliminar_umc->id_proceso_receptor = PROCESO_UMC;
+	header_eliminar_umc->id_mensaje = MENSAJE_MATAR_PROGRAMA;
+	header_eliminar_umc->longitud_mensaje = buffer_eliminar->longitud_buffer;
+
+	if (enviar_buffer(socket_umc, header_eliminar_umc, buffer_eliminar)
+			< sizeof(t_header) + buffer_eliminar->longitud_buffer) {
+		perror("Fallo enviar buffer finalizar umc");
+	}
+
+	free(eliminar);
+	free(buffer_eliminar);
+	free(header_eliminar_umc);
+
+	enviar_header_completado(socket_consola, PROCESO_CONSOLA, 5); //FIXME el MENSAJE_PROGRAMA_FINALIZADO en la consola es el 5, falta implementar en el nucleo.
+
+	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
+	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
+			pcb_a_eliminar->estado);
+	pcb_a_eliminar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_eliminar->pid);
+	eliminar_proceso_de_lista_procesos_con_pid(pcb_a_eliminar->pid);
+	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
+}
+//todo falta hacer test de esto
+t_queue *obtener_cola_por_id_estado(int estado) {
+	switch (estado) {
+	case EXEC:
+		return cola_exec;
+	case BLOCK:
+		return cola_block;
+	case READY:
+		return cola_ready;
+	default:
+		return NULL;
+	}
+}
+//todo falta hacer test de esto
+sem_t *obtener_sem_de_cola_por_id_estado(int estado) {
+	switch (estado) {
+	case EXEC:
+		return &mutex_cola_exec;
+	case BLOCK:
+		return &mutex_cola_block;
+	case READY:
+		return &mutex_cola_ready;
+	default:
+		return NULL;
+	}
+}
+//todo falta hacer test de esto, muero de sueño
+void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
+
+	t_pcb_quantum *pcb_quantum_actualizado = malloc(sizeof(t_pcb_quantum));
+	deserializar_pcb_quantum(buffer, pcb_quantum_actualizado);
+
+	t_pcb *pcb_a_actualizar = buscar_pcb_por_socket_cpu(socket_cpu);
+
+	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
+
+	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
+			pcb_a_actualizar->estado);
+
+	pcb_a_actualizar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_actualizar->pid);
+
+	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
+
+	sem_wait(&mutex_cola_ready);
+	queue_push(cola_ready, pcb_quantum_actualizado->pcb);
+	log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+			pcb_quantum_actualizado->pcb->pid);
+
+	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(
+			pcb_quantum_actualizado->pcb, socket_cpu);
+
+	log_info(logger_manager, "Agregue pid: %d a cola ready",
+			pcb_quantum_actualizado->pcb->pid);
+	libero_pcb(pcb_a_actualizar);
+
+	sem_post(&mutex_cola_ready);
+	sem_post(&cant_ready);
 
 	sem_wait(&mutex_cola_cpu);
 	t_cpu * cpu_a_sacar = queue_pop_cpu(cola_cpus, socket_cpu);
 	log_info(logger_manager, "Se libera un cpu para su uso");
 	sem_post(&mutex_cola_cpu);
+
+	//todo sacar socket cpu de tabla,
 
 	free(cpu_a_sacar);
 }
@@ -392,10 +496,9 @@ void atiendo_signal(void *buffer, int socket_conexion,
 
 	if (valor_semaforo > 0) {
 		aumentar_semaforo(semaforo->nombre);
-	}else if (valor_semaforo == 0){
+	} else if (valor_semaforo == 0) {
 		avisar_para_que_desbloquee(semaforo->nombre);
 	}
-
 
 	t_header *h_semaforo = malloc(sizeof(t_header));
 	h_semaforo->id_proceso_emisor = PROCESO_NUCLEO;

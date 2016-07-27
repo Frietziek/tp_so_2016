@@ -33,6 +33,7 @@
 #define MENSAJE_ENTRADA_SALIDA_PCB 35
 #define MENSAJE_WAIT_PCB 36
 #define MENSAJE_DESCONEXION_CPU 50
+#define MENSAJE_SIGINT 58
 
 // Respuestas OK
 #define RESPUESTA_OBTENER_VALOR_COMPARTIDA 11
@@ -62,7 +63,6 @@
 #define ERROR_SIGNAL 27
 #define ERROR_QUANTUM 28
 #define ERROR_PROGRAMA_FINALIZADO 29
-
 
 // Estructuras para atender CPU
 typedef struct {
@@ -156,5 +156,11 @@ void aumentar_semaforo(char *semaforo_nombre);
 void atiendo_desconexion_cpu(void * buffer, int socket_cpu);
 
 t_cpu * queue_pop_cpu(t_queue * cola_cpus, int socket_cpu);
+
+void atender_sigint(int socket_cpu, int socket_consola);
+
+t_queue *obtener_cola_por_id_estado(int estado);
+
+sem_t *obtener_sem_de_cola_por_id_estado(int estado);
 
 #endif /* ATIENDO_CPU_H_ */
