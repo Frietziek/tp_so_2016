@@ -97,7 +97,6 @@ int main(void) {
 	sem_init(&cant_exit, 0, 0);
 	sem_init(&cant_block, 0, 0);
 
-
 	log_trace(logger_manager, "Inicializando colas entrada salida");
 	inicializar_colas_entrada_salida(configuracion->io_id,
 			configuracion->io_sleep);
@@ -707,6 +706,8 @@ void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
 
 			//t_pcb *pcb_a_ready = buscar_pcb_por_pid(pid->pid);
 
+			//decrementar_semaforo(configuracion->sem_id[atributos->posicion_semaforo_contador_solicitudes]);
+
 			sem_wait(&mutex_cola_block);
 			t_pcb * pcb_a_ready = queue_pop_pid(cola_block, pid->pid);
 			sem_post(&mutex_cola_block);
@@ -720,9 +721,13 @@ void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
 			sem_post(&mutex_cola_ready);
 
 			sem_post(&cant_ready);
+		} else {
+			aumentar_semaforo(
+					configuracion->sem_id[atributos->posicion_semaforo_contador_solicitudes]);
 		}
-
+		sem_post(&mutex_solicitudes_semaforo);
 	}
+
 }
 
 void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
@@ -907,38 +912,38 @@ void bloquear_pcb_dispositivo(int socket_cpu, t_entrada_salida * entrada_salida)
 }
 
 /*void bloquear_pcb_semaforo(char *nombre_semaforo, int socket_cpu) {
-	t_valor_socket_cola_semaforos *socket = malloc(
-			sizeof(t_valor_socket_cola_semaforos));
-	socket->socket = socket_cpu;
-	t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
+ t_valor_socket_cola_semaforos *socket = malloc(
+ sizeof(t_valor_socket_cola_semaforos));
+ socket->socket = socket_cpu;
+ t_pcb *pcb = buscar_pcb_por_socket_cpu(socket_cpu);
 
-	sem_wait(&mutex_solicitudes_semaforo);
+ sem_wait(&mutex_solicitudes_semaforo);
 
-	t_pid *pid = malloc(sizeof(t_pid));
-	pid->pid = pcb->pid;
-//se bloquea el proceso, la cpu no se bloquea
-	queue_push(
-			((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
-					nombre_semaforo))->solicitudes, pid);
-	sem_post(&mutex_solicitudes_semaforo);
+ t_pid *pid = malloc(sizeof(t_pid));
+ pid->pid = pcb->pid;
+ //se bloquea el proceso, la cpu no se bloquea
+ queue_push(
+ ((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
+ nombre_semaforo))->solicitudes, pid);
+ sem_post(&mutex_solicitudes_semaforo);
 
-	sacar_socket_cpu_de_tabla(socket_cpu);
+ sacar_socket_cpu_de_tabla(socket_cpu);
 
-	sem_wait(&mutex_cola_exec);
-	bool busqueda_pcb(t_pcb *_pcb) {
-		return (pcb->pid == _pcb->pid);
-	}
-	list_remove_by_condition(cola_exec->elements, (void *) busqueda_pcb);
-	sem_post(&mutex_cola_exec);
+ sem_wait(&mutex_cola_exec);
+ bool busqueda_pcb(t_pcb *_pcb) {
+ return (pcb->pid == _pcb->pid);
+ }
+ list_remove_by_condition(cola_exec->elements, (void *) busqueda_pcb);
+ sem_post(&mutex_cola_exec);
 
-	sem_wait(&mutex_cola_block);
-	queue_push(cola_block, pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
-			pcb->pid);
-	sem_post(&mutex_cola_block);
+ sem_wait(&mutex_cola_block);
+ queue_push(cola_block, pcb);
+ log_info(logger_manager, "PROCESO %d - Se agrega a la cola BLOCK",
+ pcb->pid);
+ sem_post(&mutex_cola_block);
 
-	free(socket);
-}*/
+ free(socket);
+ }*/
 
 void sacar_socket_cpu_de_tabla(int socket_cpu) {
 
@@ -1026,22 +1031,24 @@ int wait_semaforo(char *semaforo_nombre) {
 
 int obtener_valor_semaforo(char *semaforo_nombre) {
 
+	//sem_wait(&mutex_solicitudes_semaforo);
 	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
 			solitudes_semaforo, semaforo_nombre))->valor);
+	//sem_post(&mutex_solicitudes_semaforo);
 
 	return valor_semaforo;
 }
 
 /*int signal_semaforo(char *semaforo_nombre) {
 
-	aumentar_semaforo(semaforo_nombre);
-	(((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
-			semaforo_nombre))->valor)++;
-	int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
-			solitudes_semaforo, semaforo_nombre))->valor);
+ aumentar_semaforo(semaforo_nombre);
+ (((t_atributos_semaforo*) dictionary_get(solitudes_semaforo,
+ semaforo_nombre))->valor)++;
+ int valor_semaforo = (((t_atributos_semaforo*) dictionary_get(
+ solitudes_semaforo, semaforo_nombre))->valor);
 
-	return valor_semaforo;
-}*/
+ return valor_semaforo;
+ }*/
 
 void avisar_para_que_desbloquee(char *nombre_sem) {
 
@@ -1209,10 +1216,10 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 	}
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica)));
-	log_info(logger_manager, "PID: %d El socket cpu del proceso es: %i", pcb->pid,
-			proceso->socket_cpu);
-	log_info(logger_manager, "PID: %d El socket consola del proceso es: %i", pcb->pid,
-			proceso->socket_consola);
+	log_info(logger_manager, "PID: %d El socket cpu del proceso es: %i",
+			pcb->pid, proceso->socket_cpu);
+	log_info(logger_manager, "PID: %d El socket consola del proceso es: %i",
+			pcb->pid, proceso->socket_consola);
 	if (proceso->pcb != NULL) {
 		log_info(logger_manager, "PID: %d El estado del pcb es: %i", pcb->pid,
 				proceso->pcb->estado);
