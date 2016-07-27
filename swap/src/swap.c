@@ -58,9 +58,14 @@ int main(void) {
 
 
 	/******************************  Estructuras de control  ******************************/
+	float tamano_paginas_array;
 
-	//paginas_bitmap = malloc(sizeof paginas_bitmap); //No hace falta, el bitarray_create ya malloca
-	char paginas_array[(config_swap->cantidad_paginas)/8]; //Divido por 8 porque cada char tiene 8 bits (1 byte), creo que funciona asi la cosa
+	if((config_swap->cantidad_paginas) % 8 == 0)
+		tamano_paginas_array = (config_swap->cantidad_paginas) / 8;
+	else
+		tamano_paginas_array = (config_swap->cantidad_paginas) / 8 + 1;
+
+	char paginas_array[(int) tamano_paginas_array]; //Divido por 8 porque cada char tiene 8 bits (1 byte), creo que funciona asi la cosa //TODO: verificar los ultimos cambios
 	paginas_bitmap = bitarray_create(paginas_array, sizeof paginas_array); //Creo el bitmap
 
 	inicializar_bitmap(paginas_bitmap); //Inicializo el bitmap en 0 (false)
@@ -126,7 +131,7 @@ void atender_UMC(t_paquete *paquete, int socket_conexion) {
 
 		case MENSAJE_LEER_PAGINA_PARA_ESCRIBIR:
 		case MENSAJE_LEER_PAGINA:
-
+			//TODO: Revisar/evaluar si el umc estaba pidiendo desde la pagina 1 porque piensa que es la primera (debería de ser 0? revisar). no debería, porque a priori las lecturas les dieron resultados correctos a los chicos, si no explotaria feo
 			log_trace(loggerManager,"[Comunicacion UMC][Mensaje recibido - cod 1-6] leer_pagina");
 
 			t_pagina *pagina = malloc (sizeof (t_pagina));
@@ -282,7 +287,7 @@ int inicializar_programa(t_programa_nuevo *inicio_programa_info){
 		log_trace(loggerManager,"[Inicializacion del programa %i] Se obtuvo directamente un bloque de memoria continuo de tamano %i (paginas) en la pagina numero: %i", inicio_programa_info->id_programa, inicio_programa_info->paginas_requeridas, numero_pagina_inicial);
 	}else{
 		log_trace(loggerManager,"[Inicializacion del programa %i] No se encontro un bloque de memoria continuo de tamano %i (paginas), pero hay espacio suficiente, se procede a compactar", inicio_programa_info->id_programa, inicio_programa_info->paginas_requeridas);
-		compactar_swap();
+		compactar_swap(); //TODO: Dónde joroca quedó la validación de si es suficiente el espacio libre total? No está? Revisar
 		numero_pagina_inicial = encontrar_ubicacion_libre(inicio_programa_info->paginas_requeridas, paginas_bitmap);
 	}
 	//Se reserva el espacio encontrado (seteando 1's en el bitmap)
@@ -359,7 +364,7 @@ int escribir_bytes_swap(t_pagina_completa *escribir_pagina_info){
 	int cantidad_escrita = fwrite(escribir_pagina_info->valor,1, escribir_pagina_info->tamanio ,archivo_swap); //Ojo con ese 1 hardcodeado
 
 	if (cantidad_escrita == escribir_pagina_info->tamanio){
-		log_trace(loggerManager,"[Escritura de bytes] Se escribieron correctamente %i bytes", cantidad_escrita);
+		log_trace(loggerManager,"[Escritura de bytes] Se escribieron correctamente %i bytes en la posición %i (byte número)", cantidad_escrita, posicion_escritura);
 		return 0;
 	}
 	else {
