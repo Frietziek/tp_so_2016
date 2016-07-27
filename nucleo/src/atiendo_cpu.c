@@ -76,12 +76,14 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		break;
 	case MENSAJE_DESCONEXION_CPU:
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
-		atiendo_desconexion_cpu(socket_cpu);
+		break;
+	case MENSAJE_MATAR_CPU:
+		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
 	}
 }
 
-void atiendo_desconexion_cpu(socket_cpu){
+void atiendo_desconexion_cpu(void *buffer,int socket_cpu){
 
 	sem_wait(&mutex_cola_cpu);
 	t_cpu * cpu_a_sacar = queue_pop_cpu(cola_cpus, socket_cpu);
