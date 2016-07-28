@@ -306,10 +306,17 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		free(codigo_de_consola);
 		break;
 	case MATAR:
-		printf("Terminando la ejecucion");
+
+		sem_wait(&mutex_lista_procesos);
 		t_pcb *pcb_obtenido = buscar_pcb_por_socket_consola(socket_consola);
+		int pid = pcb_obtenido->pid;
+		log_info(logger_manager, "Se va a terminar la ejecucion del pid: %d",
+				pid);
 		matar_ejecucion(pcb_obtenido);
-		printf("Termino la ejecucion");
+		log_info(logger_manager, "Se va a termino la ejecucion del pid: %d",
+				pid);
+		sem_post(&mutex_lista_procesos);
+
 		break;
 	case HANDSHAKE_CONSOLA:
 		if (paquete_buffer->header->id_proceso_emisor == PROCESO_CONSOLA) {
@@ -391,14 +398,13 @@ void eliminar_proceso_de_lista_procesos_con_pid(int pid) {
 
 }
 t_pcb *buscar_pcb_por_socket_consola(int socket_consola) {
-	sem_wait(&mutex_lista_procesos);
 
 	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
 		return (socket_consola == proceso->socket_consola);
 	}
 	t_pcb *pcb = (((t_fila_tabla_procesos*) list_find(lista_procesos,
 			(void*) busqueda_proceso_logica)))->pcb;
-	sem_post(&mutex_lista_procesos);
+
 	return pcb;
 }
 
@@ -563,13 +569,13 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 
 		t_pcb * pcb_a_matar;
 
-		// ENVIO TERMINAR AL CPU
-
 		t_pid *finalizar = malloc(sizeof(t_pid));
 
 		finalizar->pid = pcb_a_finalizar->pid;
 
 		t_buffer *buffer_finalizar = serializar_pid(finalizar);
+
+		// ENVIO TERMINAR AL CPU
 
 		if (pcb_a_finalizar->estado == EXEC) {
 
@@ -582,7 +588,7 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			sem_wait(&mutex_cola_ready);
 			pcb_a_matar = queue_pop_pid(cola_ready, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_ready);
-			sem_wait(&cant_ready);
+			//sem_wait(&cant_ready);
 			libero_pcb(pcb_a_matar);
 		}
 		if (pcb_a_finalizar->estado == NEW) {
@@ -620,13 +626,13 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 }
 
 int buscar_socket_cpu_por_pcb(t_pcb *pcb_a_finalizar) {
-	sem_wait(&mutex_lista_procesos);
+
 	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
 		return (pcb_a_finalizar->pid == proceso->pcb->pid);
 	}
 	int socket_cpu = (((t_fila_tabla_procesos*) list_find(lista_procesos,
 			(void*) busqueda_proceso_logica)))->socket_cpu;
-	sem_post(&mutex_lista_procesos);
+
 	return socket_cpu;
 }
 
