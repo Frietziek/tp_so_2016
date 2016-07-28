@@ -314,9 +314,11 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		log_info(logger_manager, "Se va a terminar la ejecucion del pid: %d",
 				pid);
 		matar_ejecucion(pcb_obtenido);
-		log_info(logger_manager, "Se va a termino la ejecucion del pid: %d",
-				pid);
+		log_info(logger_manager, "Se termino la ejecucion del pid: %d", pid);
+		eliminar_proceso_de_lista_procesos_con_pid(pid);
 		sem_post(&mutex_lista_procesos);
+		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
+				MENSAJE_MATAR_OK);
 
 		break;
 	case HANDSHAKE_CONSOLA:
