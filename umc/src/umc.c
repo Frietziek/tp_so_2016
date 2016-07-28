@@ -581,7 +581,6 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 					pagina_cpu->tamanio);
 		}
 
-
 		enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu,
 				id_mensaje);
 
@@ -1498,7 +1497,7 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 		}
 	}else{
 		log_info(log_umc,"No ocurrio nada de lo anterior");
-		return 0; // solo lo pongo para sacar el warning
+		return 0;
 	}
 
 }
