@@ -650,7 +650,8 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 			+ sizeof(pcb_quantum->pcb->instrucciones_size)
 			+ pcb_quantum->pcb->instrucciones_size * sizeof(t_intructions)
 			+ sizeof(pcb_quantum->pcb->stack_size)
-			+ pcb_quantum->pcb->stack_size * sizeof(t_indice_stack);
+			+ pcb_quantum->pcb->stack_size
+					* (sizeof(int) + sizeof(int) * 3 + sizeof(int));
 
 	void *buffer = malloc(cantidad_a_reservar);
 
@@ -689,6 +690,7 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 		copiar_int_en_buffer(buffer, instrucciones_serializadas->offset,
 				&posicion_buffer);
 	}
+
 	copiar_int_en_buffer(buffer, pcb_quantum->pcb->stack_size,
 			&posicion_buffer);
 	int i_stack;
@@ -707,6 +709,7 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 		copiar_int_en_buffer(buffer,
 				indice_stack->posicion_variable_retorno->size,
 				&posicion_buffer);
+
 
 		copiar_int_en_buffer(buffer, indice_stack->cantidad_variables,
 				&posicion_buffer);
@@ -736,33 +739,8 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 					indice_variables->posicion_memoria->size, &posicion_buffer);
 
 		}
-
-		copiar_int_en_buffer(buffer, indice_stack->cantidad_argumentos,
-				&posicion_buffer);
-
-		if (indice_stack->cantidad_argumentos > 0) {
-			cantidad_a_reservar += sizeof(t_posicion_memoria)
-					* indice_stack->cantidad_argumentos;
-			buffer = (void*) realloc(buffer, cantidad_a_reservar);
-		}
-
-		int i_argumentos;
-		for (i_argumentos = 0; i_argumentos < indice_stack->cantidad_argumentos;
-				++i_argumentos) {
-
-			t_posicion_memoria *indice_argumento = indice_stack->argumentos;
-			indice_argumento += i_argumentos;
-
-			copiar_int_en_buffer(buffer, indice_argumento->offset,
-					&posicion_buffer);
-			copiar_int_en_buffer(buffer, indice_argumento->pagina,
-					&posicion_buffer);
-			copiar_int_en_buffer(buffer, indice_argumento->size,
-					&posicion_buffer);
-
-		}
-
 	}
+
 	t_buffer *estructura_buffer = malloc(sizeof(t_buffer));
 	estructura_buffer->contenido_buffer = buffer;
 	estructura_buffer->longitud_buffer = posicion_buffer;
@@ -870,31 +848,6 @@ void deserializar_pcb_quantum(void *buffer, t_pcb_quantum *pcb_quantum) {
 			escribir_atributo_desde_int_de_buffer(buffer,
 					&(indice_variables->posicion_memoria->size),
 					&posicion_buffer);
-
-		}
-
-		escribir_atributo_desde_int_de_buffer(buffer,
-				&(indice_stack->cantidad_argumentos), &posicion_buffer);
-
-		if (indice_stack->cantidad_argumentos > 0) {
-			indice_stack->argumentos = malloc(
-					sizeof(t_posicion_memoria)
-							* indice_stack->cantidad_argumentos);
-		}
-
-		int i_argumentos;
-		for (i_argumentos = 0; i_argumentos < indice_stack->cantidad_argumentos;
-				++i_argumentos) {
-
-			t_posicion_memoria *indice_argumentos = indice_stack->argumentos;
-			indice_argumentos += i_argumentos;
-
-			escribir_atributo_desde_int_de_buffer(buffer,
-					&(indice_argumentos->offset), &posicion_buffer);
-			escribir_atributo_desde_int_de_buffer(buffer,
-					&(indice_argumentos->pagina), &posicion_buffer);
-			escribir_atributo_desde_int_de_buffer(buffer,
-					&(indice_argumentos->size), &posicion_buffer);
 
 		}
 	}

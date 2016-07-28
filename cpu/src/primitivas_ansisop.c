@@ -197,7 +197,6 @@ void ansisop_llamar_con_retorno(t_nombre_etiqueta etiqueta,
 
 	t_indice_stack *indice_stack = posiciono_indice_stack();
 
-	indice_stack->cantidad_argumentos = 0;
 	indice_stack->cantidad_variables = 0;
 	indice_stack->posicion_variable_retorno = malloc(
 			sizeof(t_posicion_memoria));

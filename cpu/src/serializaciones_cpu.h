@@ -48,8 +48,6 @@ typedef struct {
 	t_posicion_memoria *posicion_variable_retorno;
 	int cantidad_variables;
 	t_variables_stack *variables;
-	int cantidad_argumentos;
-	t_posicion_memoria *argumentos;
 } t_indice_stack;
 typedef struct {
 	int pid;

@@ -349,7 +349,7 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	log_info(logger_manager, "Se envio el PCB al nucleo: ");
+	log_info(logger_manager, "Se envio el PCB al nucleo: %i", pcb_quantum->pcb->pid);
 	cpu_ocupada = 0;
 
 	if (id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB) {
@@ -403,11 +403,16 @@ void ejecuto_instrucciones() {
 			leo_instruccion_desde_UMC(pagina);
 			sem_wait(&s_codigo);
 			if (excepcion_umc) {
-				continue;
+				break;
 			}
 			memcpy(instruccion + posicion_instruccion, valor_pagina,
 					size_pagina);
 			posicion_instruccion += size_pagina;
+		}
+
+		if (excepcion_umc) {
+			log_warning(logger_manager, "Se produjo una excepcion en la UMC");
+			break;
 		}
 
 		instruccion[tamanio_instruccion - 1] = '\0';
