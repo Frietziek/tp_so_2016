@@ -199,13 +199,11 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case ERROR_LEER_PAGINA:
 		log_error(logger_manager, "Error en lectura de pagina de UMC.");
-		envio_excepcion_nucleo(ERROR_LEER_PAGINA,
-				"Error en lectura de pagina de UMC.");
+		excepcion_umc = 1;
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
 		log_error(logger_manager, "Error en escritura de pagina en UMC.");
-		envio_excepcion_nucleo(ERROR_ESCRIBIR_PAGINA,
-				"Error en escritura de pagina en UMC.");
+		excepcion_umc = 1;
 		sem_post(&s_escribir_pagina);
 		break;
 	default:
