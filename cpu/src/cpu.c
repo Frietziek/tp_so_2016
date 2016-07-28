@@ -403,11 +403,16 @@ void ejecuto_instrucciones() {
 			leo_instruccion_desde_UMC(pagina);
 			sem_wait(&s_codigo);
 			if (excepcion_umc) {
-				continue;
+				break;
 			}
 			memcpy(instruccion + posicion_instruccion, valor_pagina,
 					size_pagina);
 			posicion_instruccion += size_pagina;
+		}
+
+		if (excepcion_umc) {
+			log_warning(logger_manager, "Se produjo una excepcion en la UMC");
+			break;
 		}
 
 		instruccion[tamanio_instruccion - 1] = '\0';
