@@ -157,6 +157,8 @@ void atender_seniales(int signum) {
 	switch (signum) {
 	//TODO mandar mensaje a nucleo para sacar sacar de la cola exec, eliminarlo de la tabla, mandar msje a umc para limpiar todo lo de ese pid, y mandar a consola a que termino de forma no amigable
 	case SIGINT:	//control C
+		sem_post(&s_cpu_finaliza);
+		break;
 	case SIGUSR1:
 		log_trace(logger_manager, "Se recibio senial de cierre de proceso.");
 		matar_cpu = 1;
@@ -381,7 +383,7 @@ void cambio_proceso_activo(int id_programa) {
 void ejecuto_instrucciones() {
 	fin_proceso = 0;
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
-			&& !matar_proceso && !excepcion_umc && !matar_cpu && !entrada_salida) {
+			&& !matar_proceso && !excepcion_umc && !entrada_salida) {
 
 		t_intructions *instruccion_deserializada = deserializo_instruccion(
 				pcb_quantum->pcb->pc);
