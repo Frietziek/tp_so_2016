@@ -200,6 +200,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 	case ERROR_LEER_PAGINA:
 		log_error(logger_manager, "Error en lectura de pagina de UMC.");
 		excepcion_umc = 1;
+		sem_post(&s_codigo);
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
 		log_error(logger_manager, "Error en escritura de pagina en UMC.");
@@ -401,6 +402,9 @@ void ejecuto_instrucciones() {
 		for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
 			leo_instruccion_desde_UMC(pagina);
 			sem_wait(&s_codigo);
+			if (excepcion_umc) {
+				continue;
+			}
 			memcpy(instruccion + posicion_instruccion, valor_pagina,
 					size_pagina);
 			posicion_instruccion += size_pagina;
