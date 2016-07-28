@@ -349,7 +349,7 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	log_info(logger_manager, "Se envio el PCB al nucleo: ");
+	log_info(logger_manager, "Se envio el PCB al nucleo: %i", pcb_quantum->pcb->pid);
 	cpu_ocupada = 0;
 
 	if (id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB) {
