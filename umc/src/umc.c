@@ -539,6 +539,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 }
 
 void respuesta_leer_pagina(void *buffer, int id_mensaje) {
+	int obtuvo_marcos = 1;
 
 	if (id_mensaje == RESPUESTA_LEER_PAGINA) {
 		t_pagina_completa *pagina = malloc(sizeof(t_pagina_completa));
@@ -556,27 +557,30 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 		pagina_cpu->pagina = pagina->pagina;
 		pagina_cpu->offset = pagina_pedido->offset;
 		pagina_cpu->tamanio = pagina_pedido->tamanio;
+		pagina_cpu->valor = malloc(pagina_cpu->tamanio);
 
 		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
 				lista_tablas, pagina->id_programa);
 
 		if (guardar_en_mp(pagina) == 0) { // guardo la pagina en memoria
 			log_error(log_umc,
-					"Se produce un error al guardar la pagina en memoria PID:%d PAGINA:%d",
+					"Se produce un error al guardar la pagina en memoria PID:%d PAGINA:%d. No hay marcos disponibles",
 					pagina->id_programa, pagina->pagina);
 			id_mensaje = ERROR_LEER_PAGINA;
-		}
-		if (configuracion->entradas_tlb != 0) { //valido que este habilitada
-			guardar_en_TLB(pagina->pagina, pagina->id_programa,
-					tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
+			obtuvo_marcos = 0;
 		}
 
-		int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
+		if(obtuvo_marcos){
+			if (configuracion->entradas_tlb != 0) { //valido que este habilitada
+				guardar_en_TLB(pagina->pagina, pagina->id_programa,
+						tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
+			}
 
-		pagina_cpu->valor = malloc(pagina_cpu->tamanio);
+			int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
+			memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina_cpu->offset,
+					pagina_cpu->tamanio);
+		}
 
-		memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina_cpu->offset,
-				pagina_cpu->tamanio);
 
 		enviar_pagina(pagina->socket_pedido, PROCESO_CPU, pagina_cpu,
 				id_mensaje);
@@ -744,6 +748,7 @@ void escribir_pagina(void *buffer, int socket_conexion) {
 void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje) {
 	int pid;
 	int socket = 0;
+	int obtuvo_marcos = 1;
 	t_header *header_cpu = malloc(sizeof(t_header));
 	header_cpu->id_proceso_emisor = PROCESO_UMC;
 	header_cpu->id_proceso_receptor = PROCESO_CPU;
@@ -770,25 +775,24 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje) {
 				pagina_recibida_de_swap->id_programa);
 		if (guardar_en_mp(pagina_recibida_de_swap) == 0) { // guardo la pagina en memoria
 			header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
+			obtuvo_marcos = 0;
 		}
-		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
-				lista_tablas, pagina_recibida_de_swap->id_programa);
-		tabla[pagina_recibida_de_swap->pagina].presencia = 1;
-		if (configuracion->entradas_tlb != 0) {
-			guardar_en_TLB(pagina_recibida_de_swap->pagina,
-					pagina_recibida_de_swap->id_programa,
-					tabla[pagina_recibida_de_swap->pagina].frame); //pongo la pagina en la cache TLB
+		if(obtuvo_marcos){
+			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas, pagina_recibida_de_swap->id_programa);
+
+			tabla[pagina_recibida_de_swap->pagina].presencia = 1;
+			if (configuracion->entradas_tlb != 0) {
+				guardar_en_TLB(pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa,tabla[pagina_recibida_de_swap->pagina].frame); //pongo la pagina en la cache TLB
+			}
+			int direccion_mp = retornar_direccion_mp(tabla[pagina_recibida_de_swap->pagina].frame);
+
+			memcpy((void*) direccion_mp + pagina_recibida_de_swap->offset,pagina_buffer->valor, pagina_recibida_de_swap->tamanio);
+
+			tabla[pagina_recibida_de_swap->pagina].modificado = 1;
+			header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
 		}
-		int direccion_mp = retornar_direccion_mp(
-				tabla[pagina_recibida_de_swap->pagina].frame);
 
-		memcpy((void*) direccion_mp + pagina_recibida_de_swap->offset,
-				pagina_buffer->valor, pagina_recibida_de_swap->tamanio);
-
-		tabla[pagina_recibida_de_swap->pagina].modificado = 1;
-
-		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
-
+		free(pagina_recibida_de_swap->valor);
 		free(pagina_recibida_de_swap);
 	} else if (id_mensaje == ERROR_LEER_PAGINA_PARA_ESCRIBIR) {
 		log_info(log_umc,
@@ -1422,7 +1426,6 @@ int cant_pag_x_proc(int pid) {
 int guardar_en_mp(t_pagina_completa *pagina) {
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,
 			pagina->id_programa);
-	//dump_tabla(0);
 	bool hay_marco_libre(t_marco *un_marco) {
 		return (un_marco->libre == 1);
 	}
