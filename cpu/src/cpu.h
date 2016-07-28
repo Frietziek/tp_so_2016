@@ -51,7 +51,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion);
 void handshake_cpu_nucleo(int socket_servidor);
 void recibo_PCB(void *buffer);
 void enviar_PCB(int id_mensaje);
-void cambio_proceso_activo();
+void cambio_proceso_activo(int id_programa);
 void ejecuto_instrucciones();
 int calcula_paginas_instruccion();
 t_intructions *deserializo_instruccion(int pc);

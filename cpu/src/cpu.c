@@ -155,18 +155,15 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 
 void atender_seniales(int signum) {
 	switch (signum) {
-	case SIGINT://control C
-		//TODO mandar mensaje a nucleo para sacar sacar de la cola exec, eliminarlo de la tabla, mandar msje a umc para limpiar todo lo de ese pid, y mandar a consola a que termino de forma no amigable
-		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
-				MENSAJE_SIGINT, "Fallo al enviar Desconexion al Nucleo.");
-		sem_post(&s_cpu_finaliza);
-		break;
+	//TODO mandar mensaje a nucleo para sacar sacar de la cola exec, eliminarlo de la tabla, mandar msje a umc para limpiar todo lo de ese pid, y mandar a consola a que termino de forma no amigable
+	case SIGINT:	//control C
 	case SIGUSR1:
 		log_trace(logger_manager, "Se recibio senial de cierre de proceso.");
 		matar_cpu = 1;
 		if (cpu_ocupada == 1) {
 			sem_wait(&s_matar_cpu);
 		}
+		cambio_proceso_activo(-1);
 		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
 		MENSAJE_DESCONEXION_CPU, "Fallo al enviar Desconexion al Nucleo.");
 		sem_post(&s_cpu_finaliza);
@@ -293,7 +290,6 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_MATAR_CPU:
 		log_info(logger_manager, "Recibi respuesta de Nucleo para matar CPU.");
-		sem_post(&s_matar_cpu);
 		break;
 	case ERROR_HANDSHAKE:
 		log_error(logger_manager, "Error en Handshake con el Nucleo.");
@@ -342,7 +338,7 @@ void recibo_PCB(void *buffer) {
 	}
 	cpu_ocupada = 1;
 	deserializar_pcb_quantum(buffer, pcb_quantum);
-	cambio_proceso_activo();
+	cambio_proceso_activo(pcb_quantum->pcb->pid);
 	sem_wait(&s_cambio_proceso);
 	pthread_create(&hilo_instruccion, &attr_instruccion,
 			(void*) ejecuto_instrucciones, NULL);
@@ -360,13 +356,17 @@ void enviar_PCB(int id_mensaje) {
 		sem_post(&s_envio_pcb);
 	}
 
+	if (id_mensaje == MENSAJE_MATAR_CPU) {
+		sem_post(&s_matar_cpu);
+	}
+
 	free(buffer->contenido_buffer);
 	free(buffer);
 }
 
-void cambio_proceso_activo() {
+void cambio_proceso_activo(int id_programa) {
 	t_programa *p_programa = malloc(sizeof(t_programa));
-	p_programa->id_programa = pcb_quantum->pcb->pid;
+	p_programa->id_programa = id_programa;
 	t_buffer *buffer = serializar_programa(p_programa);
 
 	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
@@ -432,26 +432,30 @@ void ejecuto_instrucciones() {
 
 	if (entrada_salida) {
 		id_mensaje = MENSAJE_ENTRADA_SALIDA_PCB;
-		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_ENTRADA_SALIDA_PCB");
+		log_info(logger_manager,
+				"Se envia PCB al nucleo por MENSAJE_ENTRADA_SALIDA_PCB");
 		entrada_salida = 0;
 	} else if (wait_nucleo) {
 		id_mensaje = MENSAJE_WAIT_PCB;
-		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_WAIT_PCB");
+		log_info(logger_manager, "Se envia PCB al nucleo por MENSAJE_WAIT_PCB");
 		wait_nucleo = 0;
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;
-		log_info(logger_manager,"Se envia PCB al nucleo por RESPUESTA_MATAR");
+		log_info(logger_manager, "Se envia PCB al nucleo por RESPUESTA_MATAR");
 		matar_proceso = 0;
 	} else if (fin_proceso) {
 		id_mensaje = MENSAJE_PROGRAMA_FINALIZADO;
-		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_PROGRAMA_FINALIZADO");
+		log_info(logger_manager,
+				"Se envia PCB al nucleo por MENSAJE_PROGRAMA_FINALIZADO");
 	} else if (excepcion_umc) {
 		id_mensaje = MENSAJE_EXCEPCION_UMC;
-		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_EXCEPCION_UMC");
+		log_info(logger_manager,
+				"Se envia PCB al nucleo por MENSAJE_EXCEPCION_UMC");
 		excepcion_umc = 0;
 	} else if (matar_cpu) {
 		id_mensaje = MENSAJE_MATAR_CPU;
-		log_info(logger_manager,"Se envia PCB al nucleo por MENSAJE_MATAR_CPU");
+		log_info(logger_manager,
+				"Se envia PCB al nucleo por MENSAJE_MATAR_CPU");
 		matar_cpu = 0;
 	} else {
 		id_mensaje = MENSAJE_QUANTUM;
@@ -520,19 +524,19 @@ void respuesta_leer_compartida(void *buffer) {
 
 void libero_pcb() {
 	/*t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
-	int i_stack;
-	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
-		indice_stack += i_stack;
-		int i_variables;
-		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
-				++i_variables) {
-			t_variables_stack* indice_variables = indice_stack->variables;
-			indice_variables += i_variables;
-			//free(indice_variables->posicion_memoria);
-		}
-		free(indice_stack->posicion_variable_retorno);
-		free(indice_stack->variables);
-	}*/
+	 int i_stack;
+	 for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+	 indice_stack += i_stack;
+	 int i_variables;
+	 for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+	 ++i_variables) {
+	 t_variables_stack* indice_variables = indice_stack->variables;
+	 indice_variables += i_variables;
+	 //free(indice_variables->posicion_memoria);
+	 }
+	 free(indice_stack->posicion_variable_retorno);
+	 free(indice_stack->variables);
+	 }*/
 	free(pcb_quantum->pcb->instrucciones_serializadas);
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);
