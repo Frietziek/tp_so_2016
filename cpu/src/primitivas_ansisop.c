@@ -59,7 +59,6 @@ t_puntero ansisop_obtener_posicion_variable(t_nombre_variable variable) {
 }
 
 t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
-	int contenido_variable = 0;
 	void *contenido_variable_umc = malloc(sizeof(int));
 
 	int cantidad_paginas = calcula_paginas_variable(direccion_variable);
@@ -79,7 +78,7 @@ t_valor_variable ansisop_derefenciar(t_puntero direccion_variable) {
 		posicion_instruccion += size_pagina;
 	}
 
-	contenido_variable = *((int *) contenido_variable_umc);
+	int contenido_variable = *((int *) contenido_variable_umc);
 
 	free(contenido_variable_umc);
 

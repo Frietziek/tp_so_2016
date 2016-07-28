@@ -199,7 +199,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 
 		sem_wait(&mutex_cola_ready);
 		queue_push(cola_ready, pcb_a_ready);
-		log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+		log_info(logger_manager, "PID %d - Se agrega a la cola READY",
 				pcb_a_ready->pid);
 		sem_post(&mutex_cola_ready);
 
@@ -272,7 +272,8 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		free(pid_);
 		break;
 	default:
-		printf("Mensaje no reconocido\n");
+		log_warning(logger_manager, "Mensaje no reconocido: %i",
+				paquete->header->id_mensaje);
 		break;
 	}
 }
@@ -294,7 +295,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 
 		sem_wait(&mutex_cola_new);
 		queue_push(cola_new, pcb);
-		log_info(logger_manager, "PROCESO %d - Se agrega a la cola NEW",
+		log_info(logger_manager, "PID %d - Se agrega a la cola NEW",
 				pcb->pid);
 		sem_post(&mutex_cola_new);
 
@@ -357,7 +358,8 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		break;
 		//todo faltan varios mensajes de error de consola,
 	default:
-		printf("Mensaje no reconocido\n");
+		log_warning(logger_manager, "Mensaje no reconocido: %i",
+				paquete_buffer->header->id_mensaje);
 		break;
 	}
 
@@ -722,7 +724,7 @@ void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
 
 			sem_wait(&mutex_cola_ready);
 			queue_push(cola_ready, pcb_a_ready);
-			log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+			log_info(logger_manager, "PID %d - Se agrega a la cola READY",
 					pcb_a_ready->pid);
 			sem_post(&mutex_cola_ready);
 
@@ -763,7 +765,7 @@ void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
 		queue_push(cola_ready, pcb_a_ready);
 		actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_ready, READY);
 		sem_post(&mutex_cola_ready);
-		log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+		log_info(logger_manager, "PID %d - Se agrega a la cola READY",
 				pcb_a_ready->pid);
 		sem_post(&cant_ready);
 	}
@@ -1009,7 +1011,7 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 
 	sem_wait(&mutex_cola_exec);
 	queue_push(cola_exec, pcb_a_exec);
-	log_info(logger_manager, "PROCESO %i-Se agrega a la cola EXEC",
+	log_info(logger_manager, "PID %i - Se agrega a la cola EXEC",
 			pcb_a_exec->pid);
 	sem_post(&mutex_cola_exec);
 
@@ -1020,7 +1022,8 @@ void asignar_pcb_a_cpu(int socket_cpu) {
 	t_buffer *pcb_quantum_buffer = serializar_pcb_quantum(pcb_quantum_a_cpu);
 	envio_buffer_a_proceso(socket_cpu, PROCESO_CPU, MENSAJE_PCB_NUCLEO,
 			"error al enviar pcb quantum a cpu", pcb_quantum_buffer);
-	log_info(logger_manager, "Se envio el Proceso a la CPU");
+	log_info(logger_manager, "Se envio el Proceso: %i a la CPU: %i",
+			pcb_a_exec->pid, socket_cpu);
 	free(pcb_quantum_a_cpu);
 	free(pcb_quantum_buffer);
 }
@@ -1075,7 +1078,7 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 
 	sem_wait(&mutex_cola_ready);
 	queue_push(cola_ready, pcb_quantum->pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
+	log_info(logger_manager, "PID %d - Se agrega a la cola READY",
 			pcb_quantum->pcb->pid);
 	agregar_cpu_disponible(socket_conexion);
 	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(pcb_quantum->pcb,
@@ -1092,19 +1095,19 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 
 void libero_pcb(t_pcb *pcb) {
 	/*t_indice_stack* indice_stack = pcb->indice_stack;
-	int i_stack;
-	for (i_stack = 0; i_stack < pcb->stack_size; ++i_stack) {
-		indice_stack += i_stack;
-		int i_variables;
-		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
-				++i_variables) {
-			t_variables_stack* indice_variables = indice_stack->variables;
-			indice_variables += i_variables;
-			free(indice_variables->posicion_memoria);
-		}
-		free(indice_stack->posicion_variable_retorno);
-		//	free(indice_stack->variables);
-	}*/
+	 int i_stack;
+	 for (i_stack = 0; i_stack < pcb->stack_size; ++i_stack) {
+	 indice_stack += i_stack;
+	 int i_variables;
+	 for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+	 ++i_variables) {
+	 t_variables_stack* indice_variables = indice_stack->variables;
+	 indice_variables += i_variables;
+	 free(indice_variables->posicion_memoria);
+	 }
+	 free(indice_stack->posicion_variable_retorno);
+	 //	free(indice_stack->variables);
+	 }*/
 	free(pcb->instrucciones_serializadas);
 	free(pcb->indice_stack);
 	free(pcb->etiquetas);
@@ -1125,7 +1128,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 
 	sem_wait(&mutex_cola_exit);
 	queue_push(cola_exit, pcb_quantum->pcb);
-	log_info(logger_manager, "PROCESO %d - Se agrega a la cola EXIT",
+	log_info(logger_manager, "PID %d - Se agrega a la cola EXIT",
 			pcb_out->pid);
 	sem_post(&mutex_cola_exit);
 //sem_post(&cant_exit);
@@ -1149,7 +1152,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 			< sizeof(t_header) + buffer_finalizar->longitud_buffer) {
 		perror("Fallo enviar buffer finalizar umc");
 	}
-	log_info(logger_manager, "PROCESO %d - Se manda a la umc a ser finalizado",
+	log_info(logger_manager, "PID %d - Se manda a la umc a ser finalizado",
 			pcb_quantum->pcb->pid);
 	free(finalizar);
 	free(buffer_finalizar);
@@ -1217,7 +1220,8 @@ void agregar_cpu_disponible(int socket_conexion) {
 	cpu_nueva->socket_cpu = socket_conexion;
 	sem_wait(&mutex_cola_cpu);
 	queue_push(cola_cpus, cpu_nueva);
-	log_info(logger_manager, "Se libera un cpu para su uso");
+	log_info(logger_manager, "Se libera el cpu: %i para su uso",
+			socket_conexion);
 	sem_post(&mutex_cola_cpu);
 	sem_post(&cant_cpu);
 }
