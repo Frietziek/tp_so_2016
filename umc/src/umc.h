@@ -279,4 +279,6 @@ void txt_write_in_stdout_all(char* string, int pid, int nro_pagina);
 
 void finalizar_cpu(int socket_cpu);
 
+void liberar_de_listas(int pid);
+
 #endif /* SRC_UMC_H_ */

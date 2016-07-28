@@ -215,9 +215,6 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		log_info(log_umc, "Cambio de proceso activo");
 		cambiar_proceso_activo(paquete->payload, socket_conexion);
 		break;
-	case MENSAJE_DESCONEXION_CPU:
-		finalizar_cpu(socket_conexion);
-		break;
 	default:
 		log_error(log_umc, "Id mensaje enviado por el CPU no reconocido: %d",
 				paquete->header->id_mensaje);
@@ -932,10 +929,11 @@ void finalizar_programa(void *buffer, int id_mensaje) {
 
 	//libero los marcos usados por ese proceso
 	liberar_marcos(programa->id_programa);
-	//saco de memoria - pongo toda la pagina con \0 , hace falta?
-	//elimino la lista usada para los algoritmos
 
+	//elimino la lista usada para los algoritmos
 	list_destroy(listas_algoritmo[programa->id_programa].lista_paginas_mp);
+
+	liberar_de_listas(programa->id_programa);
 
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
@@ -1073,25 +1071,26 @@ void generar_dump(int pid) {
 
 //Busca una pagina dentro de la TLB. Si está retorna el marco asociado o si no está retorna null => Los marcos tendrian que empezar desde el 1
 int buscar_pagina_tlb(int id_programa, int pagina) {
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	int marco;
 	t_tlb * pagina_tlb;
 	bool esta_en_tlb(t_tlb *un_tlb) {
 		return (un_tlb->pid == id_programa && un_tlb->pagina == pagina);
 	}
-	pthread_mutex_lock(&mutex_lista_paginas_tlb);
+
 	pagina_tlb = list_remove_by_condition(lista_paginas_tlb,
 			(void*) esta_en_tlb); //si esta se elimina para luego agregarla al final
-	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
+
 	if (pagina_tlb == NULL) {
 		marco = 0;
 	} else {
 		marco = pagina_tlb->frame;
 		//la agrego al final
-		pthread_mutex_lock(&mutex_lista_paginas_tlb);
 		list_add(lista_paginas_tlb, pagina_tlb);
-		pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	}
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	return marco;
+
 }
 
 int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar) {
@@ -1099,6 +1098,7 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar) {
 	int pid = pagina_a_ubicar->pid;
 
 	//CLOCK
+
 	if (string_equals_ignore_case(configuracion->algoritmo, "CLOCK")) {
 		while (pagina_a_sustituir == NULL) {
 			pagina_a_sustituir = (t_fila_tabla_pagina *) list_get(
@@ -1214,7 +1214,7 @@ int reemplazar_pagina(t_fila_tabla_pagina * pagina_a_ubicar) {
 					listas_algoritmo[pid].lista_paginas_mp,
 					listas_algoritmo[pid].puntero);
 			if (pagina_a_sustituir->uso == 0
-					&& pagina_a_sustituir->modificado == 0) {
+					&& pagina_a_sustituir->modificado == 1) {
 				break;
 			}  //encuentro
 			else {
@@ -1310,17 +1310,15 @@ void guardar_en_TLB(int nro_pagina, int pid, int marco) {
 
 void LRU(t_tlb * pagina_a_ubicar) {
 	//valido si hay lugar y sino reemplazo:
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	if (list_size(lista_paginas_tlb) < configuracion->entradas_tlb) {
-		pthread_mutex_lock(&mutex_lista_paginas_tlb);
 		list_add(lista_paginas_tlb, pagina_a_ubicar);
-		pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	} else {
-		pthread_mutex_lock(&mutex_lista_paginas_tlb);
 		t_tlb * pagina_tlb_removida = list_remove(lista_paginas_tlb, 0); //el que esta primero va a ser el Least recently used
 		list_add(lista_paginas_tlb, pagina_a_ubicar);
 		free(pagina_tlb_removida);
-		pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 	}
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
 
 //elimina todas las entradas de un programa en la tlb
@@ -1329,8 +1327,9 @@ void flush_programa_tlb(int pid) {
 	bool esta_en_tlb(t_tlb *un_tlb) {
 		return (un_tlb->pid == pid);
 	}
-	int count = list_count_satisfying(lista_paginas_tlb, (void*) esta_en_tlb);
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
+	int count = list_count_satisfying(lista_paginas_tlb, (void*) esta_en_tlb);
+
 	while (i < count) {
 		t_tlb * pagina_tlb = list_remove_by_condition(lista_paginas_tlb,
 				(void*) esta_en_tlb);
@@ -1342,8 +1341,9 @@ void flush_programa_tlb(int pid) {
 
 void flush_tlb() {
 	int i = 0;
-	int count = list_size(lista_paginas_tlb);
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
+	int count = list_size(lista_paginas_tlb);
+
 	while (i < count) {
 		t_tlb * pagina_tlb = list_remove(lista_paginas_tlb, 0);
 		free(pagina_tlb);
@@ -1422,13 +1422,15 @@ int cant_pag_x_proc(int pid) {
 int guardar_en_mp(t_pagina_completa *pagina) {
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,
 			pagina->id_programa);
-
+	//dump_tabla(0);
 	bool hay_marco_libre(t_marco *un_marco) {
 		return (un_marco->libre == 1);
 	}
 	int numero_marco;
 	int dir_mp;
+	log_info(log_umc,"TEST Busco la cantidad e paginas en mp");
 	int paginas_en_mp = cant_pag_x_proc(pagina->id_programa);
+	log_info(log_umc,"TEST la cantidad es:%d",paginas_en_mp);
 
 	// Posibilidad 1: Tengo marcos libres y no llegue al limite de marcos por proceso
 	if (list_any_satisfy(lista_de_marcos, (void*) hay_marco_libre)
@@ -1448,8 +1450,20 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 	}
 
 	// Posibilidad 2: Tengo marcos libres y llegue al limite de marcos por proceso
-	//  y Posibilidad 3: No tengo marcos libres y llegue al limite de marcos por procesos
+
 	else if (list_any_satisfy(lista_de_marcos, (void*) hay_marco_libre)
+			&& paginas_en_mp == configuracion->marco_x_proc) {
+		numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
+		log_info(log_umc, "Le asigno a PID:%d PAGINA:%d el MARCO:%d",
+				pagina->id_programa, pagina->pagina, numero_marco);
+		tabla[pagina->pagina].frame = numero_marco;
+		tabla[pagina->pagina].presencia = 1;
+		dir_mp = retornar_direccion_mp(numero_marco);
+		memcpy((void*) dir_mp, pagina->valor, configuracion->marco_size);
+		return 1;
+	}
+	// Posibilidad 3: No tengo marcos libres y llegue al limite de marcos por procesos
+	else if (!list_any_satisfy(lista_de_marcos, (void*) hay_marco_libre)
 			&& paginas_en_mp == configuracion->marco_x_proc) {
 		numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
 		log_info(log_umc, "Le asigno a PID:%d PAGINA:%d el MARCO:%d",
@@ -1469,6 +1483,7 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 			log_error(log_umc,
 					"No hay marcos libres y ninguna pagina del proceso esta en mp para poder ser reemplazada");
 		} else {
+			log_info(log_umc,"No hay marcos libres pero el proceso tiene paginas para ser reemplazadas");
 			numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
 			log_info(log_umc, "Le asigno a PID:%d PAGINA:%d el MARCO:%d",
 					pagina->id_programa, pagina->pagina, numero_marco);
@@ -1478,8 +1493,11 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 			memcpy((void*) dir_mp, pagina->valor, configuracion->marco_size);
 			return 1;
 		}
+	}else{
+		log_info(log_umc,"No ocurrio nada de lo anterior");
+		return 0; // solo lo pongo para sacar el warning
 	}
-	return 0; // solo lo pongo para sacar el warning
+
 }
 
 t_marco * crear_marco(int start, int nro_marco) {
@@ -1715,6 +1733,17 @@ void guardar_cant_entradas(int pid, int cant_pag, int tamanio) {
 	pthread_mutex_unlock(&mutex_lista_tabla_entradas);
 } //TODO: ver de eliminarlas al finalizar pid
 
+void liberar_de_listas(int pid){
+	//libera de la lista de cantidad de entradas
+	bool es_pid(t_tabla_cantidad_entradas *elemento) {
+		return (elemento->pid == pid);
+	}
+	pthread_mutex_lock(&mutex_lista_tabla_entradas);
+	t_tabla_cantidad_entradas * tabla_cant = (t_tabla_cantidad_entradas *) list_remove_by_condition(lista_tabla_entradas,(void*)es_pid);
+	pthread_mutex_unlock(&mutex_lista_tabla_entradas);
+	free(tabla_cant);
+}
+
 void liberar_marcos(int pid) {
 	int nro_pagina = 0;
 	int un_marco;
@@ -1756,11 +1785,16 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 	bool es_cpu(t_cpu *elemento) {
 		return (elemento->socket_cpu == socket);
 	}
-	t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
-	flush_programa_tlb(cpu->pid);
-	cpu->pid = programa->id_programa;
-	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
-		log_error(log_umc, "Error de comunicacion");
+	if ( programa->id_programa == -1){
+		log_info(log_umc,"Finaliza un CPU");
+		finalizar_cpu(socket);
+	}else{
+		flush_programa_tlb(programa->id_programa);
+		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
+		cpu->pid = programa->id_programa;
+		if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
+			log_error(log_umc, "Error de comunicacion");
+		}
 	}
 	free(programa);
 }
@@ -1840,13 +1874,12 @@ void finalizar_cpu(int socket_cpu) {
 	bool es_cpu(t_cpu *elemento) {
 		return (elemento->socket_cpu == socket_cpu);
 	}
-	t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
-	flush_programa_tlb(cpu->pid);
-	if (cpu != NULL) { // hago esto por las dudas de que tenga un mismo fd que otra anterior
-		pthread_mutex_lock(&mutex_lista_cpus);
-		list_remove_by_condition(lista_cpus, (void*) es_cpu);
-		pthread_mutex_unlock(&mutex_lista_cpus);
+	pthread_mutex_lock(&mutex_lista_cpus);
+	t_cpu * cpu = list_remove_by_condition(lista_cpus, (void*) es_cpu);
+	pthread_mutex_unlock(&mutex_lista_cpus);
+
+	if (cpu != NULL) {
+		flush_programa_tlb(cpu->pid);
 		free(cpu);
 	}
-
 }
