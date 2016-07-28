@@ -75,6 +75,10 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		log_info(logger_manager, "Se recibe del cpu: RESPUESTA_PCB");
 		//bloquear_pcb_semaforo(int socket_cpu);
 		break;
+	case MENSAJE_EXCEPCION_UMC:
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_EXCEPCION_UMC");
+		atiendo_programa_finalizado(paquete->payload, socket_cpu);
+		break;
 	case MENSAJE_DESCONEXION_CPU:
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
 		break;

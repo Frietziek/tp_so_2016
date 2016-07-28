@@ -448,6 +448,7 @@ void ejecuto_instrucciones() {
 		log_info(logger_manager,
 				"Se envia PCB al nucleo por MENSAJE_PROGRAMA_FINALIZADO");
 	} else if (excepcion_umc) {
+		ansisop_imprimir_texto("La UMC respondio con una Excepcion.");
 		id_mensaje = MENSAJE_EXCEPCION_UMC;
 		log_info(logger_manager,
 				"Se envia PCB al nucleo por MENSAJE_EXCEPCION_UMC");
