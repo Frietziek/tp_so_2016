@@ -1091,7 +1091,7 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 }
 
 void libero_pcb(t_pcb *pcb) {
-	t_indice_stack* indice_stack = pcb->indice_stack;
+	/*t_indice_stack* indice_stack = pcb->indice_stack;
 	int i_stack;
 	for (i_stack = 0; i_stack < pcb->stack_size; ++i_stack) {
 		indice_stack += i_stack;
@@ -1104,7 +1104,7 @@ void libero_pcb(t_pcb *pcb) {
 		}
 		free(indice_stack->posicion_variable_retorno);
 		//	free(indice_stack->variables);
-	}
+	}*/
 	free(pcb->instrucciones_serializadas);
 	free(pcb->indice_stack);
 	free(pcb->etiquetas);

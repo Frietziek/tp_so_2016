@@ -191,7 +191,8 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		sem_post(&s_escribir_pagina);
 		break;
 	case RESPUESTA_CAMBIO_PROCESO_ACTIVO:
-		log_info(logger_manager, "La UMC confirmo cambio de proceso.");
+		log_info(logger_manager, "La UMC confirmo cambio de proceso: %i",
+				pcb_quantum->pcb->pid);
 		sem_post(&s_cambio_proceso);
 		break;
 	case ERROR_HANDSHAKE:
@@ -349,7 +350,8 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	log_info(logger_manager, "Se envio el PCB al nucleo: %i", pcb_quantum->pcb->pid);
+	log_info(logger_manager, "Se envio el PCB al nucleo: %i",
+			pcb_quantum->pcb->pid);
 	cpu_ocupada = 0;
 
 	if (id_mensaje == MENSAJE_ENTRADA_SALIDA_PCB) {
@@ -534,19 +536,19 @@ void respuesta_leer_compartida(void *buffer) {
 
 void libero_pcb() {
 	/*t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
-	 int i_stack;
-	 for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
-	 indice_stack += i_stack;
-	 int i_variables;
-	 for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
-	 ++i_variables) {
-	 t_variables_stack* indice_variables = indice_stack->variables;
-	 indice_variables += i_variables;
-	 //free(indice_variables->posicion_memoria);
-	 }
-	 free(indice_stack->posicion_variable_retorno);
-	 free(indice_stack->variables);
-	 }*/
+	int i_stack;
+	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+		indice_stack += i_stack;
+		int i_variables;
+		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+				++i_variables) {
+			t_variables_stack* indice_variables = indice_stack->variables;
+			indice_variables += i_variables;
+			free(indice_variables->posicion_memoria);
+		}
+		free(indice_stack->posicion_variable_retorno);
+		free(indice_stack->variables);
+	}*/
 	free(pcb_quantum->pcb->instrucciones_serializadas);
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);
