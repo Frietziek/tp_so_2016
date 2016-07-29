@@ -234,11 +234,11 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 		iniciar_programa(paquete->payload);
 		break;
 	case MENSAJE_MATAR_PROGRAMA:
-		log_info(log_umc, "Solicitud de finalización de un programa.");
-		finalizar_programa(paquete->payload, paquete->header->id_mensaje);
+		log_info(log_umc, "Solicitud recibida del nucleo: MENSAJE_MATAR_PROGRAMA");
+		finalizar_programa(paquete->payload, MENSAJE_FINALIZAR_PROGRAMA);
 		break;
 	case MENSAJE_FINALIZAR_PROGRAMA:
-		log_info(log_umc, "Solicitud de finalización de un programa.");
+		log_info(log_umc, "Solicitud recibida del nucleo: MENSAJE_FINALIZAR_PROGRAMA");
 		finalizar_programa(paquete->payload, paquete->header->id_mensaje);
 		break;
 	default:
@@ -919,6 +919,17 @@ void enviar_pagina(int socket, int proceso_receptor,
 void finalizar_programa(void *buffer, int id_mensaje) {
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
+
+	//primero se fija que no se este ejecutando nada de ese programa
+	bool esta_activo_el_pid(t_cpu *elemento) {
+		return (elemento->pid == programa->id_programa);
+	}
+	t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) esta_activo_el_pid);
+	while(cpu != NULL){
+		cpu = (t_cpu *) list_find(lista_cpus, (void*) esta_activo_el_pid);
+	}
+
+
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,
 			programa->id_programa);
 	bool es_pid(t_programa * programa_a_finalizar) {
