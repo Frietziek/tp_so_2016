@@ -90,8 +90,8 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_SIGINT:
-		atender_sigint(socket_cpu,
-				buscar_socket_consola_por_socket_cpu(socket_cpu));
+
+		atender_sigint(socket_cpu);
 		break;
 	default:
 		log_warning(logger_manager, "Mensaje no reconocido del CPU: %i",
@@ -101,12 +101,13 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 //TODO sacar de la cola (tambien hay que buscarlo al igual que en atiendo_desconexion_cpu, puede estar en block o exec)
 //mandar msje a umc para limpiar lo de ese pid, mandar a consola a que termino de forma no amigable y eliminar la fila de la tabla,
 //todo falta hacer test de esto
-void atender_sigint(int socket_cpu, int socket_consola) {
+void atender_sigint(int socket_cpu) {
 
 	//Se va a terminar el proceso porque el pcb quedo inconsistente
-
+	sem_wait(&mutex_lista_procesos);
+	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_cpu);
 	t_pcb *pcb_a_eliminar = buscar_pcb_por_socket_cpu(socket_cpu);
-
+	sem_post(&mutex_lista_procesos);
 	t_pid *eliminar = malloc(sizeof(t_pid));
 
 	eliminar->pid = pcb_a_eliminar->pid;
@@ -132,13 +133,12 @@ void atender_sigint(int socket_cpu, int socket_consola) {
 	free(header_eliminar_umc);
 
 	enviar_header_completado(socket_consola, PROCESO_CONSOLA,
-	RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA); //FIXME el MENSAJE_PROGRAMA_FINALIZADO en la consola es el 5, falta implementar en el nucleo.
-
+	RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
 	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
 	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
 			pcb_a_eliminar->estado);
 	pcb_a_eliminar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_eliminar->pid);
-	//eliminar_proceso_de_lista_procesos_con_pid(pcb_a_eliminar->pid);
+
 	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
 }
 //todo falta hacer test de esto
@@ -173,8 +173,9 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 	t_pcb_quantum *pcb_quantum_actualizado = malloc(sizeof(t_pcb_quantum));
 	deserializar_pcb_quantum(buffer, pcb_quantum_actualizado);
 
+	sem_wait(&mutex_lista_procesos);
 	t_pcb *pcb_a_actualizar = buscar_pcb_por_socket_cpu(socket_cpu);
-
+	sem_post(&mutex_lista_procesos);
 	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
 
 	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
@@ -188,7 +189,7 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 	queue_push(cola_ready, pcb_quantum_actualizado->pcb);
 	log_info(logger_manager, "PROCESO %d - Se agrega a la cola READY",
 			pcb_quantum_actualizado->pcb->pid);
-
+	sem_post(&mutex_cola_ready);
 	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(
 			pcb_quantum_actualizado->pcb, socket_cpu);
 
@@ -196,7 +197,6 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 			pcb_quantum_actualizado->pcb->pid);
 	libero_pcb(pcb_a_actualizar);
 
-	sem_post(&mutex_cola_ready);
 	sem_post(&cant_ready);
 
 	sem_wait(&mutex_cola_cpu);
@@ -297,8 +297,9 @@ void atiendo_imprimir(void *buffer, int socket_conexion) {
 	log_info(logger_manager,
 			"voy a mandar a imprimir a la consola del socket cpu %d ",
 			socket_conexion);
+	sem_wait(&mutex_lista_procesos);
 	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
-
+	sem_post(&mutex_lista_procesos);
 	log_info(logger_manager, "Se imprime: %i a Consola: %i", variable->valor,
 			socket_consola);
 
@@ -339,8 +340,10 @@ void atiendo_imprimir_texto(void *buffer, int socket_conexion,
 	t_buffer *p_consola = serializar_texto(texto);
 	h_consola->longitud_mensaje = p_consola->longitud_buffer;
 
-	if (enviar_buffer(buscar_socket_consola_por_socket_cpu(socket_conexion),
-			h_consola, p_consola)
+	sem_wait(&mutex_lista_procesos);
+	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
+	sem_post(&mutex_lista_procesos);
+	if (enviar_buffer(socket_consola, h_consola, p_consola)
 			< sizeof(h_consola) + p_consola->longitud_buffer) {
 		perror("Fallo al enviar Imprimir a la Consola\n");
 	}

@@ -157,7 +157,7 @@ void atiendo_desconexion_cpu(void * buffer, int socket_cpu);
 
 t_cpu * queue_pop_cpu(t_queue * cola_cpus, int socket_cpu);
 
-void atender_sigint(int socket_cpu, int socket_consola);
+void atender_sigint(int socket_cpu);
 
 t_queue *obtener_cola_por_id_estado(int estado);
 
