@@ -272,7 +272,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		free(pid_);
 		break;
 	default:
-		log_warning(logger_manager, "Mensaje no reconocido: %i",
+		log_warning(logger_manager, "Mensaje no reconocido de la UMC: %i",
 				paquete->header->id_mensaje);
 		break;
 	}
@@ -364,7 +364,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		break;
 		//todo faltan varios mensajes de error de consola,
 	default:
-		log_warning(logger_manager, "Mensaje no reconocido: %i",
+		log_warning(logger_manager, "Mensaje no reconocido de la Consola: %i",
 				paquete_buffer->header->id_mensaje);
 		break;
 	}

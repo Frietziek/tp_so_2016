@@ -89,6 +89,9 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		atender_sigint(socket_cpu,
 				buscar_socket_consola_por_socket_cpu(socket_cpu));
 		break;
+	default:
+		log_warning(logger_manager, "Mensaje no reconocido del CPU: %i",
+				paquete->header->id_mensaje);
 	}
 }
 //TODO sacar de la cola (tambien hay que buscarlo al igual que en atiendo_desconexion_cpu, puede estar en block o exec)
@@ -709,7 +712,6 @@ t_buffer *serializar_pcb_quantum(t_pcb_quantum *pcb_quantum) {
 		copiar_int_en_buffer(buffer,
 				indice_stack->posicion_variable_retorno->size,
 				&posicion_buffer);
-
 
 		copiar_int_en_buffer(buffer, indice_stack->cantidad_variables,
 				&posicion_buffer);
