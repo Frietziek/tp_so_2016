@@ -505,9 +505,12 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 	t_fila_tabla_procesos* fila = list_find(lista_procesos,
 			(void*) busqueda_proceso_logica);
 
-	int socket_consola_encontrado = fila->socket_consola;
+	if (fila != NULL) {
+		int socket_consola_encontrado = fila->socket_consola;
+		return socket_consola_encontrado;
+	} else
+		return NULL;
 
-	return socket_consola_encontrado;
 }
 
 int buscar_socket_consola_por_pid(int pid) {
@@ -1198,6 +1201,9 @@ void libero_pcb(t_pcb *pcb) {
 
 void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 // Recibo PCB
+	log_info(logger_manager,
+				"Se agrega a la cola EXIT con socket cpu: %d",
+				 socket_cpu);
 	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 
