@@ -295,8 +295,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 
 		sem_wait(&mutex_cola_new);
 		queue_push(cola_new, pcb);
-		log_info(logger_manager, "PID %d - Se agrega a la cola NEW",
-				pcb->pid);
+		log_info(logger_manager, "PID %d - Se agrega a la cola NEW", pcb->pid);
 		sem_post(&mutex_cola_new);
 
 		agregar_pcb_a_lista_procesos(pcb, socket_consola);
@@ -318,7 +317,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		eliminar_proceso_de_lista_procesos_con_pid(pid);
 		sem_post(&mutex_lista_procesos);
 		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
-				MENSAJE_MATAR_OK);
+		MENSAJE_MATAR_OK);
 
 		break;
 	case HANDSHAKE_CONSOLA:
@@ -357,6 +356,11 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 	case RESPUESTA_IMPRIMIR_TEXTO:
 		log_info(logger_manager,
 				"La consola imprimió el texto satisfactoriamente");
+		break;
+	case RESPUESTA_PROGRAMA_FINALIZADO:
+		log_info(logger_manager,
+				"El programa de la consola: %i finalizo correctamente",
+				paquete_buffer->header->id_proceso_emisor);
 		break;
 		//todo faltan varios mensajes de error de consola,
 	default:
@@ -1130,8 +1134,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 
 	sem_wait(&mutex_cola_exit);
 	queue_push(cola_exit, pcb_quantum->pcb);
-	log_info(logger_manager, "PID %d - Se agrega a la cola EXIT",
-			pcb_out->pid);
+	log_info(logger_manager, "PID %d - Se agrega a la cola EXIT", pcb_out->pid);
 	sem_post(&mutex_cola_exit);
 //sem_post(&cant_exit);
 
