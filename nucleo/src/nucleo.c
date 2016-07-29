@@ -1135,6 +1135,7 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 	sem_wait(&mutex_cola_exit);
 	queue_push(cola_exit, pcb_quantum->pcb);
 	log_info(logger_manager, "PID %d - Se agrega a la cola EXIT", pcb_out->pid);
+	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, EXIT);
 	sem_post(&mutex_cola_exit);
 //sem_post(&cant_exit);
 
@@ -1197,6 +1198,7 @@ void actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(t_pcb *pcb,
 
 void finalizar_proceso_en_lista_proc_con_socket_cpu(t_pcb * pcb, int socket_cpu) {
 
+	//
 	int socket_con = buscar_socket_consola_por_pid(pcb->pid);
 	eliminar_proceso_de_lista_procesos_con_pid(pcb->pid);
 	enviar_header_completado(socket_con, PROCESO_CONSOLA,
