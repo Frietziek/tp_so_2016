@@ -237,10 +237,10 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 
 		sem_post(&mutex_cola_exit);
 
-		int socket_consolita = buscar_socket_consola_por_pid(
-				pcb_a_matarrrr->pid);
-		enviar_header_completado(socket_consolita, PROCESO_CONSOLA,
-		MENSAJE_FINALIZO_OK);
+		//int socket_consolita = buscar_socket_consola_por_pid(
+		//		pcb_a_matarrrr->pid);
+		//enviar_header_completado(socket_consolita, PROCESO_CONSOLA,
+		//MENSAJE_FINALIZO_OK);
 
 		free(pid_duro_de_matar);
 		//libero_pcb(pcb_a_matarrrr);
@@ -326,7 +326,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		matar_ejecucion(pcb_obtenido);
 		log_info(logger_manager, "Se termino la ejecucion del pid: %d", pid);
 
-		eliminar_proceso_de_lista_procesos_con_pid(pid);
+		//eliminar_proceso_de_lista_procesos_con_pid(pid);
 
 		sem_post(&mutex_lista_procesos);
 		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
@@ -414,9 +414,13 @@ void respuesta_matar(void * buffer, int socket_cpu) {
 	sem_post(&mutex_cola_exec);
 
 	agregar_cpu_disponible(socket_cpu);
-	//sem_post(&cant_cpu);
+	sem_post(&cant_cpu);//todo tener en cuenta
 
-	libero_pcb(pcb_a_matar);
+	sem_wait(&mutex_cola_exit);
+	queue_push(cola_exit, pcb_quantum->pcb->pid);
+	sem_post(&mutex_cola_exit);
+
+	//libero_pcb(pcb_a_matar);
 }
 
 ////////////////////FUNCIONES AUXILIARES///////////////////////////

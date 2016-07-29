@@ -95,6 +95,10 @@ typedef struct {
 } t_tlb;
 
 typedef struct {
+	int id_mensaje;
+} t_id_mensaje;
+
+typedef struct {
 	int numero_pagina;
 	int pid;
 	int frame;

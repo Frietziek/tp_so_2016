@@ -235,7 +235,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 		break;
 	case MENSAJE_MATAR_PROGRAMA:
 		log_info(log_umc, "Solicitud recibida del nucleo: MENSAJE_MATAR_PROGRAMA");
-		finalizar_programa(paquete->payload, MENSAJE_FINALIZAR_PROGRAMA);
+		finalizar_programa(paquete->payload, paquete->header->id_mensaje);
 		break;
 	case MENSAJE_FINALIZAR_PROGRAMA:
 		log_info(log_umc, "Solicitud recibida del nucleo: MENSAJE_FINALIZAR_PROGRAMA");
@@ -265,50 +265,50 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 	case RESPUESTA_ESCRIBIR_PAGINA_NUEVA:
 		log_info(log_umc, "Recibo de SWAP :RESPUESTA_ESCRIBIR_PAGINA_NUEVA");
 		respuesta_escribir_pagina_nueva(paquete->payload,
-		RESPUESTA_ESCRIBIR_PAGINA_NUEVA);
+				paquete->header->id_mensaje);
 		break;
 	case RESPUESTA_INICIAR_PROGRAMA:
 		log_info(log_umc, "Recibo de SWAP :RESPUESTA_INICIAR_PROGRAMA");
 		respuesta_iniciar_programa(paquete->payload,
-		RESPUESTA_INICIAR_PROGRAMA);
+				paquete->header->id_mensaje);
 		break;
 	case RESPUESTA_FINALIZAR_PROGRAMA:
 		log_info(log_umc, "Recibo de SWAP :RESPUESTA_FINALIZAR_PROGRAMA");
 		respuesta_finalizar_programa(paquete->payload,
-		RESPUESTA_FINALIZAR_PROGRAMA);
+				paquete->header->id_mensaje);
 		break;
 	case RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR:
 		log_info(log_umc,
 				"Recibo de SWAP :RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR");
 		respuesta_leer_pagina_para_escribir(paquete->payload,
-		RESPUESTA_LEER_PAGINA_PARA_ESCRIBIR);
+				paquete->header->id_mensaje);
 		break;
 	case ERROR_INICIAR_PROGRAMA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_INICIAR_PROGRAMA");
-		respuesta_iniciar_programa(paquete->payload, ERROR_INICIAR_PROGRAMA);
+		respuesta_iniciar_programa(paquete->payload, paquete->header->id_mensaje);
 		break;
 	case ERROR_LEER_PAGINA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_LEER_PAGINA");
-		respuesta_leer_pagina(paquete->payload, ERROR_LEER_PAGINA);
+		respuesta_leer_pagina(paquete->payload, paquete->header->id_mensaje);
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_ESCRIBIR_PAGINA");
-		respuesta_escribir_pagina(paquete->payload, ERROR_ESCRIBIR_PAGINA);
+		respuesta_escribir_pagina(paquete->payload, paquete->header->id_mensaje);
 		break;
 	case ERROR_ESCRIBIR_PAGINA_NUEVA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_ESCRIBIR_PAGINA_NUEVA");
 		respuesta_escribir_pagina_nueva(paquete->payload,
-		ERROR_ESCRIBIR_PAGINA_NUEVA);
+				paquete->header->id_mensaje);
 		break;
 	case ERROR_FINALIZAR_PROGRAMA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_FINALIZAR_PROGRAMA");
 		respuesta_finalizar_programa(paquete->payload,
-		ERROR_FINALIZAR_PROGRAMA);
+				paquete->header->id_mensaje);
 		break;
 	case ERROR_LEER_PAGINA_PARA_ESCRIBIR:
 		log_info(log_umc, "Recibo de SWAP :ERROR_LEER_PAGINA_PARA_ESCRIBIR");
 		respuesta_leer_pagina_para_escribir(paquete->payload,
-		ERROR_LEER_PAGINA_PARA_ESCRIBIR);
+				paquete->header->id_mensaje);
 		break;
 	default:
 		log_error(log_umc, "Id mensaje enviado por el SWAP no reconocido: %d",
@@ -929,6 +929,10 @@ void finalizar_programa(void *buffer, int id_mensaje) {
 		cpu = (t_cpu *) list_find(lista_cpus, (void*) esta_activo_el_pid);
 	}
 
+	t_id_mensaje * mensaje = malloc(sizeof(t_id_mensaje));
+	mensaje->id_mensaje = id_mensaje;
+
+	buffer_programas[programa->id_programa] = mensaje;
 
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,
 			programa->id_programa);
@@ -952,7 +956,7 @@ void finalizar_programa(void *buffer, int id_mensaje) {
 	t_header *header_swap = malloc(sizeof(t_header));
 	header_swap->id_proceso_emisor = PROCESO_UMC;
 	header_swap->id_proceso_receptor = PROCESO_SWAP;
-	header_swap->id_mensaje = id_mensaje;
+	header_swap->id_mensaje = MENSAJE_FINALIZAR_PROGRAMA;
 
 	t_programa *programa_swap = malloc(sizeof(t_programa));
 	programa_swap->id_programa = programa->id_programa;
@@ -981,10 +985,19 @@ void respuesta_finalizar_programa(void *buffer, int id_mensaje) {
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 	log_info(log_umc, "El swap finalizo el PROCESO: %d", programa->id_programa);
+
+
+
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
-	header_nucleo->id_mensaje = id_mensaje;
+
+	t_id_mensaje *mensaje = buffer_programas[programa->id_programa];
+	if(mensaje->id_mensaje == MENSAJE_MATAR_PROGRAMA){
+		header_nucleo->id_mensaje = RESPUESTA_MATAR_PROGRAMA;
+	}else if(mensaje->id_mensaje == MENSAJE_FINALIZAR_PROGRAMA){
+		header_nucleo->id_mensaje = RESPUESTA_FINALIZAR_PROGRAMA;
+	}
 
 	t_buffer *payload_nucleo = serializar_programa(programa);
 
@@ -998,6 +1011,7 @@ void respuesta_finalizar_programa(void *buffer, int id_mensaje) {
 	free(programa);
 	free(header_nucleo);
 	free(payload_nucleo);
+	free(mensaje);
 }
 
 void handshake_umc_cpu(int socket_cpu, t_config_umc *configuracion) {
