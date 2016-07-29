@@ -361,6 +361,10 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		log_info(logger_manager,
 				"El programa de la consola: %i finalizo correctamente",
 				paquete_buffer->header->id_proceso_emisor);
+		t_pcb *pcb_a_eliminar_de_lista = buscar_pcb_por_socket_consola(
+				socket_consola);
+		eliminar_proceso_de_lista_procesos_con_pid(
+				pcb_a_eliminar_de_lista->pid);
 		break;
 		//todo faltan varios mensajes de error de consola,
 	default:
