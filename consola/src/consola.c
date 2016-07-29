@@ -37,6 +37,8 @@ int main(int argc, char *argv[]) {
 			configuracion_consola->nombre_script);
 	/*--------------------------------------------------------------------------------------------------------------*/
 
+	sem_init(&s_consola_finaliza, 0, 0); // Semaforo para la finalizacion de la Consola
+
 	/*--------------------------------------------- CONEXIÓN NUCLEO -----------------------------------------------*/
 	socket_nucleo = conectar_servidor(configuracion_consola->ip_nucleo,
 			configuracion_consola->puerto_nucleo, &atender_nucleo);
@@ -79,7 +81,7 @@ int main(int argc, char *argv[]) {
 		free(path_del_script);
 	/*-------------------------------------------------------------------------------------------------------------*/
 
-	getchar(); //pausa
+	sem_wait(&s_consola_finaliza);
 
 	/*----------------------------------------- Liberación de recursos --------------------------------------------*/
 	fclose(archivo_script);
@@ -107,7 +109,6 @@ void cargar_configuracion_consola(char *archivo,
 	if (config_has_property(configuracion, "IP_NUCLEO")) {
 		strcpy(configuracion_consola->ip_nucleo,
 				config_get_string_value(configuracion, "IP_NUCLEO"));
-		//configuracion_consola->ip_nucleo = config_get_string_value(configuracion, "IP_NUCLEO");
 	} else {
 		configuracion_consola->ip_nucleo = DEF_IP_NUCLEO;
 	}
@@ -115,7 +116,6 @@ void cargar_configuracion_consola(char *archivo,
 	if (config_has_property(configuracion, "NOMBRE_SCRIPT")) {
 		strcpy(configuracion_consola->nombre_script,
 				config_get_string_value(configuracion, "NOMBRE_SCRIPT"));
-		//configuracion_consola->nombre_script = config_get_string_value(configuracion, "NOMBRE_SCRIPT");
 	} else {
 		configuracion_consola->nombre_script = DEF_NOMBRE_SCRIPT;
 	}
@@ -128,20 +128,18 @@ void enviar_codigo_al_nucleo(FILE * archivo, int socket_nucleo) {
 			"Se esta procediento a enviar el codigo fuente al nucleo...");
 	t_header *header = malloc(sizeof(t_header));
 
-	char *Aux_Archivo[100];
-	int Largo_Mensaje;
-
 	fseek(archivo, 0, SEEK_END);
-	Largo_Mensaje = ftell(archivo);
+	int longitud_codigo = ftell(archivo);
 	rewind(archivo);
 
 	t_texto *buffer = malloc(sizeof(t_texto));
-	buffer->texto = malloc(Largo_Mensaje);
-	*buffer->texto = NULL;
+	buffer->texto = calloc(longitud_codigo, sizeof(char));
 
 	while (feof(archivo) == 0) {
-		fgets(Aux_Archivo, 100, archivo);
-		strcat(buffer->texto, Aux_Archivo);
+		char *aux_buffer = calloc(100, sizeof(char));
+		fgets(aux_buffer, 100, archivo);
+		strcat(buffer->texto, aux_buffer);
+		free(aux_buffer);
 	}
 
 	log_trace(loggerManager, "El codigo fuente del script a enviar es: \n%s \n",
@@ -201,9 +199,8 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		log_trace(loggerManager,
 				"[Mensaje nucleo] El nucleo solicita finalizar el programa");
 		consola_nucleo(socket_nucleo, RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
-		//getchar(); //Pausa antes de cerrar la consola
 
-		exit(1);
+		sem_post(&s_consola_finaliza);
 		break;
 	default:
 		log_error(loggerManager, "[Mensaje nucleo] Mensaje no reconocido :(");
@@ -213,15 +210,10 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 
 }
 
-//TODO: Revisar bien esta función, antes le enviaba el mensaje MENSAJE_INICIAR_PROGRAMA al nucleo, me hacían ruido bastantes cosas, borré cosas que me parecían estaban de más ojo
 void avisar_nucleo_de_terminacion_programa() {
-	log_trace(loggerManager,
-			"Se ha presionado CTRL + C, se esta dando el aviso correspondiente al nucleo");
-
-	signal(SIGINT, SIG_IGN); //TODO: Esto está de más? Por las dudas por ahora se deja
+	log_trace(loggerManager, "Finaliza consola");
 	consola_nucleo(socket_nucleo, MENSAJE_MATAR_PROGRAMA);
-	pid_t pid = getpid();
-	kill(pid, SIGTERM);
+	sem_post(&s_consola_finaliza);
 }
 
 void enviar_handshake_al_nucleo(int socket_nucleo) {
