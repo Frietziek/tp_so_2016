@@ -214,7 +214,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		;
 		pid_a_matar = malloc(sizeof(t_pid));
 		deserializar_pid(paquete->payload, pid_a_matar);
-		log_info(logger_manager, "Elimino el pcb creado con pid: %d",
+		log_info(logger_manager, "Finalizo en UMC el pcb creado con pid: %d",
 				pid_a_matar->pid);
 		sem_wait(&mutex_cola_exit);
 		t_pcb * pcb_a_matar = queue_pop_pid(cola_exit, pid_a_matar->pid);
@@ -228,7 +228,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		;
 		pid_a_matar = malloc(sizeof(t_pid));
 		deserializar_pid(paquete->payload, pid_a_matar);
-		log_info(logger_manager, "Elimino el pcb creado con pid: %d",
+		log_info(logger_manager, "Elimino de UMC el pcb creado con pid: %d",
 				pid_a_matar->pid);
 		sem_wait(&mutex_cola_exit);
 		pcb_a_matar = queue_pop_pid(cola_exit, pid_a_matar->pid);
@@ -357,7 +357,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		log_info(logger_manager,
 				"La consola imprimió el texto satisfactoriamente");
 		break;
-	case RESPUESTA_PROGRAMA_FINALIZADO:
+	case RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA:
 		log_info(logger_manager,
 				"El programa de la consola: %i finalizo correctamente",
 				paquete_buffer->header->id_proceso_emisor);
