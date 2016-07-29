@@ -10,6 +10,8 @@
 extern t_queue *cola_block, *cola_exec, *cola_cpus, *cola_ready;
 extern int socket_umc;
 
+#define RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA 15
+
 void atender_cpu(t_paquete *paquete, int socket_cpu,
 		t_config_nucleo *configuracion) {
 
@@ -30,7 +32,9 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		atiendo_asignar_compartida(paquete->payload, socket_cpu, configuracion);
 		break;
 	case MENSAJE_IMPRIMIR:
-		log_info(logger_manager, "Se recibe del cpu: MENSAJE_IMPRIMIR");
+		log_info(logger_manager,
+				"Se recibe del cpu: MENSAJE_IMPRIMIR con socket cpu: %d",
+				socket_cpu);
 		atiendo_imprimir(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_IMPRIMIR_TEXTO:
@@ -127,13 +131,14 @@ void atender_sigint(int socket_cpu, int socket_consola) {
 	free(buffer_eliminar);
 	free(header_eliminar_umc);
 
-	enviar_header_completado(socket_consola, PROCESO_CONSOLA, 5); //FIXME el MENSAJE_PROGRAMA_FINALIZADO en la consola es el 5, falta implementar en el nucleo.
+	enviar_header_completado(socket_consola, PROCESO_CONSOLA,
+	RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA); //FIXME el MENSAJE_PROGRAMA_FINALIZADO en la consola es el 5, falta implementar en el nucleo.
 
 	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
 	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
 			pcb_a_eliminar->estado);
 	pcb_a_eliminar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_eliminar->pid);
-	eliminar_proceso_de_lista_procesos_con_pid(pcb_a_eliminar->pid);
+	//eliminar_proceso_de_lista_procesos_con_pid(pcb_a_eliminar->pid);
 	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
 }
 //todo falta hacer test de esto
@@ -289,6 +294,9 @@ void atiendo_imprimir(void *buffer, int socket_conexion) {
 	t_buffer *p_consola = serializar_variable_valor(variable);
 	h_consola->longitud_mensaje = p_consola->longitud_buffer;
 
+	log_info(logger_manager,
+			"voy a mandar a imprimir a la consola del socket cpu %d ",
+			socket_conexion);
 	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
 
 	log_info(logger_manager, "Se imprime: %i a Consola: %i", variable->valor,

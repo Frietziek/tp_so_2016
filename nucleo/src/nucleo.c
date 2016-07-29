@@ -219,24 +219,30 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		sem_wait(&mutex_cola_exit);
 		t_pcb * pcb_a_matar = queue_pop_pid(cola_exit, pid_a_matar->pid);
 		sem_post(&mutex_cola_exit);
-		finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_a_matar,
-				socket_conexion);
+		int socket_con = buscar_socket_consola_por_pid(pcb_a_matar->pid);
+		enviar_header_completado(socket_con, PROCESO_CONSOLA,
+		MENSAJE_FINALIZO_OK);
 		free(pid_a_matar);
-		libero_pcb(pcb_a_matar);
+		//libero_pcb(pcb_a_matar);
 		break;
 	case RESPUESTA_MATAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 		;
-		pid_a_matar = malloc(sizeof(t_pid));
-		deserializar_pid(paquete->payload, pid_a_matar);
+		t_pid *pid_duro_de_matar = malloc(sizeof(t_pid));
+		deserializar_pid(paquete->payload, pid_duro_de_matar);
 		log_info(logger_manager, "Elimino de UMC el pcb creado con pid: %d",
-				pid_a_matar->pid);
+				pid_duro_de_matar->pid);
 		sem_wait(&mutex_cola_exit);
-		pcb_a_matar = queue_pop_pid(cola_exit, pid_a_matar->pid);
+		t_pcb *pcb_a_matarrrr = queue_pop_pid(cola_exit,
+				pid_duro_de_matar->pid);
 		sem_post(&mutex_cola_exit);
-		finalizar_proceso_en_lista_proc_con_socket_cpu(pcb_a_matar,
-				socket_conexion);
-		free(pid_a_matar);
-		libero_pcb(pcb_a_matar);
+
+		int socket_consolita = buscar_socket_consola_por_pid(
+				pcb_a_matarrrr->pid);
+		enviar_header_completado(socket_consolita, PROCESO_CONSOLA,
+		MENSAJE_FINALIZO_OK);
+
+		free(pid_duro_de_matar);
+		//libero_pcb(pcb_a_matarrrr);
 		break;
 	case ERROR_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 		;
@@ -365,6 +371,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 				socket_consola);
 		eliminar_proceso_de_lista_procesos_con_pid(
 				pcb_a_eliminar_de_lista->pid);
+
 		break;
 		//todo faltan varios mensajes de error de consola,
 	default:
@@ -1090,9 +1097,9 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 	queue_push(cola_ready, pcb_quantum->pcb);
 	log_info(logger_manager, "PID %d - Se agrega a la cola READY",
 			pcb_quantum->pcb->pid);
-	agregar_cpu_disponible(socket_conexion);
 	actualizar_pcb_y_ponerlo_en_ready_con_socket_cpu(pcb_quantum->pcb,
 			socket_conexion);
+	agregar_cpu_disponible(socket_conexion);
 
 	log_info(logger_manager, "Agregue pid: %d a cola ready",
 			pcb_quantum->pcb->pid);
@@ -1134,12 +1141,11 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 	t_pcb * pcb_out = queue_pop_pid(cola_exec, pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_exec);
 
-	agregar_cpu_disponible(socket_cpu);
-
 	sem_wait(&mutex_cola_exit);
 	queue_push(cola_exit, pcb_quantum->pcb);
 	log_info(logger_manager, "PID %d - Se agrega a la cola EXIT", pcb_out->pid);
 	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, EXIT);
+	agregar_cpu_disponible(socket_cpu);
 	sem_post(&mutex_cola_exit);
 //sem_post(&cant_exit);
 

@@ -200,10 +200,11 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 	case MENSAJE_PROGRAMA_FINALIZADO:
 		log_trace(loggerManager,
 				"[Mensaje nucleo] El nucleo solicita finalizar el programa");
-		//consola_nucleo(socket_nucleo, RESPUESTA_PROGRAMA_FINALIZADO);
+		consola_nucleo(socket_nucleo, RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
 		//getchar(); //Pausa antes de cerrar la consola
-		exit(1);
 
+		exit(1);
+		break;
 	default:
 		log_error(loggerManager, "[Mensaje nucleo] Mensaje no reconocido :(");
 		break;
