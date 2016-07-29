@@ -453,6 +453,7 @@ void ejecuto_instrucciones() {
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;
 		log_info(logger_manager, "Se envia PCB al nucleo por RESPUESTA_MATAR");
+		cambio_proceso_activo(0);
 		matar_proceso = 0;
 	} else if (fin_proceso) {
 		id_mensaje = MENSAJE_PROGRAMA_FINALIZADO;
