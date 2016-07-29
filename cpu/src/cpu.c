@@ -350,7 +350,7 @@ void enviar_PCB(int id_mensaje) {
 	t_buffer *buffer = serializar_pcb_quantum(pcb_quantum);
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, id_mensaje,
 			"Fallo al enviar PCB a Nucleo", buffer);
-	log_info(logger_manager, "Se envio el PCB al nucleo: %i",
+	log_info(logger_manager, "Se envio el PCB %i al nucleo.",
 			pcb_quantum->pcb->pid);
 	cpu_ocupada = 0;
 
@@ -386,47 +386,20 @@ void ejecuto_instrucciones() {
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
 			&& !matar_proceso && !excepcion_umc && !entrada_salida) {
 
-		t_intructions *instruccion_deserializada = deserializo_instruccion(
-				pcb_quantum->pcb->pc);
-
-		int tamanio_instruccion = instruccion_deserializada->offset;
-
-		char *instruccion = malloc(sizeof(char) * tamanio_instruccion);
-
-		int cantidad_paginas = calcula_paginas_instruccion();
-		log_info(logger_manager, "La instruccion empieza %i con tamanio %i",
-				instruccion_deserializada->start,
-				instruccion_deserializada->offset);
-		log_info(logger_manager, "La instruccion esta en %i pagina(s)",
-				cantidad_paginas);
-		int pagina;
-		int posicion_instruccion = 0;
-		for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
-			leo_instruccion_desde_UMC(pagina);
-			sem_wait(&s_codigo);
-			if (excepcion_umc) {
-				break;
-			}
-			memcpy(instruccion + posicion_instruccion, valor_pagina,
-					size_pagina);
-			posicion_instruccion += size_pagina;
-		}
+		char *instruccion = devuelve_instruccion_a_ejecutar();
 
 		if (excepcion_umc) {
 			log_warning(logger_manager, "Se produjo una excepcion en la UMC");
 			break;
 		}
 
-		instruccion[tamanio_instruccion - 1] = '\0';
-
 		log_info(logger_manager, "Instruccion a ejecutar: %s", instruccion);
 
 		char *instruccion_a_ejecutar = strdup(instruccion);
 
-		free(instruccion);
-
 		analizadorLinea(instruccion_a_ejecutar, &functions, &kernel_functions);
 
+		free(instruccion);
 		free(instruccion_a_ejecutar);
 
 		sem_wait(&s_instruccion_finalizada);
@@ -439,8 +412,42 @@ void ejecuto_instrucciones() {
 		--pcb_quantum->quantum;
 	}
 
-	int id_mensaje;
+	int id_mensaje = devuelve_id_mensaje();
 
+	enviar_PCB(id_mensaje);
+	pthread_attr_destroy(&attr_instruccion);
+}
+
+char *devuelve_instruccion_a_ejecutar() {
+	t_intructions *instruccion_deserializada = deserializo_instruccion(
+			pcb_quantum->pcb->pc);
+	int tamanio_instruccion = instruccion_deserializada->offset;
+	char *instruccion = malloc(sizeof(char) * tamanio_instruccion);
+	int cantidad_paginas = calcula_paginas_instruccion();
+	log_info(logger_manager, "La instruccion empieza %i con tamanio %i",
+			instruccion_deserializada->start,
+			instruccion_deserializada->offset);
+	log_info(logger_manager, "La instruccion esta en %i pagina(s)",
+			cantidad_paginas);
+	int pagina;
+	int posicion_instruccion = 0;
+	for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
+		leo_instruccion_desde_UMC(pagina);
+		sem_wait(&s_codigo);
+		if (excepcion_umc) {
+			break;
+		}
+		memcpy(instruccion + posicion_instruccion, valor_pagina, size_pagina);
+		posicion_instruccion += size_pagina;
+	}
+	instruccion[tamanio_instruccion - 1] = '\0';
+
+	return instruccion;
+
+}
+
+int devuelve_id_mensaje() {
+	int id_mensaje;
 	if (entrada_salida) {
 		id_mensaje = MENSAJE_ENTRADA_SALIDA_PCB;
 		log_info(logger_manager,
@@ -453,6 +460,7 @@ void ejecuto_instrucciones() {
 	} else if (matar_proceso) {
 		id_mensaje = RESPUESTA_MATAR;
 		log_info(logger_manager, "Se envia PCB al nucleo por RESPUESTA_MATAR");
+		cambio_proceso_activo(0);
 		matar_proceso = 0;
 	} else if (fin_proceso) {
 		id_mensaje = MENSAJE_PROGRAMA_FINALIZADO;
@@ -474,8 +482,7 @@ void ejecuto_instrucciones() {
 		log_info(logger_manager, "Finaliza Quantum.");
 	}
 
-	enviar_PCB(id_mensaje);
-	pthread_attr_destroy(&attr_instruccion);
+	return id_mensaje;
 }
 
 int calcula_paginas_instruccion() {
@@ -536,19 +543,19 @@ void respuesta_leer_compartida(void *buffer) {
 
 void libero_pcb() {
 	/*t_indice_stack* indice_stack = pcb_quantum->pcb->indice_stack;
-	int i_stack;
-	for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
-		indice_stack += i_stack;
-		int i_variables;
-		for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
-				++i_variables) {
-			t_variables_stack* indice_variables = indice_stack->variables;
-			indice_variables += i_variables;
-			free(indice_variables->posicion_memoria);
-		}
-		free(indice_stack->posicion_variable_retorno);
-		free(indice_stack->variables);
-	}*/
+	 int i_stack;
+	 for (i_stack = 0; i_stack < pcb_quantum->pcb->stack_size; ++i_stack) {
+	 indice_stack += i_stack;
+	 int i_variables;
+	 for (i_variables = 0; i_variables < indice_stack->cantidad_variables;
+	 ++i_variables) {
+	 t_variables_stack* indice_variables = indice_stack->variables;
+	 indice_variables += i_variables;
+	 free(indice_variables->posicion_memoria);
+	 }
+	 free(indice_stack->posicion_variable_retorno);
+	 free(indice_stack->variables);
+	 }*/
 	free(pcb_quantum->pcb->instrucciones_serializadas);
 	free(pcb_quantum->pcb->indice_stack);
 	free(pcb_quantum->pcb->etiquetas);
