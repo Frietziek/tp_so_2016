@@ -173,7 +173,7 @@ int main(void) {
 
 void atender_umc(t_paquete *paquete, int socket_conexion) {
 
-	t_pid *pid_a_matar;
+
 
 	switch (paquete->header->id_mensaje) {
 	case REPUESTA_HANDSHAKE_UMC:
@@ -212,7 +212,7 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_FINALIZAR_PROGRAMA:
 		;
-		pid_a_matar = malloc(sizeof(t_pid));
+		t_pid *pid_a_matar = malloc(sizeof(t_pid));
 		deserializar_pid(paquete->payload, pid_a_matar);
 		log_info(logger_manager, "Finalizo en UMC el pcb creado con pid: %d",
 				pid_a_matar->pid);
@@ -364,6 +364,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 				"La consola imprimió el texto satisfactoriamente");
 		break;
 	case RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA:
+		sem_wait(&mutex_lista_procesos);
 		log_info(logger_manager,
 				"El programa de la consola: %i finalizo correctamente",
 				paquete_buffer->header->id_proceso_emisor);
@@ -371,6 +372,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 				socket_consola);
 		eliminar_proceso_de_lista_procesos_con_pid(
 				pcb_a_eliminar_de_lista->pid);
+		sem_post(&mutex_lista_procesos); //TODO poner bien los mutex aqui
 
 		break;
 		//todo faltan varios mensajes de error de consola,
@@ -1182,8 +1184,8 @@ void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado) { //para re
 	bool busqueda_proceso_logica(t_fila_tabla_procesos * proceso) {
 		return (pcb->pid == proceso->pcb->pid);
 	}
-	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
-			lista_procesos, (void*) busqueda_proceso_logica)));
+	t_fila_tabla_procesos *proceso = ((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica));
 	proceso->socket_cpu = NO_ASIGNADO;
 	proceso->pcb = pcb;
 	proceso->pcb->estado = estado;
