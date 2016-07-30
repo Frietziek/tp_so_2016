@@ -194,5 +194,6 @@ void avisar_para_que_desbloquee(char *nombre_sem);
 void monitorear_configuraciones();
 void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion,
 		t_config_nucleo *configuracion_nucleo);
-void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado);
+void actualizar_estado_pcb(t_pcb *pcb, int estado);
+void saco_socket_cpu(t_pcb *pcb);
 #endif /* NUCLEO_H_ *///

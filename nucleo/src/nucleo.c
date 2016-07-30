@@ -829,7 +829,7 @@ void desbloquear_pcb_semaforo(t_atributos_semaforo *atributos) {
 			t_pcb * pcb_a_ready = queue_pop_pid(cola_block, pid->pid);
 			sem_post(&mutex_cola_block);
 
-			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_ready, READY);
+			actualizar_estado_pcb(pcb_a_ready, READY);
 
 			sem_wait(&mutex_cola_ready);
 			queue_push(cola_ready, pcb_a_ready);
@@ -872,7 +872,7 @@ void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
 
 		sem_wait(&mutex_cola_ready);
 		queue_push(cola_ready, pcb_a_ready);
-		actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_ready, READY);
+		actualizar_estado_pcb(pcb_a_ready, READY);
 		sem_post(&mutex_cola_ready);
 		log_info(logger_manager, "PID %d - Se agrega a la cola READY",
 				pcb_a_ready->pid);
@@ -1086,7 +1086,13 @@ void asignar_pcb_a_cola_exec() {
 		sem_wait(&cant_cpu);		// y si hay una cpu libre
 
 		sem_wait(&mutex_cola_cpu);
+
+		log_info(logger_manager, "voy a agarrar una cpu");
 		t_cpu * cpu = queue_pop(cola_cpus);
+
+		log_info(logger_manager, "agarre una cpu con socket: %d",
+				cpu->socket_cpu);
+
 		socket = cpu->socket_cpu;
 		sem_post(&mutex_cola_cpu);
 
@@ -1187,8 +1193,8 @@ void atiendo_quantum(void *buffer, int socket_conexion) {
 	log_info(logger_manager,
 			"actualice el pcb con pid: %d y le asigne estado ready",
 			pcb_quantum->pcb->pid);
-	sem_post(&cant_ready);
 	agregar_cpu_disponible(socket_conexion);
+	sem_post(&cant_ready);
 
 	//log_info(logger_manager, "Voy a liberar pcb con PID %d", pcb_out->pid);
 	//libero_pcb(pcb_out);
@@ -1235,7 +1241,8 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 	log_info(logger_manager,
 			"PID %d - Se agrega a la cola EXIT con socket cpu: %d",
 			pcb_out->pid, socket_cpu);
-	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, EXIT);
+	actualizar_estado_pcb(pcb_quantum->pcb, EXIT);
+	saco_socket_cpu(pcb_quantum->pcb);
 	agregar_cpu_disponible(socket_cpu);
 	sem_post(&mutex_cola_exit);
 //sem_post(&cant_exit);
@@ -1265,11 +1272,24 @@ void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 	free(buffer_finalizar);
 	free(header_finalizar_umc);
 	free(pcb_quantum);
-
-//asignar_pcb_a_cpu(socket_cpu);
 }
 
-void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado) { //para ready o block serviria
+void actualizar_estado_pcb(t_pcb *pcb, int estado) { //para ready o block serviria
+	sem_wait(&mutex_lista_procesos);
+	bool busqueda_proceso_logica(t_fila_tabla_procesos * proceso) {
+		if (proceso != NULL)
+			return (pcb->pid == proceso->pcb->pid);
+		else
+			return false;
+	}
+	t_fila_tabla_procesos *proceso = ((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica));
+	proceso->pcb = pcb;
+	proceso->pcb->estado = estado;
+	sem_post(&mutex_lista_procesos);
+
+
+void saco_socket_cpu(t_pcb *pcb) {
 	sem_wait(&mutex_lista_procesos);
 	bool busqueda_proceso_logica(t_fila_tabla_procesos * proceso) {
 		if (proceso != NULL)
@@ -1280,19 +1300,7 @@ void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado) { //para re
 	t_fila_tabla_procesos *proceso = ((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica));
 
-	/*log_info(logger_manager,
-	 "El socket cpu anterior era: %d ,ahora, le asigne a mano  84568",
-	 proceso->socket_cpu, pcb->pid);
-
-	 proceso->socket_cpu = 84568;
-
-	 log_info(logger_manager,
-	 "El socket cpu ahora es: %d , le asigne a mano 84568",
-	 proceso->socket_cpu, pcb->pid);
-	 */
-	proceso->socket_cpu = NO_ASIGNADO; // tener en cuenta que santi lo saco
-	proceso->pcb = pcb;
-	proceso->pcb->estado = estado;
+	proceso->socket_cpu = NO_ASIGNADO; 
 	sem_post(&mutex_lista_procesos);
 }
 
@@ -1365,7 +1373,7 @@ void actualizar_pcb_y_ponerlo_en_exec_con_socket_cpu(t_pcb *pcb, int socket_cpu)
 	t_fila_tabla_procesos *proceso = (((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica)));
 	log_info(logger_manager, "PID: %d El socket_cpu es : %i", pcb->pid,
-			pcb->estado);
+			proceso->socket_cpu);
 	proceso->socket_cpu = socket_cpu;
 	log_info(logger_manager, "PID: %d Se asigno socket_cpu : %i", pcb->pid,
 			proceso->socket_cpu);
