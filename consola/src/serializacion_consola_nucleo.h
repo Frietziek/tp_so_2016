@@ -39,6 +39,8 @@
 #define ERROR_IMPRIMIR_TEXTO 24
 #define ERROR_PROGRAMA_FINALIZADO 25
 
+#define ME_TENGO_QUE_CERRAR 500
+
 typedef struct {
 	int valor;
 } t_variable_valor;

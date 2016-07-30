@@ -196,4 +196,5 @@ void cargar_nuevas_configuraciones_del_nucleo(char *archivo_configuracion,
 		t_config_nucleo *configuracion_nucleo);
 void actualizar_estado_pcb(t_pcb *pcb, int estado);
 void saco_socket_cpu(t_pcb *pcb);
+t_fila_tabla_procesos * buscar_fila_por_socket_cpu( socket_cpu);
 #endif /* NUCLEO_H_ *///

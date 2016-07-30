@@ -203,8 +203,14 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 
 		sem_post(&s_consola_finaliza);
 		break;
+	case ME_TENGO_QUE_CERRAR:
+		log_trace(loggerManager,
+				"[Mensaje nucleo] El nucleo solicita finalizar el programa por sigint cpu cuando estaba ejecutando");
+		sem_post(&s_consola_finaliza);
+		break;
 	default:
-		log_error(loggerManager, "[Mensaje nucleo] Mensaje no reconocido :( %i", id_mensaje);
+		log_error(loggerManager, "[Mensaje nucleo] Mensaje no reconocido :( %i",
+				id_mensaje);
 		break;
 
 	}

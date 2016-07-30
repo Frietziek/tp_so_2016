@@ -28,7 +28,6 @@
 #define MENSAJE_ERROR_AL_MATAR 30
 #define MENSAJE_FINALIZO_OK 5
 
-
 void deserializar_codigo(void* buffer, t_texto *codigo);
 
 #endif /* SERIALIZACION_NUCLE_CONSOLA_H_ */

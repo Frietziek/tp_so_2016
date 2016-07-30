@@ -504,6 +504,17 @@ int buscar_socket_consola_por_socket_cpu(int socket_cpu) {
 
 }
 
+t_fila_tabla_procesos * buscar_fila_por_socket_cpu( socket_cpu) {
+
+	log_info(logger_manager, "busco fila por socket cpu : %d", socket_cpu);
+	bool busqueda_proceso_logica(t_fila_tabla_procesos *proceso) {
+		return (socket_cpu == proceso->socket_cpu);
+	}
+	t_fila_tabla_procesos *fila = (((t_fila_tabla_procesos*) list_find(
+			lista_procesos, (void*) busqueda_proceso_logica)));
+	return fila;
+
+}
 int buscar_socket_consola_por_pid(int pid) {
 
 	log_info(logger_manager, "busco socket consola por pid : %d", pid);

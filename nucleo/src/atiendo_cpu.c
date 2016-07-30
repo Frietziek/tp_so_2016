@@ -7,8 +7,10 @@
 
 #include "atiendo_cpu.h"
 
-extern t_queue *cola_block, *cola_exec, *cola_cpus, *cola_ready;
+extern t_queue *cola_block, *cola_exec, *cola_cpus, *cola_ready, *cola_exit;
 extern int socket_umc;
+
+#define ME_TENGO_QUE_CERRAR 500
 
 #define RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA 15
 
@@ -83,14 +85,14 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_EXCEPCION_UMC");
 		atiendo_programa_finalizado(paquete->payload, socket_cpu);
 		break;
-	case MENSAJE_DESCONEXION_CPU:
+	case MENSAJE_DESCONEXION_CPU: // ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGURS AL CPU
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
 		break;
-	case MENSAJE_MATAR_CPU:
+	case MENSAJE_MATAR_CPU: //  ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGURS AL CPU PERO MANDA PCB ACTUALIZADO
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_MATAR_CPU");
 		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
-	case MENSAJE_SIGINT:
+	case MENSAJE_SIGINT: // ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGINT (CTRL C) AL CPU
 
 		atender_sigint(socket_cpu);
 		break;
@@ -104,18 +106,54 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 //todo falta hacer test de esto
 void atender_sigint(int socket_cpu) {
 
-	//Se va a terminar el proceso porque el pcb quedo inconsistente
 	sem_wait(&mutex_lista_procesos);
-	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_cpu);
-	t_pcb *pcb_a_eliminar = buscar_pcb_por_socket_cpu(socket_cpu);
+	t_fila_tabla_procesos *fila = buscar_fila_por_socket_cpu(socket_cpu);
+	//Se va a terminar el proceso porque el pcb quedo inconsistente
+//	t_pcb *pcb_a_eliminar = buscar_pcb_por_socket_cpu(socket_cpu);
+
+	if (fila != NULL) {
+
+		sem_wait(&mutex_cola_exec);
+		t_pcb * pcb_out = queue_pop_pid(cola_exec, fila->pcb->pid);
+		sem_post(&mutex_cola_exec);
+
+		sem_wait(&mutex_cola_exit);
+		queue_push(cola_exit, fila->pcb);
+		log_info(logger_manager,
+				"PID %d - Se agrega a la cola EXIT con socket cpu: %d",
+				pcb_out->pid, socket_cpu);
+		fila->pcb->estado = EXIT;
+		fila->socket_cpu = NO_ASIGNADO;
+		sem_wait(&mutex_cola_exit);
+
+		enviar_header_completado(fila->socket_consola, PROCESO_CONSOLA,
+		ME_TENGO_QUE_CERRAR);
+
+		queue_pop_cpu(cola_cpus, socket_cpu);
+
+		enviar_header_completado(socket_umc, PROCESO_UMC,
+		MENSAJE_MATAR_PROGRAMA);
+
+		libero_pcb(pcb_out);
+	}
 	sem_post(&mutex_lista_procesos);
+
+//	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
+//
+//	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
+//			pcb_a_actualizar->estado);
+//
+//	pcb_a_actualizar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_actualizar->pid);
+
+//	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
+
 	t_pid *eliminar = malloc(sizeof(t_pid));
 
-	eliminar->pid = pcb_a_eliminar->pid;
+//eliminar->pid = pcb_a_eliminar->pid;
 
 	t_buffer *buffer_eliminar = serializar_pid(eliminar);
 
-	// ENVIO TERMINAR AL UMC
+// ENVIO TERMINAR AL UMC
 
 	t_header *header_eliminar_umc = malloc(sizeof(t_header));
 
@@ -132,15 +170,15 @@ void atender_sigint(int socket_cpu) {
 	free(eliminar);
 	free(buffer_eliminar);
 	free(header_eliminar_umc);
-
-	enviar_header_completado(socket_consola, PROCESO_CONSOLA,
-	RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
-	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
-	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
-			pcb_a_eliminar->estado);
-	pcb_a_eliminar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_eliminar->pid);
-
-	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
+//
+//	enviar_header_completado(socket_consola, PROCESO_CONSOLA,
+//	RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
+//	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
+//	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
+//			pcb_a_eliminar->estado);
+//	pcb_a_eliminar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_eliminar->pid);
+//
+//	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
 }
 //todo falta hacer test de esto
 t_queue *obtener_cola_por_id_estado(int estado) {
@@ -174,17 +212,12 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 	t_pcb_quantum *pcb_quantum_actualizado = malloc(sizeof(t_pcb_quantum));
 	deserializar_pcb_quantum(buffer, pcb_quantum_actualizado);
 
-	sem_wait(&mutex_lista_procesos);
-	t_pcb *pcb_a_actualizar = buscar_pcb_por_socket_cpu(socket_cpu);
-	sem_post(&mutex_lista_procesos);
-	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
+	sem_wait(&mutex_cola_exec);
+	queue_pop_pid(cola_exec, pcb_quantum_actualizado->pcb->pid);
+	sem_post(&mutex_cola_exec);
 
-	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
-			pcb_a_actualizar->estado);
-
-	pcb_a_actualizar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_actualizar->pid);
-
-	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
+	log_info(logger_manager, "PROCESO %d - Se saca a la cola EXEC",
+			pcb_quantum_actualizado->pcb->pid);
 
 	sem_wait(&mutex_cola_ready);
 	queue_push(cola_ready, pcb_quantum_actualizado->pcb);
@@ -196,7 +229,6 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 
 	log_info(logger_manager, "Agregue pid: %d a cola ready",
 			pcb_quantum_actualizado->pcb->pid);
-	libero_pcb(pcb_a_actualizar);
 
 	sem_wait(&mutex_cola_cpu);
 	queue_pop_cpu(cola_cpus, socket_cpu);
@@ -205,9 +237,9 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 
 	sem_post(&cant_ready);
 
-	//todo sacar socket cpu de tabla,
+//todo sacar socket cpu de tabla,
 
-	//free(cpu_a_sacar);
+//free(cpu_a_sacar);
 }
 
 void atiendo_handshake(void *buffer, int socket_conexion) {
@@ -414,7 +446,7 @@ void atiendo_wait(void *buffer, int socket_conexion,
 	t_semaforo *semaforo = malloc(sizeof(t_semaforo));
 	deserializar_semaforo(buffer, semaforo);
 
-	// MAYOR a 0, sigue con rafaga
+// MAYOR a 0, sigue con rafaga
 	sem_wait(&mutex_solicitudes_semaforo);
 	int valor_semaforo = obtener_valor_semaforo(semaforo->nombre);
 	if (valor_semaforo > 0) {
@@ -486,7 +518,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 	queue_push(atributos_semaforo->solicitudes, pid);
 	sem_post(&mutex_cola_solicitudes);
 
-	//decrementar_semaforo(semaforo->nombre);
+//decrementar_semaforo(semaforo->nombre);
 
 	sem_post(&mutex_solicitudes_semaforo);
 	free(semaforo->nombre);
@@ -884,7 +916,7 @@ void decrementar_semaforo(char *semaforo_nombre) {
 }
 
 void aumentar_semaforo(char *semaforo_nombre) {
-	//sem_wait(&mutex_solicitudes_semaforo);
+//sem_wait(&mutex_solicitudes_semaforo);
 
 	t_atributos_semaforo * attr_sem = (t_atributos_semaforo*) dictionary_get(
 			solitudes_semaforo, semaforo_nombre);
@@ -892,7 +924,7 @@ void aumentar_semaforo(char *semaforo_nombre) {
 	int valor_semaforo = obtener_valor_semaforo(semaforo_nombre);
 	log_info(logger_manager, "Nuevo valor del semaforo %s= %d", semaforo_nombre,
 			valor_semaforo);
-	//sem_post(&mutex_solicitudes_semaforo);
+//sem_post(&mutex_solicitudes_semaforo);
 
 }
 
