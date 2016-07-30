@@ -1406,7 +1406,7 @@ void monitorear_configuraciones() {
 
 	int fd_watch = inotify_add_watch(fd_ionotify,
 	PATH_CONFIGURACIONES_NUCLEO,
-	IN_MODIFY); //Se saca  | IN_CREATE | IN_DELETE | IN_MODIFY
+	IN_MODIFY | IN_CREATE | IN_DELETE | IN_CLOSE_WRITE); //Se saca  | IN_CREATE | IN_DELETE | IN_MODIFY
 
 	while (1) {
 
@@ -1424,7 +1424,7 @@ void monitorear_configuraciones() {
 			struct inotify_event *evento =
 					(struct inotify_event *) &buffer_eventos[offset]; //Obtengo el evento
 
-			if (evento->mask & IN_MODIFY) {
+			//if (evento->mask & IN_MODIFY) {
 				//log_trace(logger_manager, "[IONOTIFY] El archivo de configuraciones fue modificado, actualizando datos...");
 
 				cargar_nuevas_configuraciones_del_nucleo(
@@ -1432,7 +1432,7 @@ void monitorear_configuraciones() {
 
 				//log_trace(logger_manager, "[IONOTIFY] Las configuraciones fueron actualizadas con exito!");
 				//log_trace(logger_manager, "[IONOTIFY] Ahora los valores son los siguientes: QUANTUM=%i, QUANTUM_SLEEP=%i" , configuracion->quantum, configuracion->quantum_sleep);
-			}
+			//}
 			offset += sizeof(struct inotify_event) + evento->len;
 		}
 	}
