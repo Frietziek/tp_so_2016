@@ -41,7 +41,6 @@ int main(void) {
 	log_info(log_umc, "Iniciando UMC...  Memoria disponible: %d bytes",
 			configuracion->marcos * configuracion->marco_size);
 
-
 	//iniciar listas
 	crear_listas();
 
@@ -177,7 +176,7 @@ void * menu_principal() {
 			}
 			break;
 		case ESTADO_TLB:
-				test_tlb();
+			test_tlb();
 			break;
 		default:
 			printf("Comando no reconocido\n");
@@ -219,7 +218,8 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		escribir_pagina(paquete->payload, socket_conexion);
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
-		log_info(log_umc, "Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo");
+		log_info(log_umc,
+				"Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo");
 		cambiar_proceso_activo(paquete->payload, socket_conexion);
 		break;
 	default:
@@ -241,11 +241,13 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion,
 		iniciar_programa(paquete->payload);
 		break;
 	case MENSAJE_MATAR_PROGRAMA:
-		log_info(log_umc, "Solicitud recibida del nucleo: MENSAJE_MATAR_PROGRAMA");
+		log_info(log_umc,
+				"Solicitud recibida del nucleo: MENSAJE_MATAR_PROGRAMA");
 		finalizar_programa(paquete->payload, paquete->header->id_mensaje);
 		break;
 	case MENSAJE_FINALIZAR_PROGRAMA:
-		log_info(log_umc, "Solicitud recibida del nucleo: MENSAJE_FINALIZAR_PROGRAMA");
+		log_info(log_umc,
+				"Solicitud recibida del nucleo: MENSAJE_FINALIZAR_PROGRAMA");
 		finalizar_programa(paquete->payload, paquete->header->id_mensaje);
 		break;
 	default:
@@ -292,7 +294,8 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		break;
 	case ERROR_INICIAR_PROGRAMA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_INICIAR_PROGRAMA");
-		respuesta_iniciar_programa(paquete->payload, paquete->header->id_mensaje);
+		respuesta_iniciar_programa(paquete->payload,
+				paquete->header->id_mensaje);
 		break;
 	case ERROR_LEER_PAGINA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_LEER_PAGINA");
@@ -300,7 +303,8 @@ void atender_swap(t_paquete *paquete, int socket_conexion) {
 		break;
 	case ERROR_ESCRIBIR_PAGINA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_ESCRIBIR_PAGINA");
-		respuesta_escribir_pagina(paquete->payload, paquete->header->id_mensaje);
+		respuesta_escribir_pagina(paquete->payload,
+				paquete->header->id_mensaje);
 		break;
 	case ERROR_ESCRIBIR_PAGINA_NUEVA:
 		log_info(log_umc, "Recibo de SWAP :ERROR_ESCRIBIR_PAGINA_NUEVA");
@@ -433,114 +437,139 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 	}
 	t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 	int id_programa = cpu->pid;
+
 	log_info(log_umc,
 			"Solicitud de lectura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",
 			id_programa, pagina->pagina, pagina->offset, pagina->tamanio);
-	int marco = 0;
-	if (configuracion->entradas_tlb != 0) {
-		log_info(log_umc, "Accediendo a la caché TLB ...");
-		marco = buscar_pagina_tlb(id_programa, pagina->pagina);
-		if (marco != 0) {
-			log_info(log_umc, "Pagina encontrada en la caché TLB. Marco: %d",
-					marco);
-		}
+
+	bool es_true(t_tabla_cantidad_entradas *elemento) {
+		return (elemento->pid == id_programa);
 	}
 
-	//1° caso: esta en TLB
-	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
-		t_pagina_pedido_completa *pagina_cpu = malloc(
-				sizeof(t_pagina_pedido_completa));
-		inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
+	t_tabla_cantidad_entradas * cant_entradas =
+			(t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,
+					(void*) es_true);
 
-		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
-				lista_tablas, id_programa);
-		tabla[pagina->pagina].uso = 1;
+	if (pagina->pagina > (cant_entradas->cant_paginas - 1)) {
+		t_header *header_cpu = malloc(sizeof(t_header));
+		header_cpu->id_proceso_emisor = PROCESO_UMC;
+		header_cpu->id_proceso_receptor = PROCESO_CPU;
+		header_cpu->id_mensaje = ERROR_LEER_PAGINA;
+		header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-		int direccion_mp = retornar_direccion_mp(marco);
-
-		pagina_cpu->valor = malloc(pagina->tamanio);
-		memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
-				pagina->tamanio);
-
-		enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
-		RESPUESTA_LEER_PAGINA);
-
-		free(pagina_cpu->valor);
-		free(pagina_cpu);
-		free(pagina);
-		//2° caso: esta en Memoria Principal
+		if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
+			log_error(log_umc, "Error de comunicacion con CPU");
+		}
+		free(header_cpu);
+		//
 	} else {
-		log_info(log_umc,
-				"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-		usleep(configuracion->retardo);
-		log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
-				configuracion->retardo);
 
-		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
-				lista_tablas, id_programa);
-		if (tabla[pagina->pagina].presencia) {
+		int marco = 0;
+		if (configuracion->entradas_tlb != 0) {
+			log_info(log_umc, "Accediendo a la caché TLB ...");
+			marco = buscar_pagina_tlb(id_programa, pagina->pagina);
+			if (marco != 0) {
+				log_info(log_umc,
+						"Pagina encontrada en la caché TLB. Marco: %d", marco);
+			}
+		}
 
+		//1° caso: esta en TLB
+		if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
 			t_pagina_pedido_completa *pagina_cpu = malloc(
 					sizeof(t_pagina_pedido_completa));
 			inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
-			pagina_cpu->valor = malloc(pagina->tamanio);
 
+			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
+					lista_tablas, id_programa);
 			tabla[pagina->pagina].uso = 1;
-			int direccion_mp = retornar_direccion_mp(
-					tabla[pagina->pagina].frame);
-			log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
-					tabla[pagina->pagina].frame);
+
+			int direccion_mp = retornar_direccion_mp(marco);
+
+			pagina_cpu->valor = malloc(pagina->tamanio);
 			memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 					pagina->tamanio);
-			if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
-				guardar_en_TLB(pagina_cpu->pagina, id_programa,
-						tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
-			}
+
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 			RESPUESTA_LEER_PAGINA);
 
 			free(pagina_cpu->valor);
 			free(pagina_cpu);
 			free(pagina);
-		}
-		//3° caso: esta en Swap
-		else {
-			// Pido la pagina a Swap
+			//2° caso: esta en Memoria Principal
+		} else {
 			log_info(log_umc,
-					"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
+					"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
+			usleep(configuracion->retardo);
+			log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
+					configuracion->retardo);
 
-			//me guardo el pedido
-			buffer_programas[id_programa] = pagina;
+			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
+					lista_tablas, id_programa);
+			if (tabla[pagina->pagina].presencia) {
 
-			t_header *header_swap = malloc(sizeof(t_header));
-			header_swap->id_proceso_emisor = PROCESO_UMC;
-			header_swap->id_proceso_receptor = PROCESO_SWAP;
-			header_swap->id_mensaje = MENSAJE_LEER_PAGINA;
+				t_pagina_pedido_completa *pagina_cpu = malloc(
+						sizeof(t_pagina_pedido_completa));
+				inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
+				pagina_cpu->valor = malloc(pagina->tamanio);
 
-			t_pagina *pagina_swap = malloc(sizeof(t_pagina));
-			pagina_swap->id_programa = id_programa;
-			pagina_swap->pagina = pagina->pagina;
-			pagina_swap->offset = 0;
-			pagina_swap->tamanio = configuracion->marco_size;
-			pagina_swap->socket_pedido = socket_conexion;
-			log_info(log_umc,
-					"mando a swap a leer PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d ",
-					pagina_swap->id_programa, pagina_swap->pagina,
-					pagina_swap->offset, pagina_swap->tamanio);
-			t_buffer *payload_swap = serializar_pagina(pagina_swap);
+				tabla[pagina->pagina].uso = 1;
+				int direccion_mp = retornar_direccion_mp(
+						tabla[pagina->pagina].frame);
+				log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
+						tabla[pagina->pagina].frame);
+				memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
+						pagina->tamanio);
+				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
+					guardar_en_TLB(pagina_cpu->pagina, id_programa,
+							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
+				}
+				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
+				RESPUESTA_LEER_PAGINA);
 
-			header_swap->longitud_mensaje = payload_swap->longitud_buffer;
-
-			if (enviar_buffer(socket_swap, header_swap, payload_swap)
-					< sizeof(t_header) + payload_swap->longitud_buffer) {
-				log_error(log_umc,
-						"Error de comunicacion al enviar buffer Leer pagina a SWAP - PID:%d",
-						id_programa);
+				free(pagina_cpu->valor);
+				free(pagina_cpu);
+				free(pagina);
 			}
+			//3° caso: esta en Swap
+			else {
+				// Pido la pagina a Swap
+				log_info(log_umc,
+						"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
 
-			free(header_swap);
-			free(pagina_swap);
-			free(payload_swap);
+				//me guardo el pedido
+				buffer_programas[id_programa] = pagina;
+
+				t_header *header_swap = malloc(sizeof(t_header));
+				header_swap->id_proceso_emisor = PROCESO_UMC;
+				header_swap->id_proceso_receptor = PROCESO_SWAP;
+				header_swap->id_mensaje = MENSAJE_LEER_PAGINA;
+
+				t_pagina *pagina_swap = malloc(sizeof(t_pagina));
+				pagina_swap->id_programa = id_programa;
+				pagina_swap->pagina = pagina->pagina;
+				pagina_swap->offset = 0;
+				pagina_swap->tamanio = configuracion->marco_size;
+				pagina_swap->socket_pedido = socket_conexion;
+				log_info(log_umc,
+						"mando a swap a leer PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d ",
+						pagina_swap->id_programa, pagina_swap->pagina,
+						pagina_swap->offset, pagina_swap->tamanio);
+				t_buffer *payload_swap = serializar_pagina(pagina_swap);
+
+				header_swap->longitud_mensaje = payload_swap->longitud_buffer;
+
+				if (enviar_buffer(socket_swap, header_swap, payload_swap)
+						< sizeof(t_header) + payload_swap->longitud_buffer) {
+					log_error(log_umc,
+							"Error de comunicacion al enviar buffer Leer pagina a SWAP - PID:%d",
+							id_programa);
+				}
+
+				free(header_swap);
+				free(pagina_swap);
+				free(payload_swap);
+			}
 		}
 	}
 }
@@ -577,13 +606,14 @@ void respuesta_leer_pagina(void *buffer, int id_mensaje) {
 			obtuvo_marcos = 0;
 		}
 
-		if(obtuvo_marcos){
+		if (obtuvo_marcos) {
 			if (configuracion->entradas_tlb != 0) { //valido que este habilitada
 				guardar_en_TLB(pagina->pagina, pagina->id_programa,
 						tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
 			}
 
-			int direccion_mp = retornar_direccion_mp(tabla[pagina->pagina].frame);
+			int direccion_mp = retornar_direccion_mp(
+					tabla[pagina->pagina].frame);
 			memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina_cpu->offset,
 					pagina_cpu->tamanio);
 		}
@@ -636,68 +666,54 @@ void escribir_pagina(void *buffer, int socket_conexion) {
 	log_info(log_umc,
 			"Solicitud de escritura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",
 			id_programa, pagina->pagina, pagina->offset, pagina->tamanio);
-	int marco = 0;
-	if (configuracion->entradas_tlb != 0) {
-		log_info(log_umc, "Accediendo a la caché TLB ...");
-		marco = buscar_pagina_tlb(id_programa, pagina->pagina);
-		if (marco != 0) {
-			log_info(log_umc, "Pagina encontrada en la caché TLB. Marco: %d",
-					marco);
-		}
+
+	bool es_true(t_tabla_cantidad_entradas *elemento) {
+		return (elemento->pid == id_programa);
 	}
-	t_header *header_cpu = malloc(sizeof(t_header));
-	header_cpu->id_proceso_emisor = PROCESO_UMC;
-	header_cpu->id_proceso_receptor = PROCESO_CPU;
-	header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
-	header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-	//1° caso: esta en TLB
-	if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
-		int direccion_mp = retornar_direccion_mp(marco);
-		memcpy((void*) direccion_mp + pagina->offset, (int*) pagina->valor,
-				pagina->tamanio);
-		marcar_modificada(id_programa, pagina->pagina);
+	t_tabla_cantidad_entradas * cant_entradas =
+			(t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,
+					(void*) es_true);
 
-		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
-				lista_tablas, id_programa);
-		tabla[pagina->pagina].uso = 1;
+	if (pagina->pagina > (cant_entradas->cant_paginas - 1)) {
+		t_header *header_cpu = malloc(sizeof(t_header));
+		header_cpu->id_proceso_emisor = PROCESO_UMC;
+		header_cpu->id_proceso_receptor = PROCESO_CPU;
+		header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
+		header_cpu->longitud_mensaje = PAYLOAD_VACIO;
 
-		if (socket_conexion > 0) {
-			if (enviar_header(socket_conexion, header_cpu)
-					< sizeof(header_cpu)) {
-				log_error(log_umc, "Error de comunicacion con CPU");
-			} else {
-				log_info(log_umc,
-						"Se manda la respuesta al cpu de la escritura OK ");
-			}
-		} else {
-			log_info(log_umc, "El cpu ya no se encuentra disponible");
+		if (enviar_header(socket_conexion, header_cpu) < sizeof(header_cpu)) {
+			log_error(log_umc, "Error de comunicacion con CPU");
 		}
-
 		free(header_cpu);
-		free(pagina);
-		//2° caso: esta en memoria
+		//
 	} else {
-		log_info(log_umc,
-				"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-		usleep(configuracion->retardo);
-		log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
-				configuracion->retardo);
-		t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
-				lista_tablas, id_programa);
-		if (tabla[pagina->pagina].presencia) {
-			tabla[pagina->pagina].uso = 1;
-			int direccion_mp = retornar_direccion_mp(
-					tabla[pagina->pagina].frame);
-			log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
-					tabla[pagina->pagina].frame);
+
+		int marco = 0;
+		if (configuracion->entradas_tlb != 0) {
+			log_info(log_umc, "Accediendo a la caché TLB ...");
+			marco = buscar_pagina_tlb(id_programa, pagina->pagina);
+			if (marco != 0) {
+				log_info(log_umc,
+						"Pagina encontrada en la caché TLB. Marco: %d", marco);
+			}
+		}
+		t_header *header_cpu = malloc(sizeof(t_header));
+		header_cpu->id_proceso_emisor = PROCESO_UMC;
+		header_cpu->id_proceso_receptor = PROCESO_CPU;
+		header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
+		header_cpu->longitud_mensaje = PAYLOAD_VACIO;
+
+		//1° caso: esta en TLB
+		if (marco) { //al ser mayor a cero quiere decir que esta en la tlb
+			int direccion_mp = retornar_direccion_mp(marco);
 			memcpy((void*) direccion_mp + pagina->offset, (int*) pagina->valor,
 					pagina->tamanio);
 			marcar_modificada(id_programa, pagina->pagina);
-			if (configuracion->entradas_tlb != 0) {
-				guardar_en_TLB(pagina->pagina, id_programa,
-						tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
-			}
+
+			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
+					lista_tablas, id_programa);
+			tabla[pagina->pagina].uso = 1;
 
 			if (socket_conexion > 0) {
 				if (enviar_header(socket_conexion, header_cpu)
@@ -713,40 +729,78 @@ void escribir_pagina(void *buffer, int socket_conexion) {
 
 			free(header_cpu);
 			free(pagina);
-		}
-		//3° caso: esta en Swap
-		else {
-			// Pido la pagina a Swap. La guardo en memoria y solo escribo en la memoria
+			//2° caso: esta en memoria
+		} else {
 			log_info(log_umc,
-					"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
+					"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
+			usleep(configuracion->retardo);
+			log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
+					configuracion->retardo);
+			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
+					lista_tablas, id_programa);
+			if (tabla[pagina->pagina].presencia) {
+				tabla[pagina->pagina].uso = 1;
+				int direccion_mp = retornar_direccion_mp(
+						tabla[pagina->pagina].frame);
+				log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
+						tabla[pagina->pagina].frame);
+				memcpy((void*) direccion_mp + pagina->offset,
+						(int*) pagina->valor, pagina->tamanio);
+				marcar_modificada(id_programa, pagina->pagina);
+				if (configuracion->entradas_tlb != 0) {
+					guardar_en_TLB(pagina->pagina, id_programa,
+							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
+				}
 
-			buffer_programas[id_programa] = pagina; //guardo la pagina en un buffer
+				if (socket_conexion > 0) {
+					if (enviar_header(socket_conexion, header_cpu)
+							< sizeof(header_cpu)) {
+						log_error(log_umc, "Error de comunicacion con CPU");
+					} else {
+						log_info(log_umc,
+								"Se manda la respuesta al cpu de la escritura OK ");
+					}
+				} else {
+					log_info(log_umc, "El cpu ya no se encuentra disponible");
+				}
 
-			t_header *header_swap = malloc(sizeof(t_header));
-			header_swap->id_proceso_emisor = PROCESO_UMC;
-			header_swap->id_proceso_receptor = PROCESO_SWAP;
-			header_swap->id_mensaje = MENSAJE_LEER_PAGINA_PARA_ESCRIBIR;
-
-			t_pagina *pagina_swap = malloc(sizeof(t_pagina));
-			pagina_swap->id_programa = id_programa;
-			pagina_swap->pagina = pagina->pagina;
-			pagina_swap->offset = 0;
-			pagina_swap->tamanio = configuracion->marco_size;
-			pagina_swap->socket_pedido = socket_conexion; //es del cpu
-
-			t_buffer *payload_swap = serializar_pagina(pagina_swap);
-
-			header_swap->longitud_mensaje = payload_swap->longitud_buffer;
-
-			if (enviar_buffer(socket_swap, header_swap, payload_swap)
-					< sizeof(t_header) + payload_swap->longitud_buffer) {
-				log_error(log_umc,
-						"Error de comunicacion al enviar Leer pagina a SWAP - PID:%d",
-						id_programa);
+				free(header_cpu);
+				free(pagina);
 			}
-			free(header_cpu);
-			free(pagina_swap);
-			free(header_swap);
+			//3° caso: esta en Swap
+			else {
+				// Pido la pagina a Swap. La guardo en memoria y solo escribo en la memoria
+				log_info(log_umc,
+						"Pagina no encontrada en Memoria Principal. Se procede a solicitar la pagina a SWAP");
+
+				buffer_programas[id_programa] = pagina; //guardo la pagina en un buffer
+
+				t_header *header_swap = malloc(sizeof(t_header));
+				header_swap->id_proceso_emisor = PROCESO_UMC;
+				header_swap->id_proceso_receptor = PROCESO_SWAP;
+				header_swap->id_mensaje = MENSAJE_LEER_PAGINA_PARA_ESCRIBIR;
+
+				t_pagina *pagina_swap = malloc(sizeof(t_pagina));
+				pagina_swap->id_programa = id_programa;
+				pagina_swap->pagina = pagina->pagina;
+				pagina_swap->offset = 0;
+				pagina_swap->tamanio = configuracion->marco_size;
+				pagina_swap->socket_pedido = socket_conexion; //es del cpu
+
+				t_buffer *payload_swap = serializar_pagina(pagina_swap);
+
+				header_swap->longitud_mensaje = payload_swap->longitud_buffer;
+
+				if (enviar_buffer(socket_swap, header_swap, payload_swap)
+						< sizeof(t_header) + payload_swap->longitud_buffer) {
+					log_error(log_umc,
+							"Error de comunicacion al enviar Leer pagina a SWAP - PID:%d",
+							id_programa);
+				}
+				free(header_cpu);
+				free(pagina_swap);
+				free(header_swap);
+			}
 		}
 	}
 }
@@ -783,16 +837,21 @@ void respuesta_leer_pagina_para_escribir(void *buffer, int id_mensaje) {
 			header_cpu->id_mensaje = ERROR_ESCRIBIR_PAGINA;
 			obtuvo_marcos = 0;
 		}
-		if(obtuvo_marcos){
-			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas, pagina_recibida_de_swap->id_programa);
+		if (obtuvo_marcos) {
+			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
+					lista_tablas, pagina_recibida_de_swap->id_programa);
 
 			tabla[pagina_recibida_de_swap->pagina].presencia = 1;
 			if (configuracion->entradas_tlb != 0) {
-				guardar_en_TLB(pagina_recibida_de_swap->pagina,pagina_recibida_de_swap->id_programa,tabla[pagina_recibida_de_swap->pagina].frame); //pongo la pagina en la cache TLB
+				guardar_en_TLB(pagina_recibida_de_swap->pagina,
+						pagina_recibida_de_swap->id_programa,
+						tabla[pagina_recibida_de_swap->pagina].frame); //pongo la pagina en la cache TLB
 			}
-			int direccion_mp = retornar_direccion_mp(tabla[pagina_recibida_de_swap->pagina].frame);
+			int direccion_mp = retornar_direccion_mp(
+					tabla[pagina_recibida_de_swap->pagina].frame);
 
-			memcpy((void*) direccion_mp + pagina_recibida_de_swap->offset,pagina_buffer->valor, pagina_recibida_de_swap->tamanio);
+			memcpy((void*) direccion_mp + pagina_recibida_de_swap->offset,
+					pagina_buffer->valor, pagina_recibida_de_swap->tamanio);
 
 			tabla[pagina_recibida_de_swap->pagina].modificado = 1;
 			header_cpu->id_mensaje = RESPUESTA_ESCRIBIR_PAGINA;
@@ -984,16 +1043,14 @@ void respuesta_finalizar_programa(void *buffer, int id_mensaje) {
 	deserializar_programa(buffer, programa);
 	log_info(log_umc, "El swap finalizo el PROCESO: %d", programa->id_programa);
 
-
-
 	t_header *header_nucleo = malloc(sizeof(t_header));
 	header_nucleo->id_proceso_emisor = PROCESO_UMC;
 	header_nucleo->id_proceso_receptor = PROCESO_NUCLEO;
 
 	t_id_mensaje *mensaje = buffer_programas[programa->id_programa];
-	if(mensaje->id_mensaje == MENSAJE_MATAR_PROGRAMA){
+	if (mensaje->id_mensaje == MENSAJE_MATAR_PROGRAMA) {
 		header_nucleo->id_mensaje = RESPUESTA_MATAR_PROGRAMA;
-	}else if(mensaje->id_mensaje == MENSAJE_FINALIZAR_PROGRAMA){
+	} else if (mensaje->id_mensaje == MENSAJE_FINALIZAR_PROGRAMA) {
 		header_nucleo->id_mensaje = RESPUESTA_FINALIZAR_PROGRAMA;
 	}
 
@@ -1372,7 +1429,8 @@ void flush_tlb() {
 
 	while (i < count) {
 		t_tlb * pagina_tlb = list_remove(lista_paginas_tlb, 0);
-		log_info(log_umc,"Se elimina de TLB:  PID = %d - PAGINA = %d",pagina_tlb->pid,pagina_tlb->pagina);
+		log_info(log_umc, "Se elimina de TLB:  PID = %d - PAGINA = %d",
+				pagina_tlb->pid, pagina_tlb->pagina);
 		free(pagina_tlb);
 		i++;
 	}
@@ -1441,7 +1499,6 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 
 	int paginas_en_mp = cant_pag_x_proc(pagina->id_programa);
 
-
 	// Posibilidad 1: Tengo marcos libres y no llegue al limite de marcos por proceso
 	if (list_any_satisfy(lista_de_marcos, (void*) hay_marco_libre)
 			&& paginas_en_mp < configuracion->marco_x_proc) {
@@ -1493,7 +1550,8 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 			log_error(log_umc,
 					"No hay marcos libres y ninguna pagina del proceso esta en mp para poder ser reemplazada");
 		} else {
-			log_info(log_umc,"No hay marcos libres pero el proceso tiene paginas para ser reemplazadas");
+			log_info(log_umc,
+					"No hay marcos libres pero el proceso tiene paginas para ser reemplazadas");
 			numero_marco = reemplazar_pagina(&tabla[pagina->pagina]);
 			log_info(log_umc, "Le asigno a PID:%d PAGINA:%d el MARCO:%d",
 					pagina->id_programa, pagina->pagina, numero_marco);
@@ -1503,8 +1561,8 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 			memcpy((void*) dir_mp, pagina->valor, configuracion->marco_size);
 			return 1;
 		}
-	}else{
-		log_info(log_umc,"No ocurrio nada de lo anterior");
+	} else {
+		log_info(log_umc, "No ocurrio nada de lo anterior");
 		return 0;
 	}
 
@@ -1743,13 +1801,15 @@ void guardar_cant_entradas(int pid, int cant_pag, int tamanio) {
 	pthread_mutex_unlock(&mutex_lista_tabla_entradas);
 } //TODO: ver de eliminarlas al finalizar pid
 
-void liberar_de_listas(int pid){
+void liberar_de_listas(int pid) {
 	//libera de la lista de cantidad de entradas
 	bool es_pid(t_tabla_cantidad_entradas *elemento) {
 		return (elemento->pid == pid);
 	}
 	pthread_mutex_lock(&mutex_lista_tabla_entradas);
-	t_tabla_cantidad_entradas * tabla_cant = (t_tabla_cantidad_entradas *) list_remove_by_condition(lista_tabla_entradas,(void*)es_pid);
+	t_tabla_cantidad_entradas * tabla_cant =
+			(t_tabla_cantidad_entradas *) list_remove_by_condition(
+					lista_tabla_entradas, (void*) es_pid);
 	pthread_mutex_unlock(&mutex_lista_tabla_entradas);
 	free(tabla_cant);
 }
@@ -1795,13 +1855,13 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 	bool es_cpu(t_cpu *elemento) {
 		return (elemento->socket_cpu == socket);
 	}
-	if ( programa->id_programa == -1){
-		log_info(log_umc,"Finaliza un CPU");
+	if (programa->id_programa == -1) {
+		log_info(log_umc, "Finaliza un CPU");
 		finalizar_cpu(socket);
-	}else if(programa->id_programa == 0){
+	} else if (programa->id_programa == 0) {
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 		cpu->pid = programa->id_programa;
-	}else{
+	} else {
 		flush_programa_tlb(programa->id_programa);
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 		cpu->pid = programa->id_programa;
@@ -1897,20 +1957,21 @@ void finalizar_cpu(int socket_cpu) {
 	}
 }
 
-void test_tlb(){
+void test_tlb() {
 	int i = 0;
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
-	log_info(log_umc,"El contenido de la tlb, desde el ultimo al mas reciente referenciado, es el siguiente:");
-	log_info(log_umc,"-----------------");
-	log_info(log_umc,"|  PID  | PAGINA|");
-	log_info(log_umc,"-----------------");
+	log_info(log_umc,
+			"El contenido de la tlb, desde el ultimo al mas reciente referenciado, es el siguiente:");
+	log_info(log_umc, "-----------------");
+	log_info(log_umc, "|  PID  | PAGINA|");
+	log_info(log_umc, "-----------------");
 	int cantidad = list_size(lista_paginas_tlb);
-	while( i < cantidad){
-		t_tlb * un_tlb = list_get(lista_paginas_tlb,i);
-		log_info(log_umc,"-----------------");
-		log_info(log_umc,"|   %d   |   %d   |",un_tlb->pid,un_tlb->pagina);
+	while (i < cantidad) {
+		t_tlb * un_tlb = list_get(lista_paginas_tlb, i);
+		log_info(log_umc, "-----------------");
+		log_info(log_umc, "|   %d   |   %d   |", un_tlb->pid, un_tlb->pagina);
 		i++;
 	}
-	log_info(log_umc,"-----------------");
+	log_info(log_umc, "-----------------");
 	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
