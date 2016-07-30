@@ -31,6 +31,7 @@
 #define FLUSH 3
 #define TLB 1
 #define MEMORY 2
+#define ESTADO_TLB 4
 
 // Funciones globales de comunicacion
 #define MENSAJE_HANDSHAKE 0
@@ -245,7 +246,7 @@ void liberar_marcos(int pid);
 
 void respuesta_finalizar_programa(void *buffer, int id_mensaje);
 
-void test();
+void test_tlb();
 
 void guardar_cant_entradas(int pid, int cant_pag, int tamanio);
 

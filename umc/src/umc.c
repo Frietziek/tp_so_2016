@@ -148,6 +148,7 @@ void * menu_principal() {
 		printf("1 - Cambiar retardo de la consola UMC\n");
 		printf("2 - Generar reporte y archivo Dump\n");
 		printf("3 - Limpiar contenido de LTB o paginas\n");
+		printf("4 - Mostrar estado TLB\n");
 		scanf("%d", &comando);
 		switch (comando) {
 		case RETARDO:
@@ -174,6 +175,9 @@ void * menu_principal() {
 				printf("Comando no reconocido\n");
 				break;
 			}
+			break;
+		case ESTADO_TLB:
+				test_tlb();
 			break;
 		default:
 			printf("Comando no reconocido\n");
@@ -1368,27 +1372,12 @@ void flush_tlb() {
 
 	while (i < count) {
 		t_tlb * pagina_tlb = list_remove(lista_paginas_tlb, 0);
+		log_info(log_umc,"Se elimina de TLB:  PID = %d - PAGINA = %d",pagina_tlb->pid,pagina_tlb->pagina);
 		free(pagina_tlb);
 		i++;
 	}
 	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
-
-//guardo las paginas que necesito escribir en memoria
-/*void copiar_pagina_escritura_desde_buffer(int pid, int pagina, t_pagina_completa * pag_completa){
- bool es_buffer(t_pagina_completa *un_buffer){
- return (un_buffer->id_programa == pid && un_buffer->pagina == pagina);
- }
- pag_completa = (t_pagina_completa *) list_remove_by_condition(lista_buffer_escritura,(void*)es_buffer);
- }
-
- t_programa_completo * copiar_programa_completo_desde_buffer(int pid){
- bool es_buffer(t_programa_completo *un_buffer){
- return (un_buffer->id_programa == pid);
- }
- t_programa_completo * programa_completo = (t_programa_completo *) list_get(lista_buffer_prog_completo,(void*)es_buffer);
- return programa_completo;
- }*/
 
 void crear_listas() {
 	int i;
@@ -1449,9 +1438,9 @@ int guardar_en_mp(t_pagina_completa *pagina) {
 	}
 	int numero_marco;
 	int dir_mp;
-	log_info(log_umc,"TEST Busco la cantidad e paginas en mp");
+
 	int paginas_en_mp = cant_pag_x_proc(pagina->id_programa);
-	log_info(log_umc,"TEST la cantidad es:%d",paginas_en_mp);
+
 
 	// Posibilidad 1: Tengo marcos libres y no llegue al limite de marcos por proceso
 	if (list_any_satisfy(lista_de_marcos, (void*) hay_marco_libre)
@@ -1906,4 +1895,22 @@ void finalizar_cpu(int socket_cpu) {
 		flush_programa_tlb(cpu->pid);
 		free(cpu);
 	}
+}
+
+void test_tlb(){
+	int i = 0;
+	pthread_mutex_lock(&mutex_lista_paginas_tlb);
+	log_info(log_umc,"El contenido de la tlb, desde el ultimo al mas reciente referenciado, es el siguiente:");
+	log_info(log_umc,"-----------------");
+	log_info(log_umc,"|  PID  | PAGINA|");
+	log_info(log_umc,"-----------------");
+	int cantidad = list_size(lista_paginas_tlb);
+	while( i < cantidad){
+		t_tlb * un_tlb = list_get(lista_paginas_tlb,i);
+		log_info(log_umc,"-----------------");
+		log_info(log_umc,"|   %d   |   %d   |",un_tlb->pid,un_tlb->pagina);
+		i++;
+	}
+	log_info(log_umc,"-----------------");
+	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
