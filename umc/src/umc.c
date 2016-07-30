@@ -442,11 +442,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			"Solicitud de lectura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",
 			id_programa, pagina->pagina, pagina->offset, pagina->tamanio);
 
-	if (pagina->pagina == 4 && id_programa == 2 && pagina->offset == 0 && pagina->tamanio == 8){
-		printf("ACA SE ROMPE TOOODOOO");
-		//Solicitud de lectura de PID:2 PAGINA:4 OFFSET:0 TAMANIO:8
-	}
-
 	bool es_true(t_tabla_cantidad_entradas *elemento) {
 		return (elemento->pid == id_programa);
 	}
@@ -455,6 +450,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			(t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,
 					(void*) es_true);
 
+	//Me fijo que no se pase de la cantidad de paginas del proceso
 	if (pagina->pagina > (cant_entradas->cant_paginas - 1)) {
 		t_header *header_cpu = malloc(sizeof(t_header));
 		header_cpu->id_proceso_emisor = PROCESO_UMC;
@@ -495,11 +491,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 					pagina->tamanio);
 
-			char * string = malloc(pagina->tamanio);
-			memcpy(string,(void*) direccion_mp + pagina->offset,
-					pagina->tamanio);
-
-			log_info(log_umc,"Le mando al cpu el siguiente string: %s  ***************\n",string);
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 			RESPUESTA_LEER_PAGINA);
 
@@ -523,7 +514,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 						sizeof(t_pagina_pedido_completa));
 				inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
 
-				log_info(log_umc,"el tamanio de la pagina es: %d ++++++++++++++++++++++",pagina->tamanio );
 				pagina_cpu->valor = malloc(pagina->tamanio);
 
 				tabla[pagina->pagina].uso = 1;
@@ -532,30 +522,17 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
 						tabla[pagina->pagina].frame);
 
-				generar_dump(2);
-				log_info(log_umc,"Voy a copiar con memcopy el string: %s  ***************\n",memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
-						pagina->tamanio));
-
-				log_info(log_umc,"Vcopie con memcopy el string: %s  ***************\n",pagina_cpu->valor);
-
-				log_info(log_umc,"1 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
-				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
-					guardar_en_TLB(pagina_cpu->pagina, id_programa,
-							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
-				}
-				log_info(log_umc,"direccion_mp = %d  - offset = %d",direccion_mp,pagina->offset);
-				memcpy(pagina_cpu->valor, (void*) (direccion_mp + pagina->offset),
-						pagina->tamanio);
-
-				log_info(log_umc,"2 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
-
-				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
-				RESPUESTA_LEER_PAGINA);
 
 				memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 						pagina->tamanio);
 
-				log_info(log_umc,"3 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
+				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
+					guardar_en_TLB(pagina_cpu->pagina, id_programa,
+							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
+				}
+
+				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
+				RESPUESTA_LEER_PAGINA);
 
 				free(pagina_cpu->valor);
 				free(pagina_cpu);
