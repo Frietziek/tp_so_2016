@@ -863,7 +863,7 @@ void atender_solicitudes_entrada_salida(t_solicitudes_entrada_salida *io) {
 				"Comienza io del socket cpu :%d ,con retardo de: %d",
 				solicitud->socket_cpu, io->retardo);
 		//10* porque paso de milisegundo a microsegundo
-		usleep(10 * io->retardo * solicitud->cantidad_operaciones);
+		usleep(1000 * io->retardo * solicitud->cantidad_operaciones);
 
 		//sem_post(&(sem_dispositivo[io->posicion_array_semaforo]));
 		log_info(logger_manager,

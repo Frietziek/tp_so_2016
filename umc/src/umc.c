@@ -442,6 +442,11 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			"Solicitud de lectura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",
 			id_programa, pagina->pagina, pagina->offset, pagina->tamanio);
 
+	if (pagina->pagina == 4 && id_programa == 2 && pagina->offset == 0 && pagina->tamanio == 8){
+		printf("ACA SE ROMPE TOOODOOO");
+		//Solicitud de lectura de PID:2 PAGINA:4 OFFSET:0 TAMANIO:8
+	}
+
 	bool es_true(t_tabla_cantidad_entradas *elemento) {
 		return (elemento->pid == id_programa);
 	}
@@ -490,8 +495,14 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 					pagina->tamanio);
 
+			char * string = malloc(pagina->tamanio);
+			memcpy(string,(void*) direccion_mp + pagina->offset,
+					pagina->tamanio);
+
+			log_info(log_umc,"Le mando al cpu el siguiente string: %s  ***************\n",string);
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 			RESPUESTA_LEER_PAGINA);
+
 
 			free(pagina_cpu->valor);
 			free(pagina_cpu);
@@ -500,7 +511,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		} else {
 			log_info(log_umc,
 					"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-			usleep(configuracion->retardo);
+			usleep(configuracion->retardo * 1000);
 			log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
 					configuracion->retardo);
 
@@ -511,6 +522,8 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				t_pagina_pedido_completa *pagina_cpu = malloc(
 						sizeof(t_pagina_pedido_completa));
 				inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
+
+				log_info(log_umc,"el tamanio de la pagina es: %d ++++++++++++++++++++++",pagina->tamanio );
 				pagina_cpu->valor = malloc(pagina->tamanio);
 
 				tabla[pagina->pagina].uso = 1;
@@ -518,18 +531,36 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 						tabla[pagina->pagina].frame);
 				log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
 						tabla[pagina->pagina].frame);
-				memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
-						pagina->tamanio);
+
+				generar_dump(2);
+				log_info(log_umc,"Voy a copiar con memcopy el string: %s  ***************\n",memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
+						pagina->tamanio));
+
+				log_info(log_umc,"Vcopie con memcopy el string: %s  ***************\n",pagina_cpu->valor);
+
+				log_info(log_umc,"1 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
 				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
 					guardar_en_TLB(pagina_cpu->pagina, id_programa,
 							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
 				}
+				log_info(log_umc,"direccion_mp = %d  - offset = %d",direccion_mp,pagina->offset);
+				memcpy(pagina_cpu->valor, (void*) (direccion_mp + pagina->offset),
+						pagina->tamanio);
+
+				log_info(log_umc,"2 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
+
 				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 				RESPUESTA_LEER_PAGINA);
+
+				memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
+						pagina->tamanio);
+
+				log_info(log_umc,"3 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
 
 				free(pagina_cpu->valor);
 				free(pagina_cpu);
 				free(pagina);
+
 			}
 			//3° caso: esta en Swap
 			else {
@@ -733,7 +764,7 @@ void escribir_pagina(void *buffer, int socket_conexion) {
 		} else {
 			log_info(log_umc,
 					"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-			usleep(configuracion->retardo);
+			usleep(configuracion->retardo * 1000);
 			log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
 					configuracion->retardo);
 			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
