@@ -189,7 +189,13 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		free(texto_imprimir->texto);
 		free(texto_imprimir);
 		break;
+	case MENSAJE_ERROR_AL_INICIAR:
+		log_trace(loggerManager,
+				"[Mensaje nucleo] El nucleo no pudo iniciar el programa");
+		consola_nucleo(socket_nucleo, RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
 
+		sem_post(&s_consola_finaliza);
+		break;
 	case MENSAJE_PROGRAMA_FINALIZADO:
 		log_trace(loggerManager,
 				"[Mensaje nucleo] El nucleo solicita finalizar el programa");
@@ -198,7 +204,7 @@ void atender_nucleo(t_paquete *paquete, int socket_conexion) {
 		sem_post(&s_consola_finaliza);
 		break;
 	default:
-		log_error(loggerManager, "[Mensaje nucleo] Mensaje no reconocido :(");
+		log_error(loggerManager, "[Mensaje nucleo] Mensaje no reconocido :( %i", id_mensaje);
 		break;
 
 	}

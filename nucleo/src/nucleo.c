@@ -263,8 +263,8 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		sem_post(&mutex_lista_procesos);
 		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
 		MENSAJE_ERROR_AL_INICIAR);
-		free(pid_a_eliminar);
-		libero_pcb(pcb_a_matar);
+		//free(pid_a_eliminar);
+		//libero_pcb(pcb_a_matar);
 		break;
 	case ERROR_MATAR_PROGRAMA: //Se presume que si da error deberia estar en la cola new.
 		;
