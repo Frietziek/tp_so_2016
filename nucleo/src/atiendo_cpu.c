@@ -88,12 +88,12 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 	case MENSAJE_DESCONEXION_CPU: // ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGURS AL CPU
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
 		break;
+
 	case MENSAJE_MATAR_CPU: //  ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGURS AL CPU PERO MANDA PCB ACTUALIZADO
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_MATAR_CPU");
 		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_SIGINT: // ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGINT (CTRL C) AL CPU
-
 		atender_sigint(socket_cpu);
 		break;
 	default:

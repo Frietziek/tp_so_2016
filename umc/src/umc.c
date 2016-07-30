@@ -219,7 +219,7 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
 		log_info(log_umc,
-				"Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo");
+				"========= Cambio de proceso activo =========");
 		cambiar_proceso_activo(paquete->payload, socket_conexion);
 		break;
 	default:
@@ -442,11 +442,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			"Solicitud de lectura de PID:%d PAGINA:%d OFFSET:%d TAMANIO:%d",
 			id_programa, pagina->pagina, pagina->offset, pagina->tamanio);
 
-	if (pagina->pagina == 4 && id_programa == 2 && pagina->offset == 0 && pagina->tamanio == 8){
-		printf("ACA SE ROMPE TOOODOOO");
-		//Solicitud de lectura de PID:2 PAGINA:4 OFFSET:0 TAMANIO:8
-	}
-
 	bool es_true(t_tabla_cantidad_entradas *elemento) {
 		return (elemento->pid == id_programa);
 	}
@@ -455,6 +450,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			(t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,
 					(void*) es_true);
 
+	//Me fijo que no se pase de la cantidad de paginas del proceso
 	if (pagina->pagina > (cant_entradas->cant_paginas - 1)) {
 		t_header *header_cpu = malloc(sizeof(t_header));
 		header_cpu->id_proceso_emisor = PROCESO_UMC;
@@ -495,11 +491,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 					pagina->tamanio);
 
-			char * string = malloc(pagina->tamanio);
-			memcpy(string,(void*) direccion_mp + pagina->offset,
-					pagina->tamanio);
-
-			log_info(log_umc,"Le mando al cpu el siguiente string: %s  ***************\n",string);
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 			RESPUESTA_LEER_PAGINA);
 
@@ -523,7 +514,6 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 						sizeof(t_pagina_pedido_completa));
 				inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
 
-				log_info(log_umc,"el tamanio de la pagina es: %d ++++++++++++++++++++++",pagina->tamanio );
 				pagina_cpu->valor = malloc(pagina->tamanio);
 
 				tabla[pagina->pagina].uso = 1;
@@ -532,30 +522,17 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
 						tabla[pagina->pagina].frame);
 
-				generar_dump(2);
-				log_info(log_umc,"Voy a copiar con memcopy el string: %s  ***************\n",memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
-						pagina->tamanio));
-
-				log_info(log_umc,"Vcopie con memcopy el string: %s  ***************\n",pagina_cpu->valor);
-
-				log_info(log_umc,"1 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
-				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
-					guardar_en_TLB(pagina_cpu->pagina, id_programa,
-							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
-				}
-				log_info(log_umc,"direccion_mp = %d  - offset = %d",direccion_mp,pagina->offset);
-				memcpy(pagina_cpu->valor, (void*) (direccion_mp + pagina->offset),
-						pagina->tamanio);
-
-				log_info(log_umc,"2 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
-
-				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
-				RESPUESTA_LEER_PAGINA);
 
 				memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 						pagina->tamanio);
 
-				log_info(log_umc,"3 Le mando al cpu el siguiente string: %s  ***************\n",pagina_cpu->valor);
+				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
+					guardar_en_TLB(pagina_cpu->pagina, id_programa,
+							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
+				}
+
+				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
+				RESPUESTA_LEER_PAGINA);
 
 				free(pagina_cpu->valor);
 				free(pagina_cpu);
@@ -1407,7 +1384,10 @@ void quitar_pagina_TLB(int marco) {
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	t_tlb * pagina_tlb = list_remove_by_condition(lista_paginas_tlb,
 			(void*) esta_en_tlb);
-	free(pagina_tlb);
+	if(pagina_tlb != NULL){
+		log_info(log_umc,"Se saca de la TLB - PID:%d  PAGINA:%d  MARCO:%d",pagina_tlb->pid,pagina_tlb->pagina,pagina_tlb->frame);
+		free(pagina_tlb);
+	}
 	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
 
@@ -1426,9 +1406,11 @@ void LRU(t_tlb * pagina_a_ubicar) {
 	//valido si hay lugar y sino reemplazo:
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	if (list_size(lista_paginas_tlb) < configuracion->entradas_tlb) {
+		log_info(log_umc,"Hay lugar en la TLB");
 		list_add(lista_paginas_tlb, pagina_a_ubicar);
 	} else {
 		t_tlb * pagina_tlb_removida = list_remove(lista_paginas_tlb, 0); //el que esta primero va a ser el Least recently used
+		log_info(log_umc,"Se saca de la TLB - PID:%d  PAGINA:%d  MARCO:%d",pagina_tlb_removida->pid,pagina_tlb_removida->pagina,pagina_tlb_removida->frame);
 		list_add(lista_paginas_tlb, pagina_a_ubicar);
 		free(pagina_tlb_removida);
 	}
@@ -1889,7 +1871,7 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 	if (programa->id_programa == -1) {
 		log_info(log_umc, "Finaliza un CPU");
 		finalizar_cpu(socket);
-	} else if (programa->id_programa == 0) {
+	} else if (programa->id_programa == 0) { // ya no se usa
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 		cpu->pid = programa->id_programa;
 	} else {
@@ -1999,10 +1981,9 @@ void test_tlb() {
 	int cantidad = list_size(lista_paginas_tlb);
 	while (i < cantidad) {
 		t_tlb * un_tlb = list_get(lista_paginas_tlb, i);
-		log_info(log_umc, "-----------------");
 		log_info(log_umc, "|   %d   |   %d   |", un_tlb->pid, un_tlb->pagina);
+		log_info(log_umc, "-----------------");
 		i++;
 	}
-	log_info(log_umc, "-----------------");
 	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }

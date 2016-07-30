@@ -155,7 +155,6 @@ int conecto_con_umc(t_config_cpu* configuracion) {
 
 void atender_seniales(int signum) {
 	switch (signum) {
-	//TODO mandar mensaje a nucleo para sacar sacar de la cola exec, eliminarlo de la tabla, mandar msje a umc para limpiar todo lo de ese pid, y mandar a consola a que termino de forma no amigable
 	case SIGINT:	//control C
 
 		log_trace(logger_manager, "Se recibio senial de cierre de proceso.");
@@ -351,6 +350,8 @@ void recibo_PCB(void *buffer) {
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 	cambio_proceso_activo(pcb_quantum->pcb->pid);
 	sem_wait(&s_cambio_proceso);
+	log_info(logger_manager, "Se ejecutara el PID: %d con QUANTUM: %d",
+			pcb_quantum->pcb->pid, pcb_quantum->quantum);
 	pthread_create(&hilo_instruccion, &attr_instruccion,
 			(void*) ejecuto_instrucciones, NULL);
 }
