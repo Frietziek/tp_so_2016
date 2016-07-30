@@ -1400,7 +1400,6 @@ void guardar_en_TLB(int nro_pagina, int pid, int marco) {
 	LRU(pagina_tlb);
 	log_info(log_umc, "Guardo en TLB - PID:%d  PAGINA:%d  MARCO:%d", pid,
 			nro_pagina, marco);
-	sleep(4);
 }
 
 void LRU(t_tlb * pagina_a_ubicar) {
@@ -1872,7 +1871,7 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 	if (programa->id_programa == -1) {
 		log_info(log_umc, "Finaliza un CPU");
 		finalizar_cpu(socket);
-	} else if (programa->id_programa == 0) {
+	} else if (programa->id_programa == 0) { // ya no se usa
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 		cpu->pid = programa->id_programa;
 	} else {
