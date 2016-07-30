@@ -86,11 +86,11 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 	case MENSAJE_DESCONEXION_CPU:
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
 		break;
-	case MENSAJE_MATAR_CPU:
+	case MENSAJE_MATAR_CPU: // Cuando se mata el cpu por SIGUSR1
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_MATAR_CPU");
 		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
-	case MENSAJE_SIGINT:
+	case MENSAJE_SIGINT: //Control C  del CPU
 
 		atender_sigint(socket_cpu);
 		break;
@@ -468,6 +468,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 			pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_block);
 	actualizar_estado_pcb(pcb_quantum->pcb, BLOCK);
+	saco_socket_cpu(pcb_quantum->pcb);
 	libero_pcb(pcb_out);
 	agregar_cpu_disponible(socket_conexion);
 

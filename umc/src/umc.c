@@ -450,6 +450,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			(t_tabla_cantidad_entradas *) list_find(lista_tabla_entradas,
 					(void*) es_true);
 
+	//Me fijo que no se pase de la cantidad de paginas del proceso
 	if (pagina->pagina > (cant_entradas->cant_paginas - 1)) {
 		t_header *header_cpu = malloc(sizeof(t_header));
 		header_cpu->id_proceso_emisor = PROCESO_UMC;
@@ -493,6 +494,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 			enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 			RESPUESTA_LEER_PAGINA);
 
+
 			free(pagina_cpu->valor);
 			free(pagina_cpu);
 			free(pagina);
@@ -500,7 +502,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 		} else {
 			log_info(log_umc,
 					"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-			usleep(configuracion->retardo);
+			usleep(configuracion->retardo * 1000);
 			log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
 					configuracion->retardo);
 
@@ -511,6 +513,7 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 				t_pagina_pedido_completa *pagina_cpu = malloc(
 						sizeof(t_pagina_pedido_completa));
 				inicializar_pagina_cpu(pagina_cpu, pagina, socket_conexion);
+
 				pagina_cpu->valor = malloc(pagina->tamanio);
 
 				tabla[pagina->pagina].uso = 1;
@@ -518,18 +521,23 @@ void leer_pagina(void *buffer, int socket_conexion, t_config_umc *configuracion)
 						tabla[pagina->pagina].frame);
 				log_info(log_umc, "Pagina encontrada en Memoria. Marco: %d",
 						tabla[pagina->pagina].frame);
+
+
 				memcpy(pagina_cpu->valor, (void*) direccion_mp + pagina->offset,
 						pagina->tamanio);
+
 				if (configuracion->entradas_tlb != 0) { //valido si esta habilitada
 					guardar_en_TLB(pagina_cpu->pagina, id_programa,
 							tabla[pagina->pagina].frame); //pongo la pagina en la cache TLB
 				}
+
 				enviar_pagina(socket_conexion, PROCESO_CPU, pagina_cpu,
 				RESPUESTA_LEER_PAGINA);
 
 				free(pagina_cpu->valor);
 				free(pagina_cpu);
 				free(pagina);
+
 			}
 			//3° caso: esta en Swap
 			else {
@@ -733,7 +741,7 @@ void escribir_pagina(void *buffer, int socket_conexion) {
 		} else {
 			log_info(log_umc,
 					"Pagina no encontrada en la caché TLB. Accediendo a la Memoria Principal......");
-			usleep(configuracion->retardo);
+			usleep(configuracion->retardo * 1000);
 			log_info(log_umc, "Se accede a MP. Tiempo de acceso %d ms",
 					configuracion->retardo);
 			t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(
