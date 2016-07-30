@@ -87,6 +87,7 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		break;
 	case MENSAJE_DESCONEXION_CPU: // ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGURS AL CPU
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
+		queue_pop_cpu(cola_cpus, socket_cpu);
 		break;
 
 	case MENSAJE_MATAR_CPU: //  ME LLEGO UN MENSAJE PORQUE LE HICIERON SIGURS AL CPU PERO MANDA PCB ACTUALIZADO

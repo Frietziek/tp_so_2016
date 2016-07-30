@@ -161,10 +161,11 @@ void atender_seniales(int signum) {
 		matar_cpu = 1;
 		if (cpu_ocupada == 1) {
 			sem_wait(&s_matar_cpu);
+		} else {
+			envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+			MENSAJE_SIGINT, "Fallo al enviar Desconexion al Nucleo.");
 		}
 		cambio_proceso_activo(-1);
-		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
-		MENSAJE_SIGINT, "Fallo al enviar Desconexion al Nucleo.");
 		sem_post(&s_cpu_finaliza);
 		break;
 	case SIGUSR1:
@@ -172,10 +173,11 @@ void atender_seniales(int signum) {
 		matar_cpu = 1;
 		if (cpu_ocupada == 1) {
 			sem_wait(&s_matar_cpu);
+		} else {
+			envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
+			MENSAJE_DESCONEXION_CPU, "Fallo al enviar Desconexion al Nucleo.");
 		}
 		cambio_proceso_activo(-1);
-		envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
-		MENSAJE_DESCONEXION_CPU, "Fallo al enviar Desconexion al Nucleo.");
 		sem_post(&s_cpu_finaliza);
 		break;
 	default:
