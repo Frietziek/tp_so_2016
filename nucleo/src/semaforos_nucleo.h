@@ -32,5 +32,6 @@ sem_t cant_block;
 sem_t sem_dispositivo[5];
 sem_t sem_semaforos[5];
 sem_t mutex_solicitudes_auxiliares_lista;
+sem_t matar_programa;
 
 #endif /* SEMAFOROS_NUCLEO_H_ */

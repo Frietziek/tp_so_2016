@@ -77,6 +77,7 @@ int main(void) {
 	cola_exit = queue_create();
 	cola_cpus = queue_create();
 
+	sem_init(&matar_programa,0,0);
 	sem_init(&mutex_pid_count, 0, 1);
 	sem_init(&mutex_cola_ready, 0, 1);
 	sem_init(&mutex_cola_exec, 0, 1);
@@ -227,23 +228,19 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 		break;
 	case RESPUESTA_MATAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 		;
+
 		t_pid *pid_duro_de_matar = malloc(sizeof(t_pid));
 		deserializar_pid(paquete->payload, pid_duro_de_matar);
 		log_info(logger_manager, "Elimino de UMC el pcb creado con pid: %d",
 				pid_duro_de_matar->pid);
-		sem_wait(&mutex_cola_exit);
-		t_pcb *pcb_a_matarrrr = queue_pop_pid(cola_exit,
-				pid_duro_de_matar->pid);
 
+		sem_wait(&mutex_cola_exit);
+		t_pcb * pcb_para_matar = queue_pop_pid(cola_exit, pid_duro_de_matar->pid);
 		sem_post(&mutex_cola_exit);
 
-		//int socket_consolita = buscar_socket_consola_por_pid(
-		//		pcb_a_matarrrr->pid);
-		//enviar_header_completado(socket_consolita, PROCESO_CONSOLA,
-		//MENSAJE_FINALIZO_OK);
-
 		free(pid_duro_de_matar);
-		//libero_pcb(pcb_a_matarrrr);
+		libero_pcb(pcb_para_matar);
+
 		break;
 	case ERROR_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
 		;
@@ -329,8 +326,8 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 		//eliminar_proceso_de_lista_procesos_con_pid(pid);
 
 		sem_post(&mutex_lista_procesos);
-		enviar_header_completado(socket_consola, PROCESO_CONSOLA,
-		MENSAJE_MATAR_OK);
+		//enviar_header_completado(socket_consola, PROCESO_CONSOLA,
+		//MENSAJE_MATAR_OK);  La consola murio por control C , por lo cual no le tengo que mandar nada
 
 		break;
 	case HANDSHAKE_CONSOLA:
@@ -417,9 +414,10 @@ void respuesta_matar(void * buffer, int socket_cpu) {
 	sem_post(&cant_cpu);//todo tener en cuenta
 
 	sem_wait(&mutex_cola_exit);
-	queue_push(cola_exit, pcb_quantum->pcb->pid);
+	queue_push(cola_exit, pcb_a_matar);
 	sem_post(&mutex_cola_exit);
 
+	sem_post(&matar_programa);
 	//libero_pcb(pcb_a_matar);
 }
 
@@ -673,27 +671,46 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 
 			enviar_header_completado(socket_cpu, PROCESO_CPU,
 			MENSAJE_MATAR);
+
+			log_info(logger_manager,"Se mando a la cpu a finalizar el pid %d",finalizar->pid);
+
+			sem_wait(&matar_programa);
 		}
 
 		if (pcb_a_finalizar->estado == READY) {
 			sem_wait(&mutex_cola_ready);
 			pcb_a_matar = queue_pop_pid(cola_ready, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_ready);
-			//sem_wait(&cant_ready);
-			libero_pcb(pcb_a_matar);
+
+			sem_wait(&mutex_cola_exit);
+			queue_push(cola_exit,pcb_a_matar);
+			sem_post(&mutex_cola_exit);
+			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_matar,EXIT);
+
 		}
 		if (pcb_a_finalizar->estado == NEW) {
 			sem_wait(&mutex_cola_new);
 			pcb_a_matar = queue_pop_pid(cola_new, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_new);
-			libero_pcb(pcb_a_matar);
+
+			sem_wait(&mutex_cola_exit);
+			queue_push(cola_exit,pcb_a_matar);
+			sem_post(&mutex_cola_exit);
+			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_matar,EXIT);
+
 		}
 		if (pcb_a_finalizar->estado == BLOCK) {
 			sem_wait(&mutex_cola_block);
 			pcb_a_matar = queue_pop_pid(cola_block, pcb_a_finalizar->pid);
 			sem_post(&mutex_cola_block);
-			libero_pcb(pcb_a_matar);
+
+			sem_wait(&mutex_cola_exit);
+			queue_push(cola_exit,pcb_a_matar);
+			sem_post(&mutex_cola_exit);
+			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_matar,EXIT);
+
 		}
+
 
 		// ENVIO TERMINAR AL UMC
 
@@ -709,6 +726,8 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 				< sizeof(t_header) + buffer_finalizar->longitud_buffer) {
 			perror("Fallo enviar buffer finalizar umc");
 		}
+
+		log_info(logger_manager,"Se mando a la UMC a finalizar el pid %d",finalizar->pid);
 
 		free(finalizar);
 		free(buffer_finalizar);
@@ -1271,6 +1290,7 @@ void actualizar_estado_pcb_y_saco_socket_cpu(t_pcb *pcb, int estado) { //para re
 	 "El socket cpu ahora es: %d , le asigne a mano 84568",
 	 proceso->socket_cpu, pcb->pid);
 	 */
+	proceso->socket_cpu = NO_ASIGNADO; // tener en cuenta que santi lo saco
 	proceso->pcb = pcb;
 	proceso->pcb->estado = estado;
 	sem_post(&mutex_lista_procesos);

@@ -20,7 +20,7 @@ t_config_umc *configuracion;
 FILE * dump_file;
 t_log * log_umc;
 pthread_t thread_consola;
-sem_t matar_programa;
+
 void * buffer_programas[CANT_TABLAS_MAX]; //se busca por pid
 static pthread_mutex_t mutex_lista_tabla_entradas = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t mutex_lista_paginas_tlb = PTHREAD_MUTEX_INITIALIZER;
@@ -41,8 +41,6 @@ int main(void) {
 	log_info(log_umc, "Iniciando UMC...  Memoria disponible: %d bytes",
 			configuracion->marcos * configuracion->marco_size);
 
-	//INicio semaforos
-	sem_init(&matar_programa,0,0);
 
 	//iniciar listas
 	crear_listas();
@@ -927,14 +925,6 @@ void finalizar_programa(void *buffer, int id_mensaje) {
 
 	t_id_mensaje * mensaje = malloc(sizeof(t_id_mensaje));
 	mensaje->id_mensaje = id_mensaje;
-
-
-	//primero espera que deje de ejecutar lo que sea de ese programa
-	if (id_mensaje == MENSAJE_MATAR_PROGRAMA){
-		log_info(log_umc,"TEST Espero por el post de matar programa ...");
-		sem_wait(&matar_programa);
-		log_info(log_umc,"TEST Hizo el post de matar programa");
-	}
 
 	buffer_programas[programa->id_programa] = mensaje;
 
@@ -1822,9 +1812,6 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 	}else if(programa->id_programa == 0){
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 		cpu->pid = programa->id_programa;
-		log_info(log_umc,"TEST Me llega cambiar proceso activo a 0");
-		sem_post(&matar_programa);
-		log_info(log_umc,"TEST Hago el post de matar programa");
 	}else{
 		flush_programa_tlb(programa->id_programa);
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
