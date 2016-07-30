@@ -77,7 +77,7 @@ int main(void) {
 	cola_exit = queue_create();
 	cola_cpus = queue_create();
 
-	sem_init(&matar_programa,0,0);
+	sem_init(&matar_programa, 0, 0);
 	sem_init(&mutex_pid_count, 0, 1);
 	sem_init(&mutex_cola_ready, 0, 1);
 	sem_init(&mutex_cola_exec, 0, 1);
@@ -235,7 +235,8 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 				pid_duro_de_matar->pid);
 
 		sem_wait(&mutex_cola_exit);
-		t_pcb * pcb_para_matar = queue_pop_pid(cola_exit, pid_duro_de_matar->pid);
+		t_pcb * pcb_para_matar = queue_pop_pid(cola_exit,
+				pid_duro_de_matar->pid);
 		sem_post(&mutex_cola_exit);
 
 		free(pid_duro_de_matar);
@@ -411,7 +412,7 @@ void respuesta_matar(void * buffer, int socket_cpu) {
 	sem_post(&mutex_cola_exec);
 
 	agregar_cpu_disponible(socket_cpu);
-	sem_post(&cant_cpu);//todo tener en cuenta
+	sem_post(&cant_cpu);		//todo tener en cuenta
 
 	sem_wait(&mutex_cola_exit);
 	queue_push(cola_exit, pcb_a_matar);
@@ -672,7 +673,8 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			enviar_header_completado(socket_cpu, PROCESO_CPU,
 			MENSAJE_MATAR);
 
-			log_info(logger_manager,"Se mando a la cpu a finalizar el pid %d",finalizar->pid);
+			log_info(logger_manager, "Se mando a la cpu a finalizar el pid %d",
+					finalizar->pid);
 
 			sem_wait(&matar_programa);
 		}
@@ -683,10 +685,10 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			sem_post(&mutex_cola_ready);
 
 			sem_wait(&mutex_cola_exit);
-			queue_push(cola_exit,pcb_a_matar);
+			queue_push(cola_exit, pcb_a_matar);
 			sem_post(&mutex_cola_exit);
-			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_matar,EXIT);
-
+			actualizar_estado_pcb(pcb_a_matar, EXIT);
+			saco_socket_cpu(pcb_a_matar);
 		}
 		if (pcb_a_finalizar->estado == NEW) {
 			sem_wait(&mutex_cola_new);
@@ -694,10 +696,10 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			sem_post(&mutex_cola_new);
 
 			sem_wait(&mutex_cola_exit);
-			queue_push(cola_exit,pcb_a_matar);
+			queue_push(cola_exit, pcb_a_matar);
 			sem_post(&mutex_cola_exit);
-			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_matar,EXIT);
-
+			actualizar_estado_pcb(pcb_a_matar, EXIT);
+			saco_socket_cpu(pcb_a_matar);
 		}
 		if (pcb_a_finalizar->estado == BLOCK) {
 			sem_wait(&mutex_cola_block);
@@ -705,12 +707,11 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			sem_post(&mutex_cola_block);
 
 			sem_wait(&mutex_cola_exit);
-			queue_push(cola_exit,pcb_a_matar);
+			queue_push(cola_exit, pcb_a_matar);
 			sem_post(&mutex_cola_exit);
-			actualizar_estado_pcb_y_saco_socket_cpu(pcb_a_matar,EXIT);
-
+			actualizar_estado_pcb(pcb_a_matar, EXIT);
+			saco_socket_cpu(pcb_a_matar);
 		}
-
 
 		// ENVIO TERMINAR AL UMC
 
@@ -727,7 +728,8 @@ void matar_ejecucion(t_pcb *pcb_a_finalizar) {
 			perror("Fallo enviar buffer finalizar umc");
 		}
 
-		log_info(logger_manager,"Se mando a la UMC a finalizar el pid %d",finalizar->pid);
+		log_info(logger_manager, "Se mando a la UMC a finalizar el pid %d",
+				finalizar->pid);
 
 		free(finalizar);
 		free(buffer_finalizar);
@@ -1226,9 +1228,8 @@ void libero_pcb(t_pcb *pcb) {
 
 void atiendo_programa_finalizado(void *buffer, int socket_cpu) {
 // Recibo PCB
-	log_info(logger_manager,
-				"Se agrega a la cola EXIT con socket cpu: %d",
-				 socket_cpu);
+	log_info(logger_manager, "Se agrega a la cola EXIT con socket cpu: %d",
+			socket_cpu);
 	t_pcb_quantum *pcb_quantum = malloc(sizeof(t_pcb_quantum));
 	deserializar_pcb_quantum(buffer, pcb_quantum);
 
@@ -1287,7 +1288,7 @@ void actualizar_estado_pcb(t_pcb *pcb, int estado) { //para ready o block servir
 	proceso->pcb = pcb;
 	proceso->pcb->estado = estado;
 	sem_post(&mutex_lista_procesos);
-
+}
 
 void saco_socket_cpu(t_pcb *pcb) {
 	sem_wait(&mutex_lista_procesos);
@@ -1300,7 +1301,7 @@ void saco_socket_cpu(t_pcb *pcb) {
 	t_fila_tabla_procesos *proceso = ((t_fila_tabla_procesos*) list_find(
 			lista_procesos, (void*) busqueda_proceso_logica));
 
-	proceso->socket_cpu = NO_ASIGNADO; 
+	proceso->socket_cpu = NO_ASIGNADO;
 	sem_post(&mutex_lista_procesos);
 }
 
