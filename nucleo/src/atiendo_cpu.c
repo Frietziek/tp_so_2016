@@ -108,8 +108,6 @@ void atender_sigint(int socket_cpu) {
 
 	sem_wait(&mutex_lista_procesos);
 	t_fila_tabla_procesos *fila = buscar_fila_por_socket_cpu(socket_cpu);
-	//Se va a terminar el proceso porque el pcb quedo inconsistente
-//	t_pcb *pcb_a_eliminar = buscar_pcb_por_socket_cpu(socket_cpu);
 
 	if (fila != NULL) {
 
@@ -137,49 +135,8 @@ void atender_sigint(int socket_cpu) {
 		libero_pcb(pcb_out);
 	}
 	sem_post(&mutex_lista_procesos);
-
-//	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
-//
-//	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
-//			pcb_a_actualizar->estado);
-//
-//	pcb_a_actualizar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_actualizar->pid);
-
-//	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_actualizar->estado));
-
-	t_pid *eliminar = malloc(sizeof(t_pid));
-
-//eliminar->pid = pcb_a_eliminar->pid;
-
-	t_buffer *buffer_eliminar = serializar_pid(eliminar);
-
-// ENVIO TERMINAR AL UMC
-
-	t_header *header_eliminar_umc = malloc(sizeof(t_header));
-
-	header_eliminar_umc->id_proceso_emisor = PROCESO_NUCLEO;
-	header_eliminar_umc->id_proceso_receptor = PROCESO_UMC;
-	header_eliminar_umc->id_mensaje = MENSAJE_MATAR_PROGRAMA;
-	header_eliminar_umc->longitud_mensaje = buffer_eliminar->longitud_buffer;
-
-	if (enviar_buffer(socket_umc, header_eliminar_umc, buffer_eliminar)
-			< sizeof(t_header) + buffer_eliminar->longitud_buffer) {
-		perror("Fallo enviar buffer finalizar umc");
-	}
-
-	free(eliminar);
-	free(buffer_eliminar);
-	free(header_eliminar_umc);
-//
-//	enviar_header_completado(socket_consola, PROCESO_CONSOLA,
-//	RESPUESTA_PROGRAMA_FINALIZADO_CONSOLA);
-//	sem_wait(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
-//	t_queue *cola_a_sacar_pcb = obtener_cola_por_id_estado(
-//			pcb_a_eliminar->estado);
-//	pcb_a_eliminar = queue_pop_pid(cola_a_sacar_pcb, pcb_a_eliminar->pid);
-//
-//	sem_post(obtener_sem_de_cola_por_id_estado(pcb_a_eliminar->estado));
 }
+
 //todo falta hacer test de esto
 t_queue *obtener_cola_por_id_estado(int estado) {
 	switch (estado) {

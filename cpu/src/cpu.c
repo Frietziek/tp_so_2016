@@ -394,7 +394,7 @@ void cambio_proceso_activo(int id_programa) {
 void ejecuto_instrucciones() {
 	fin_proceso = 0;
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
-			&& !matar_proceso && !excepcion_umc && !entrada_salida) {
+			&& !matar_proceso && !excepcion_umc && !entrada_salida && !matar_cpu) {
 
 		char *instruccion = devuelve_instruccion_a_ejecutar();
 
