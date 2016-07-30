@@ -468,6 +468,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 			pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_block);
 	actualizar_estado_pcb(pcb_quantum->pcb, BLOCK);
+	saco_socket_cpu(pcb_quantum->pcb);
 	libero_pcb(pcb_out);
 	agregar_cpu_disponible(socket_conexion);
 
