@@ -135,12 +135,7 @@ void enviar_codigo_al_nucleo(FILE * archivo, int socket_nucleo) {
 	t_texto *buffer = malloc(sizeof(t_texto));
 	buffer->texto = calloc(longitud_codigo, sizeof(char));
 
-	while (feof(archivo) == 0) {
-		char *aux_buffer = calloc(100, sizeof(char));
-		fgets(aux_buffer, 100, archivo);
-		strcat(buffer->texto, aux_buffer);
-		free(aux_buffer);
-	}
+	fread(buffer->texto, sizeof(char), longitud_codigo, archivo);
 
 	log_trace(loggerManager, "El codigo fuente del script a enviar es: \n%s \n",
 			buffer->texto);
