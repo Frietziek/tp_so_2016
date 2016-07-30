@@ -219,7 +219,7 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
 		log_info(log_umc,
-				"Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo");
+				"========= Cambio de proceso activo =========");
 		cambiar_proceso_activo(paquete->payload, socket_conexion);
 		break;
 	default:
@@ -1384,7 +1384,10 @@ void quitar_pagina_TLB(int marco) {
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	t_tlb * pagina_tlb = list_remove_by_condition(lista_paginas_tlb,
 			(void*) esta_en_tlb);
-	free(pagina_tlb);
+	if(pagina_tlb != NULL){
+		log_info(log_umc,"Se saca de la TLB - PID:%d  PAGINA:%d  MARCO:%d",pagina_tlb->pid,pagina_tlb->pagina,pagina_tlb->frame);
+		free(pagina_tlb);
+	}
 	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
 
@@ -1397,15 +1400,18 @@ void guardar_en_TLB(int nro_pagina, int pid, int marco) {
 	LRU(pagina_tlb);
 	log_info(log_umc, "Guardo en TLB - PID:%d  PAGINA:%d  MARCO:%d", pid,
 			nro_pagina, marco);
+	sleep(4);
 }
 
 void LRU(t_tlb * pagina_a_ubicar) {
 	//valido si hay lugar y sino reemplazo:
 	pthread_mutex_lock(&mutex_lista_paginas_tlb);
 	if (list_size(lista_paginas_tlb) < configuracion->entradas_tlb) {
+		log_info(log_umc,"Hay lugar en la TLB");
 		list_add(lista_paginas_tlb, pagina_a_ubicar);
 	} else {
 		t_tlb * pagina_tlb_removida = list_remove(lista_paginas_tlb, 0); //el que esta primero va a ser el Least recently used
+		log_info(log_umc,"Se saca de la TLB - PID:%d  PAGINA:%d  MARCO:%d",pagina_tlb_removida->pid,pagina_tlb_removida->pagina,pagina_tlb_removida->frame);
 		list_add(lista_paginas_tlb, pagina_a_ubicar);
 		free(pagina_tlb_removida);
 	}
@@ -1976,10 +1982,9 @@ void test_tlb() {
 	int cantidad = list_size(lista_paginas_tlb);
 	while (i < cantidad) {
 		t_tlb * un_tlb = list_get(lista_paginas_tlb, i);
-		log_info(log_umc, "-----------------");
 		log_info(log_umc, "|   %d   |   %d   |", un_tlb->pid, un_tlb->pagina);
+		log_info(log_umc, "-----------------");
 		i++;
 	}
-	log_info(log_umc, "-----------------");
 	pthread_mutex_unlock(&mutex_lista_paginas_tlb);
 }
