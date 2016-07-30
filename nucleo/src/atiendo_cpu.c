@@ -87,6 +87,7 @@ void atender_cpu(t_paquete *paquete, int socket_cpu,
 		log_info(logger_manager, "Se recibe del cpu: MENSAJE_DESCONEXION_CPU");
 		break;
 	case MENSAJE_MATAR_CPU:
+		log_info(logger_manager, "Se recibe del cpu: MENSAJE_MATAR_CPU");
 		atiendo_desconexion_cpu(paquete->payload, socket_cpu);
 		break;
 	case MENSAJE_SIGINT:
@@ -197,16 +198,16 @@ void atiendo_desconexion_cpu(void *buffer, int socket_cpu) {
 			pcb_quantum_actualizado->pcb->pid);
 	libero_pcb(pcb_a_actualizar);
 
-	sem_post(&cant_ready);
-
 	sem_wait(&mutex_cola_cpu);
-	t_cpu * cpu_a_sacar = queue_pop_cpu(cola_cpus, socket_cpu);
+	queue_pop_cpu(cola_cpus, socket_cpu);
 	log_info(logger_manager, "Se libera un cpu para su uso");
 	sem_post(&mutex_cola_cpu);
 
+	sem_post(&cant_ready);
+
 	//todo sacar socket cpu de tabla,
 
-	free(cpu_a_sacar);
+	//free(cpu_a_sacar);
 }
 
 void atiendo_handshake(void *buffer, int socket_conexion) {
@@ -300,13 +301,16 @@ void atiendo_imprimir(void *buffer, int socket_conexion) {
 	sem_wait(&mutex_lista_procesos);
 	int socket_consola = buscar_socket_consola_por_socket_cpu(socket_conexion);
 	sem_post(&mutex_lista_procesos);
-	log_info(logger_manager, "Se imprime: %i a Consola: %i", variable->valor,
-			socket_consola);
+	log_info(logger_manager, "Se va a mandar: %i a Consola: %i",
+			variable->valor, socket_consola);
 
 	if (enviar_buffer(socket_consola, h_consola, p_consola)
 			< sizeof(h_consola) + p_consola->longitud_buffer) {
 		perror("Fallo al enviar Imprimir a la Consola\n");
 	}
+
+	log_info(logger_manager, "Se mando a imprimir: %i a Consola: %i",
+			variable->valor, socket_consola);
 
 	t_header *h_cpu = malloc(sizeof(t_header));
 	h_cpu->id_proceso_emisor = PROCESO_NUCLEO;
@@ -395,7 +399,7 @@ void atiendo_entrada_salida_pcb(void *buffer, int socket_conexion) {
 	log_info(logger_manager, "E/S - PROCESO %d - Se agrega a la cola BLOCK",
 			pcb_quantum->pcb->pid);
 	agregar_cpu_disponible(socket_conexion);
-	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
+	actualizar_estado_pcb(pcb_quantum->pcb, BLOCK);
 
 	libero_pcb(pcb_out);
 
@@ -463,7 +467,7 @@ void atiendo_wait_pcb(void *buffer, int socket_conexion) {
 	log_info(logger_manager, "WAIT - PROCESO %d - Se agrega a la cola BLOCK",
 			pcb_quantum->pcb->pid);
 	sem_post(&mutex_cola_block);
-	actualizar_estado_pcb_y_saco_socket_cpu(pcb_quantum->pcb, BLOCK);
+	actualizar_estado_pcb(pcb_quantum->pcb, BLOCK);
 	libero_pcb(pcb_out);
 	agregar_cpu_disponible(socket_conexion);
 
