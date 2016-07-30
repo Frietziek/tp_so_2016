@@ -163,7 +163,7 @@ void atender_seniales(int signum) {
 			sem_wait(&s_matar_cpu);
 		} else {
 			envio_header_a_proceso(socket_nucleo, PROCESO_NUCLEO,
-			MENSAJE_SIGINT, "Fallo al enviar Desconexion al Nucleo.");
+			MENSAJE_DESCONEXION_CPU, "Fallo al enviar Desconexion al Nucleo.");
 		}
 		cambio_proceso_activo(-1);
 		sem_post(&s_cpu_finaliza);
