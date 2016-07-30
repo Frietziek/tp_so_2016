@@ -379,7 +379,7 @@ void atender_consola(t_paquete *paquete_buffer, int socket_consola) {
 				socket_consola);
 
 		bool eliminar_proceso_logica(t_fila_tabla_procesos *proceso) {
-			return (pcb_a_eliminar_de_lista->pid = proceso->pcb->pid);
+			return (pcb_a_eliminar_de_lista->pid == proceso->pcb->pid);
 
 		}
 
