@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <unistd.h> // Funcion sleep y close
 #include <pthread.h>
+#include <semaphore.h>
 #include <commons/config.h>
 #include <comunicaciones.h>
 #include <serializacion.h>
