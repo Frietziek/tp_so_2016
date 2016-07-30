@@ -239,8 +239,12 @@ void atender_umc(t_paquete *paquete, int socket_conexion) {
 				pid_duro_de_matar->pid);
 		sem_post(&mutex_cola_exit);
 
-		free(pid_duro_de_matar);
-		libero_pcb(pcb_para_matar);
+		sem_wait(&mutex_lista_procesos);
+		eliminar_proceso_de_lista_procesos_con_pid(pid_duro_de_matar->pid);
+		sem_post(&mutex_lista_procesos);
+
+		//free(pid_duro_de_matar);
+		//libero_pcb(pcb_para_matar);
 
 		break;
 	case ERROR_INICIALIZAR_PROGRAMA: //recibo un t_pid con el pid del proceso a eliminar
@@ -428,7 +432,7 @@ void eliminar_proceso_de_lista_procesos_con_pid(int pid) {
 
 	bool eliminar_proceso_logica(t_fila_tabla_procesos *proceso) {
 		if (proceso->pcb != NULL)
-			return (pid = proceso->pcb->pid);
+			return (pid == proceso->pcb->pid);
 		else
 			return false;
 	}
@@ -1425,13 +1429,13 @@ void monitorear_configuraciones() {
 					(struct inotify_event *) &buffer_eventos[offset]; //Obtengo el evento
 
 			//if (evento->mask & IN_MODIFY) {
-				//log_trace(logger_manager, "[IONOTIFY] El archivo de configuraciones fue modificado, actualizando datos...");
+			//log_trace(logger_manager, "[IONOTIFY] El archivo de configuraciones fue modificado, actualizando datos...");
 
-				cargar_nuevas_configuraciones_del_nucleo(
-				PATH_CONFIGURACIONES_NUCLEO, configuracion);
+			cargar_nuevas_configuraciones_del_nucleo(
+			PATH_CONFIGURACIONES_NUCLEO, configuracion);
 
-				//log_trace(logger_manager, "[IONOTIFY] Las configuraciones fueron actualizadas con exito!");
-				//log_trace(logger_manager, "[IONOTIFY] Ahora los valores son los siguientes: QUANTUM=%i, QUANTUM_SLEEP=%i" , configuracion->quantum, configuracion->quantum_sleep);
+			//log_trace(logger_manager, "[IONOTIFY] Las configuraciones fueron actualizadas con exito!");
+			//log_trace(logger_manager, "[IONOTIFY] Ahora los valores son los siguientes: QUANTUM=%i, QUANTUM_SLEEP=%i" , configuracion->quantum, configuracion->quantum_sleep);
 			//}
 			offset += sizeof(struct inotify_event) + evento->len;
 		}
