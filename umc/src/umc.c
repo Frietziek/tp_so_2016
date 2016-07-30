@@ -28,6 +28,7 @@ static pthread_mutex_t mutex_lista_cpus = PTHREAD_MUTEX_INITIALIZER;
 
 int main(void) {
 	//creo archivo log
+
 	log_umc = log_create("umc.out", "Proceso_UMC", 1, LOG_LEVEL_INFO);
 
 	// Estructura de configuracion de la UMC
@@ -216,7 +217,7 @@ void atender_cpu(t_paquete *paquete, int socket_conexion,
 		escribir_pagina(paquete->payload, socket_conexion);
 		break;
 	case MENSAJE_CAMBIO_PROCESO_ACTIVO:
-		log_info(log_umc, "Cambio de proceso activo");
+		log_info(log_umc, "Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo Cambio de proceso activo");
 		cambiar_proceso_activo(paquete->payload, socket_conexion);
 		break;
 	default:
@@ -924,17 +925,18 @@ void finalizar_programa(void *buffer, int id_mensaje) {
 	t_programa *programa = malloc(sizeof(t_programa));
 	deserializar_programa(buffer, programa);
 
-
-
-
 	t_id_mensaje * mensaje = malloc(sizeof(t_id_mensaje));
 	mensaje->id_mensaje = id_mensaje;
-	buffer_programas[programa->id_programa] = mensaje;
+
 
 	//primero espera que deje de ejecutar lo que sea de ese programa
 	if (id_mensaje == MENSAJE_MATAR_PROGRAMA){
+		log_info(log_umc,"TEST Espero por el post de matar programa ...");
 		sem_wait(&matar_programa);
+		log_info(log_umc,"TEST Hizo el post de matar programa");
 	}
+
+	buffer_programas[programa->id_programa] = mensaje;
 
 	t_fila_tabla_pagina * tabla = (t_fila_tabla_pagina *) list_get(lista_tablas,
 			programa->id_programa);
@@ -1818,14 +1820,18 @@ void cambiar_proceso_activo(void * buffer, int socket) {
 		log_info(log_umc,"Finaliza un CPU");
 		finalizar_cpu(socket);
 	}else if(programa->id_programa == 0){
+		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
+		cpu->pid = programa->id_programa;
+		log_info(log_umc,"TEST Me llega cambiar proceso activo a 0");
 		sem_post(&matar_programa);
+		log_info(log_umc,"TEST Hago el post de matar programa");
 	}else{
 		flush_programa_tlb(programa->id_programa);
 		t_cpu * cpu = (t_cpu *) list_find(lista_cpus, (void*) es_cpu);
 		cpu->pid = programa->id_programa;
-		if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
-			log_error(log_umc, "Error de comunicacion");
-		}
+	}
+	if (enviar_header(socket, header_cpu) < sizeof(header_cpu)) {
+		log_error(log_umc, "Error de comunicacion");
 	}
 	free(programa);
 }
