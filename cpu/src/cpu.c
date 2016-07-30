@@ -103,6 +103,7 @@ void inicio_seniales_semaforos() {
 	matar_cpu = 0;
 	// Inicio variable para E/S
 	entrada_salida = 0;
+	matar_cpu_sigint = 0;
 }
 
 void cierro_cpu(t_config_cpu* configuracion) {
@@ -158,7 +159,7 @@ void atender_seniales(int signum) {
 	case SIGINT:	//control C
 
 		log_trace(logger_manager, "Se recibio senial de cierre de proceso.");
-		matar_cpu = 1;
+		matar_cpu_sigint = 1;
 		if (cpu_ocupada == 1) {
 			sem_wait(&s_matar_cpu);
 		} else {
@@ -396,7 +397,7 @@ void cambio_proceso_activo(int id_programa) {
 void ejecuto_instrucciones() {
 	fin_proceso = 0;
 	while (pcb_quantum->quantum != FIN_QUANTUM && !fin_proceso && !wait_nucleo
-			&& !matar_proceso && !excepcion_umc && !entrada_salida && !matar_cpu) {
+			&& !matar_proceso && !excepcion_umc && !entrada_salida && !matar_cpu && !matar_cpu_sigint) {
 
 		char *instruccion = devuelve_instruccion_a_ejecutar();
 
@@ -489,6 +490,11 @@ int devuelve_id_mensaje() {
 		log_info(logger_manager,
 				"Se envia PCB al nucleo por MENSAJE_MATAR_CPU");
 		matar_cpu = 0;
+	} else if (matar_cpu_sigint){
+		id_mensaje = MENSAJE_SIGINT;
+		log_info(logger_manager,
+				"Se envia PCB al nucleo por MENSAJE_SIGINT");
+		matar_cpu_sigint = 0;
 	} else {
 		id_mensaje = MENSAJE_QUANTUM;
 		log_info(logger_manager, "Finaliza Quantum.");
