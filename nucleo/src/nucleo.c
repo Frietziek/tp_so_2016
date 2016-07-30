@@ -412,7 +412,7 @@ void respuesta_matar(void * buffer, int socket_cpu) {
 	sem_post(&mutex_cola_exec);
 
 	agregar_cpu_disponible(socket_cpu);
-	sem_post(&cant_cpu);		//todo tener en cuenta
+	//sem_post(&cant_cpu);		//todo tener en cuenta
 
 	sem_wait(&mutex_cola_exit);
 	queue_push(cola_exit, pcb_a_matar);
