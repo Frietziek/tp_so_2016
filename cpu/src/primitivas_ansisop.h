@@ -42,6 +42,13 @@ int calcula_paginas_variable(t_puntero direccion_variable);
 void leo_variable_desde_UMC(t_puntero direccion_variable, int pagina);
 int calcula_tamanio_variable(t_puntero direccion_variable,
 		t_pagina_pedido *p_pagina, int pagina);
+int calcula_tamanio_variable_completa(t_puntero direccion_variable,
+		t_pagina_pedido_completa *p_pagina, int pagina);
 int variable_en_una_pagina(t_puntero direccion_variable,
 		t_pagina_pedido *pagina);
+int variable_en_una_pagina_completa(t_puntero direccion_variable,
+		t_pagina_pedido_completa *pagina);
+int calcula_paginas_asignacion_variable(t_puntero direccion);
+int escribo_variable_a_UMC(t_puntero direccion_variable, int pagina,
+		t_valor_variable *valor, int posicion);
 #endif /* SRC_PRIMITIVAS_ANSISOP_H_ */

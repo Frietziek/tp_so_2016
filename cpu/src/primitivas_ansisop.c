@@ -93,25 +93,25 @@ void ansisop_asignar(t_puntero direccion, t_valor_variable valor) {
 	log_info(logger_manager, "Asignando en: %d el valor: %i.", direccion,
 			valor);
 
-	t_pagina_pedido_completa *p_pagina = malloc(
-			sizeof(t_pagina_pedido_completa));
-	p_pagina->pagina = calcula_pagina(direccion);
-	p_pagina->offset = calcula_offset(direccion);
-	p_pagina->tamanio = sizeof(int);
-	p_pagina->valor = malloc(sizeof(int));
-	memcpy(p_pagina->valor, &valor, p_pagina->tamanio);
-	t_buffer *buffer = serializar_pagina_pedido_completa(p_pagina);
+	int cantidad_paginas = calcula_paginas_asignacion_variable(direccion);
 
-	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
-	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",
-			buffer);
-	sem_wait(&s_escribir_pagina);
+	log_info(logger_manager, "La variable empieza %i con tamanio %i", direccion,
+			sizeof(int));
+	log_info(logger_manager, "La variable esta en %i pagina(s)",
+			cantidad_paginas);
+
+	int pagina;
+	int posicion_variable = 0;
+	for (pagina = 0; pagina < cantidad_paginas; ++pagina) {
+		posicion_variable += escribo_variable_a_UMC(direccion, pagina, &valor,
+				posicion_variable);
+		sem_wait(&s_escribir_pagina);
+		if (excepcion_umc) {
+			break;
+		}
+	}
+
 	sem_post(&s_instruccion_finalizada);
-
-	free(p_pagina->valor);
-	free(p_pagina);
-	free(buffer->contenido_buffer);
-	free(buffer);
 }
 
 t_valor_variable ansisop_obtener_valor_compartida(t_nombre_compartida variable) {
@@ -327,8 +327,6 @@ void ansisop_wait(t_nombre_semaforo semaforo) {
 	envio_buffer_a_proceso(socket_nucleo, PROCESO_NUCLEO, MENSAJE_WAIT,
 			"Fallo al enviar wait al Nucleo.", buffer);
 
-
-
 	free(p_semaforo);
 	free(buffer->contenido_buffer);
 	free(buffer);
@@ -384,6 +382,65 @@ int calcula_paginas_variable(t_puntero direccion_variable) {
 	return pagina_tamanio - pagina_start + 1;
 }
 
+int escribo_variable_a_UMC(t_puntero direccion_variable, int pagina,
+		t_valor_variable *valor, int posicion) {
+
+	t_pagina_pedido_completa *p_pagina = malloc(
+			sizeof(t_pagina_pedido_completa));
+	p_pagina->pagina = calcula_pagina(direccion_variable) + pagina;
+	p_pagina->offset = calcula_offset_instruccion(direccion_variable, pagina);
+	p_pagina->tamanio = calcula_tamanio_variable_completa(direccion_variable,
+			p_pagina, pagina); // sizeof(int);
+	p_pagina->valor = malloc(sizeof(char) * p_pagina->tamanio);
+	memcpy(p_pagina->valor, valor + posicion, p_pagina->tamanio);
+	t_buffer *buffer = serializar_pagina_pedido_completa(p_pagina);
+
+	log_info(logger_manager, "Escribo en UMC pag %i off %i tamanio %i",
+			p_pagina->pagina, p_pagina->offset, p_pagina->tamanio);
+
+	envio_buffer_a_proceso(socket_umc, PROCESO_UMC,
+	MENSAJE_ESCRIBIR_PAGINA, "Fallo al enviar escritura de pagina a UMC.",
+			buffer);
+
+	return p_pagina->tamanio;
+}
+
+int calcula_tamanio_variable(t_puntero direccion_variable,
+		t_pagina_pedido *p_pagina, int pagina) {
+	int tamanio =
+			(variable_en_una_pagina(direccion_variable, p_pagina)) ?
+					sizeof(int) : tamanio_pagina - p_pagina->offset;
+	return (pagina == 0) ?
+			tamanio :
+			sizeof(int) - (tamanio_pagina - calcula_offset(direccion_variable));
+}
+
+int calcula_tamanio_variable_completa(t_puntero direccion_variable,
+		t_pagina_pedido_completa *p_pagina, int pagina) {
+	int tamanio =
+			(variable_en_una_pagina_completa(direccion_variable, p_pagina)) ?
+					sizeof(int) : tamanio_pagina - p_pagina->offset;
+	return (pagina == 0) ?
+			tamanio :
+			sizeof(int) - (tamanio_pagina - calcula_offset(direccion_variable));
+}
+
+int variable_en_una_pagina(t_puntero direccion_variable,
+		t_pagina_pedido *pagina) {
+	return (calcula_pagina(direccion_variable + sizeof(int)) == pagina->pagina);
+}
+
+int variable_en_una_pagina_completa(t_puntero direccion_variable,
+		t_pagina_pedido_completa *pagina) {
+	return (calcula_pagina(direccion_variable + sizeof(int)) == pagina->pagina);
+}
+
+int calcula_paginas_asignacion_variable(t_puntero direccion) {
+	int pagina_start = calcula_pagina(direccion);
+	int pagina_tamanio = calcula_pagina(direccion + sizeof(int));
+	return pagina_tamanio - pagina_start + 1;
+}
+
 void leo_variable_desde_UMC(t_puntero direccion_variable, int pagina) {
 	t_pagina_pedido *p_pagina = malloc(sizeof(t_pagina_pedido));
 	p_pagina->pagina = calcula_pagina(direccion_variable) + pagina;
@@ -403,19 +460,4 @@ void leo_variable_desde_UMC(t_puntero direccion_variable, int pagina) {
 	free(p_pagina);
 	free(buffer->contenido_buffer);
 	free(buffer);
-}
-
-int calcula_tamanio_variable(t_puntero direccion_variable,
-		t_pagina_pedido *p_pagina, int pagina) {
-	int tamanio =
-			(variable_en_una_pagina(direccion_variable, p_pagina)) ?
-					sizeof(int) : tamanio_pagina - p_pagina->offset;
-	return (pagina == 0) ?
-			tamanio :
-			sizeof(int) - (tamanio_pagina - calcula_offset(direccion_variable));
-}
-
-int variable_en_una_pagina(t_puntero direccion_variable,
-		t_pagina_pedido *pagina) {
-	return (calcula_pagina(direccion_variable + sizeof(int)) == pagina->pagina);
 }
