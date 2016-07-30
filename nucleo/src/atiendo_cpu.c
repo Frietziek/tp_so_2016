@@ -129,10 +129,35 @@ void atender_sigint(int socket_cpu) {
 
 		queue_pop_cpu(cola_cpus, socket_cpu);
 
-		enviar_header_completado(socket_umc, PROCESO_UMC,
-		MENSAJE_MATAR_PROGRAMA);
+		// ENVIO TERMINAR AL UMC
 
-		libero_pcb(pcb_out);
+		t_pid *finalizar = malloc(sizeof(t_pid));
+
+		finalizar->pid = fila->pcb->pid;
+
+		t_buffer *buffer_finalizar = serializar_pid(finalizar);
+
+		t_header *header_finalizar_umc = malloc(sizeof(t_header));
+
+		header_finalizar_umc->id_proceso_emisor = PROCESO_NUCLEO;
+		header_finalizar_umc->id_proceso_receptor = PROCESO_UMC;
+		header_finalizar_umc->id_mensaje = MENSAJE_MATAR_PROGRAMA;
+		header_finalizar_umc->longitud_mensaje =
+				buffer_finalizar->longitud_buffer;
+
+		if (enviar_buffer(socket_umc, header_finalizar_umc, buffer_finalizar)
+				< sizeof(t_header) + buffer_finalizar->longitud_buffer) {
+			perror("Fallo enviar buffer finalizar umc");
+		}
+
+		log_info(logger_manager, "Se mando a la UMC a finalizar el pid %d",
+				finalizar->pid);
+
+		free(finalizar);
+		free(buffer_finalizar);
+		free(header_finalizar_umc);
+
+		//libero_pcb(pcb_out);
 	}
 	sem_post(&mutex_lista_procesos);
 }
